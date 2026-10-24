@@ -28,3 +28,10 @@ config="promisedend.mixins.json"
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="geckolib"
+    type="required"
+    versionRange="[${geckolib_version},5.6)"
+    ordering="NONE"
+    side="BOTH"

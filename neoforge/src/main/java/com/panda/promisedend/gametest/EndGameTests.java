@@ -61,7 +61,17 @@ public final class EndGameTests {
         FUNCTIONS.register("act_one_goals_by_inventory", () -> EndGameTests::actOneGoalsByInventory);
         FUNCTIONS.register("codex_reset_command", () -> EndGameTests::codexResetCommand);
         FUNCTIONS.register("void_anchor_unloaded_neighbour", () -> EndGameTests::voidAnchorUnloadedNeighbour);
+        FUNCTIONS.register("crystal_warden_stats", () -> EndGameTests::crystalWardenStats);
+        FUNCTIONS.register("crystal_warden_lock_then_beam", () -> EndGameTests::crystalWardenLockThenBeam);
+        FUNCTIONS.register("crystal_warden_cover_breaks_lock", () -> EndGameTests::crystalWardenCoverBreaksLock);
+        FUNCTIONS.register("construct_assets_match", () -> EndGameTests::constructAssetsMatch);
+        FUNCTIONS.register("crystal_warden_beam_cap_and_rest", () -> EndGameTests::crystalWardenBeamCapAndRest);
+        FUNCTIONS.register("crystal_warden_ignores_the_dragon", () -> EndGameTests::crystalWardenIgnoresTheDragon);
+        FUNCTIONS.register("crystal_warden_shatters_and_drops", () -> EndGameTests::crystalWardenShattersAndDrops);
     }
+
+    /** Tests that need longer than the default 100 ticks. */
+    private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220);
 
     private EndGameTests() {}
 
@@ -74,7 +84,8 @@ public final class EndGameTests {
         Holder<TestEnvironmentDefinition<?>> env = event.registerEnvironment(PromisedEnd.id("default"));
         for (var entry : FUNCTIONS.getEntries()) {
             ResourceKey<Consumer<GameTestHelper>> key = ResourceKey.create(Registries.TEST_FUNCTION, entry.getId());
-            event.registerTest(key.identifier(), new FunctionGameTestInstance(key, new TestData<>(env, ARENA, 100, 0, true)));
+            int timeout = TIMEOUTS.getOrDefault(entry.getId().getPath(), 100);
+            event.registerTest(key.identifier(), new FunctionGameTestInstance(key, new TestData<>(env, ARENA, timeout, 0, true)));
         }
     }
 
@@ -97,6 +108,10 @@ public final class EndGameTests {
             if (!lang.has(key)) missing.add(key);
         });
         ModBlocks.BLOCKS.getEntries().forEach(h -> {
+            String key = h.get().getDescriptionId();
+            if (!lang.has(key)) missing.add(key);
+        });
+        com.panda.promisedend.registry.ModEntities.ENTITIES.getEntries().forEach(h -> {
             String key = h.get().getDescriptionId();
             if (!lang.has(key)) missing.add(key);
         });
@@ -648,6 +663,276 @@ public final class EndGameTests {
     }
 
     /** Act I's "Cross to the Rim" by distance, so it can be done with the terrain off (RimProgress). */
+    // ---- the Crystal Warden ---------------------------------------------------------------------------------------
+
+    private static com.panda.promisedend.entity.CrystalWarden warden(GameTestHelper helper, int x, int y, int z) {
+        return helper.spawn(com.panda.promisedend.registry.ModEntities.CRYSTAL_WARDEN.get(), new BlockPos(x, y, z));
+    }
+
+    /** A husk with no AI stands in for the target: it never moves, and magic damage counts on it as on a player. */
+    private static net.minecraft.world.entity.Mob dummy(GameTestHelper helper, int x, int y, int z) {
+        var husk = helper.spawn(net.minecraft.world.entity.EntityTypes.HUSK, new BlockPos(x, y, z));
+        husk.setNoAi(true);
+        return husk;
+    }
+
+    /**
+     * 30 health and 4 armour; it flies, takes no fall damage (by the vanilla tag), has its loot table, its sounds exist,
+     * and its beam's damage type is loaded and tagged to go through armour and the hurt cooldown without knockback.
+     */
+    private static void crystalWardenStats(GameTestHelper helper) {
+        var warden = warden(helper, 3, 3, 3);
+        List<String> bad = new ArrayList<>();
+        if (warden.getMaxHealth() != 30.0F) bad.add("max health " + warden.getMaxHealth());
+        if (warden.getArmorValue() != 4) bad.add("armour " + warden.getArmorValue());
+        if (!(warden.getNavigation() instanceof net.minecraft.world.entity.ai.navigation.FlyingPathNavigation)) bad.add("doesn't fly: " + warden.getNavigation());
+        if (!warden.is(net.minecraft.tags.EntityTypeTags.FALL_DAMAGE_IMMUNE)) bad.add("not in #minecraft:fall_damage_immune");
+        if (warden.causeFallDamage(20, 1, helper.getLevel().damageSources().fall())) bad.add("takes fall damage");
+        if (!warden.is(com.panda.promisedend.registry.ModTags.CONSTRUCTS)) bad.add("not in #promisedend:constructs");
+        var beam = helper.getLevel().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).get(com.panda.promisedend.entity.CrystalWarden.BEAM_DAMAGE_TYPE);
+        if (beam.isEmpty()) {
+            bad.add("no damage type promisedend:crystal_beam");
+        } else {
+            for (var tag : List.of(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR, net.minecraft.tags.DamageTypeTags.BYPASSES_COOLDOWN,
+                    net.minecraft.tags.DamageTypeTags.NO_KNOCKBACK)) {
+                if (!beam.get().is(tag)) bad.add("crystal_beam not in #" + tag.location());
+            }
+            if (beam.get().value().scaling() != net.minecraft.world.damagesource.DamageScaling.NEVER) bad.add("crystal_beam scales with difficulty");
+        }
+        String loot = warden.getLootTable().map(k -> k.identifier().toString()).orElse("none");
+        if (!loot.equals("promisedend:entities/crystal_warden")) bad.add("loot table " + loot);
+        else if (helper.getLevel().getServer().reloadableRegistries().getLootTable(warden.getLootTable().orElseThrow())
+                == net.minecraft.world.level.storage.loot.LootTable.EMPTY) bad.add("the loot table doesn't load");
+        for (var sound : List.of(com.panda.promisedend.registry.ModSounds.CRYSTAL_WARDEN_AMBIENT, com.panda.promisedend.registry.ModSounds.CRYSTAL_WARDEN_HURT,
+                com.panda.promisedend.registry.ModSounds.CRYSTAL_WARDEN_DEATH, com.panda.promisedend.registry.ModSounds.CRYSTAL_WARDEN_LOCK_ON,
+                com.panda.promisedend.registry.ModSounds.CRYSTAL_WARDEN_BEAM, com.panda.promisedend.registry.ModSounds.CRYSTAL_WARDEN_POWER_DOWN)) {
+            if (net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.getKey(sound.get()) == null) bad.add("unregistered sound " + sound.get().location());
+        }
+        if (!bad.isEmpty()) helper.fail("Crystal Warden: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The lock-on is a full second of tell with no damage (still locking at 18 ticks, beaming by 23), then the beam deals
+     * 2 a second: a point on its first tick and one every 10 ticks after, through armour.
+     */
+    private static void crystalWardenLockThenBeam(GameTestHelper helper) {
+        var warden = warden(helper, 2, 3, 6);
+        var target = dummy(helper, 9, 1, 6);
+        float full = target.getHealth();
+        warden.startLockOn(target);
+        helper.runAtTickTime(18, () -> {
+            if (warden.phase() != com.panda.promisedend.entity.CrystalWarden.Phase.LOCK) helper.fail("at 18 ticks it should still be locking on, is " + warden.phase());
+            if (target.getHealth() != full) helper.fail("damage during the lock-on: " + target.getHealth());
+        });
+        helper.runAtTickTime(23, () -> {
+            if (!warden.isBeaming(target)) helper.fail("at 23 ticks it should be beaming, is " + warden.phase());
+            if (target.getHealth() != full - 1) helper.fail("the beam's first tick should deal 1, health " + target.getHealth());
+        });
+        helper.runAtTickTime(66, () -> {
+            // beam ticks 0, 10, 20, 30 and 40 have landed by now: 5 points in a little over 2 s
+            float dealt = full - target.getHealth();
+            if (dealt != 5) helper.fail("after about 2 s of beam it dealt " + dealt + ", wanted 5 (2 a second)");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Breaking line of sight ends the lock-on: no beam, no damage. The dummy stays its target, so once its rest is over it
+     * would lock on again by itself; it doesn't while the wall stands, and does within half a second of the wall going.
+     */
+    private static void crystalWardenCoverBreaksLock(GameTestHelper helper) {
+        var warden = warden(helper, 2, 3, 6);
+        var target = dummy(helper, 9, 1, 6);
+        float full = target.getHealth();
+        warden.setTarget(target);
+        warden.startLockOn(target);
+        helper.runAtTickTime(8, () -> wall(helper, net.minecraft.world.level.block.Blocks.STONE));
+        helper.runAtTickTime(12, () -> {
+            if (warden.phase() != com.panda.promisedend.entity.CrystalWarden.Phase.IDLE) helper.fail("behind cover it still is " + warden.phase());
+        });
+        // its rest (40 ticks) ended about tick 49: from then on only the wall keeps it idle
+        helper.runAtTickTime(68, () -> {
+            if (target.getHealth() != full) helper.fail("the target took damage behind cover: " + target.getHealth());
+            if (warden.phase() != com.panda.promisedend.entity.CrystalWarden.Phase.IDLE) helper.fail("it locked on through the wall: " + warden.phase());
+            if (warden.getTarget() != target) helper.fail("it lost its target, so the wall proved nothing: " + warden.getTarget());
+            wall(helper, net.minecraft.world.level.block.Blocks.AIR);
+        });
+        helper.runAtTickTime(78, () -> {
+            if (warden.phase() == com.panda.promisedend.entity.CrystalWarden.Phase.IDLE) helper.fail("with the wall gone it didn't lock on again");
+            helper.succeed();
+        });
+    }
+
+    private static void wall(GameTestHelper helper, net.minecraft.world.level.block.Block block) {
+        for (int y = 1; y <= 8; y++) for (int z = 2; z <= 10; z++) helper.setBlock(new BlockPos(6, y, z), block);
+    }
+
+    /**
+     * A beam in plain sight is held for BEAM_TICKS (4 s, 8 points) and no longer; then it rests REST_TICKS (2 s) and
+     * locks on again by itself.
+     */
+    private static void crystalWardenBeamCapAndRest(GameTestHelper helper) {
+        var warden = warden(helper, 2, 3, 6);
+        var target = dummy(helper, 9, 1, 6);
+        float full = target.getHealth();
+        warden.setTarget(target);
+        warden.startLockOn(target);
+        // lock-on ends about tick 20, the beam about tick 101, the rest about tick 141
+        helper.runAtTickTime(97, () -> {
+            if (!warden.isBeaming(target)) helper.fail("at 97 ticks it should still be beaming, is " + warden.phase());
+        });
+        helper.runAtTickTime(106, () -> {
+            if (warden.phase() != com.panda.promisedend.entity.CrystalWarden.Phase.IDLE) helper.fail("the beam ran past 4 s: " + warden.phase());
+            if (full - target.getHealth() != 8) helper.fail("a 4 s beam should deal 8, dealt " + (full - target.getHealth()));
+        });
+        helper.runAtTickTime(136, () -> {
+            if (warden.phase() != com.panda.promisedend.entity.CrystalWarden.Phase.IDLE) helper.fail("it should be resting, is " + warden.phase());
+            if (full - target.getHealth() != 8) helper.fail("damage while resting: dealt " + (full - target.getHealth()));
+        });
+        helper.runAtTickTime(150, () -> {
+            if (warden.phase() == com.panda.promisedend.entity.CrystalWarden.Phase.IDLE) helper.fail("after its rest it didn't lock on again");
+            helper.succeed();
+        });
+    }
+
+    /** It never works on the dragon or on another construct, even locked on to one; it does on anything else. */
+    private static void crystalWardenIgnoresTheDragon(GameTestHelper helper) {
+        var warden = warden(helper, 2, 3, 6);
+        var other = warden(helper, 9, 3, 6);
+        var dragon = net.minecraft.world.entity.EntityTypes.ENDER_DRAGON.create(helper.getLevel(), net.minecraft.world.entity.EntitySpawnReason.MOB_SUMMONED);
+        var husk = dummy(helper, 5, 1, 2);
+        List<String> bad = new ArrayList<>();
+        if (dragon == null || warden.canAttack(dragon)) bad.add("it can attack the dragon");
+        if (warden.canAttack(other)) bad.add("it can attack another construct");
+        if (!warden.canAttack(husk)) bad.add("it can't attack a husk, so the test proves nothing");
+        if (!bad.isEmpty()) {
+            helper.fail("Crystal Warden targets: " + bad);
+            return;
+        }
+        float otherHealth = other.getHealth();
+        warden.startLockOn(other);
+        helper.runAtTickTime(3, () -> {
+            if (warden.phase() != com.panda.promisedend.entity.CrystalWarden.Phase.IDLE) helper.fail("it kept a lock on another construct: " + warden.phase());
+        });
+        helper.runAtTickTime(40, () -> {
+            if (other.getHealth() != otherHealth) helper.fail("it hurt another construct: " + other.getHealth());
+            helper.succeed();
+        });
+    }
+
+    /** Killed by a player, it shatters at once (gone within a couple of ticks, no corpse) and drops a Crystal Fragment. */
+    private static void crystalWardenShattersAndDrops(GameTestHelper helper) {
+        var warden = warden(helper, 4, 3, 4);
+        var player = helper.makeMockServerPlayerInLevel();
+        warden.hurtServer(helper.getLevel(), helper.getLevel().damageSources().playerAttack(player), 1000.0F);
+        helper.runAtTickTime(3, () -> {
+            if (!warden.isRemoved()) helper.fail("3 ticks after dying it is still there (death time " + warden.deathTime + ")");
+            var drops = helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, warden.getBoundingBox().inflate(4),
+                    e -> e.getItem().is(ModItems.CRYSTAL_FRAGMENT.get()));
+            if (drops.isEmpty()) helper.fail("a player's kill dropped no Crystal Fragment");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The shipped rig matches the class (the design and Java contract): the animation file has exactly the clips the class
+     * plays, every clip moves only bones the model has, the texture and its glowmask exist, and every sound event of ours
+     * has a sounds.json entry that points at a vanilla event that exists.
+     */
+    private static void constructAssetsMatch(GameTestHelper helper) {
+        List<String> bad = new ArrayList<>();
+        String base = "/assets/promisedend/";
+        var anim = readJson(base + "geckolib/animations/entity/crystal_warden.animation.json");
+        var geo = readJson(base + "geckolib/models/entity/crystal_warden.geo.json");
+        if (anim == null || geo == null) {
+            helper.fail("the warden's animation or model file is missing from the jar");
+            return;
+        }
+        var clips = new java.util.TreeSet<>(anim.getAsJsonObject("animations").keySet());
+        if (!clips.equals(new java.util.TreeSet<>(com.panda.promisedend.entity.CrystalWarden.CLIPS)))
+            bad.add("clips " + clips + " but the class plays " + com.panda.promisedend.entity.CrystalWarden.CLIPS);
+        var bones = new java.util.HashSet<String>();
+        geo.getAsJsonArray("minecraft:geometry").get(0).getAsJsonObject().getAsJsonArray("bones")
+                .forEach(b -> bones.add(b.getAsJsonObject().get("name").getAsString()));
+        anim.getAsJsonObject("animations").entrySet().forEach(e -> e.getValue().getAsJsonObject().getAsJsonObject("bones").keySet().forEach(b -> {
+            if (!bones.contains(b)) bad.add(e.getKey() + " moves a bone the model lacks: " + b);
+        }));
+        var lockOn = anim.getAsJsonObject("animations").getAsJsonObject("lock_on");
+        if (lockOn == null || Math.round(lockOn.get("animation_length").getAsDouble() * 20) != com.panda.promisedend.entity.CrystalWarden.LOCK_ON_TICKS)
+            bad.add("the lock_on clip isn't LOCK_ON_TICKS long");
+        String lens = openLens(geo, anim);
+        if (lens != null) bad.add(lens);
+        for (String tex : List.of("textures/entity/crystal_warden.png", "textures/entity/crystal_warden_glowmask.png")) {
+            if (EndGameTests.class.getResource(base + tex) == null) bad.add("no " + tex);
+        }
+        var sounds = readJson(base + "sounds.json");
+        if (sounds == null) {
+            bad.add("no sounds.json");
+        } else {
+            for (var id : net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.keySet()) {
+                if (id.getNamespace().equals(PromisedEnd.MODID) && !sounds.has(id.getPath())) bad.add("no sounds.json entry for " + id);
+            }
+            var lang = net.minecraft.locale.Language.getInstance();
+            sounds.entrySet().forEach(e -> {
+                var subtitle = e.getValue().getAsJsonObject().get("subtitle");
+                if (subtitle == null || !lang.has(subtitle.getAsString())) bad.add(e.getKey() + " has no subtitle in en_us");
+            });
+            for (String key : List.of("death.attack.promisedend.crystal_beam", "death.attack.promisedend.crystal_beam.player")) {
+                if (!lang.has(key)) bad.add("no death message " + key);
+            }
+            sounds.entrySet().forEach(e -> e.getValue().getAsJsonObject().getAsJsonArray("sounds").forEach(v -> {
+                var o = v.getAsJsonObject();
+                if (o.has("type") && o.get("type").getAsString().equals("event")
+                        && !net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.containsKey(Identifier.parse(o.get("name").getAsString())))
+                    bad.add(e.getKey() + " plays a sound event that doesn't exist: " + o.get("name").getAsString());
+            }));
+        }
+        if (!bad.isEmpty()) helper.fail("construct assets: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Where the lens's face is with the front shutter open (the beam clip's first frame), from the shipped files: the lens
+     * cube's north face centre turned about the shutter's hinge, in blocks at the model's scale. Null when it matches
+     * CrystalWarden.LENS_HEIGHT and LENS_FORWARD to a hundredth of a block.
+     */
+    private static String openLens(com.google.gson.JsonObject geo, com.google.gson.JsonObject anim) {
+        com.google.gson.JsonObject lens = null, plate = null;
+        for (var b : geo.getAsJsonArray("minecraft:geometry").get(0).getAsJsonObject().getAsJsonArray("bones")) {
+            var o = b.getAsJsonObject();
+            if (o.get("name").getAsString().equals("lens")) lens = o;
+            if (o.get("name").getAsString().equals("plate_front")) plate = o;
+        }
+        if (lens == null || plate == null || !"plate_front".equals(lens.get("parent").getAsString())) return "no lens bone on plate_front";
+        var cube = lens.getAsJsonArray("cubes").get(0).getAsJsonObject();
+        var origin = cube.getAsJsonArray("origin");
+        var size = cube.getAsJsonArray("size");
+        var pivot = plate.getAsJsonArray("pivot");
+        double dy = origin.get(1).getAsDouble() + size.get(1).getAsDouble() / 2 - pivot.get(1).getAsDouble();
+        double dz = origin.get(2).getAsDouble() - pivot.get(2).getAsDouble();
+        double angle = -Math.toRadians(anim.getAsJsonObject("animations").getAsJsonObject("beam").getAsJsonObject("bones")
+                .getAsJsonObject("plate_front").getAsJsonObject("rotation").getAsJsonObject("0.0").getAsJsonArray("vector").get(0).getAsDouble());
+        double y = pivot.get(1).getAsDouble() + dy * Math.cos(angle) - dz * Math.sin(angle);
+        double z = pivot.get(2).getAsDouble() + dy * Math.sin(angle) + dz * Math.cos(angle);
+        double scale = com.panda.promisedend.entity.CrystalWarden.MODEL_SCALE / 16.0;
+        double height = y * scale, forward = -z * scale;
+        if (Math.abs(height - com.panda.promisedend.entity.CrystalWarden.LENS_HEIGHT) > 0.01
+                || Math.abs(forward - com.panda.promisedend.entity.CrystalWarden.LENS_FORWARD) > 0.01)
+            return String.format(java.util.Locale.ROOT, "the open lens is %.3f up, %.3f forward; the class says %.3f, %.3f", height, forward,
+                    com.panda.promisedend.entity.CrystalWarden.LENS_HEIGHT, com.panda.promisedend.entity.CrystalWarden.LENS_FORWARD);
+        return null;
+    }
+
+    private static com.google.gson.JsonObject readJson(String resource) {
+        try (var in = EndGameTests.class.getResourceAsStream(resource)) {
+            if (in == null) return null;
+            return com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (java.io.IOException e) {
+            return null;
+        }
+    }
+
     private static void rimProgressByDistance(GameTestHelper helper) {
         List<String> bad = new ArrayList<>();
         for (double[] p : new double[][] {{0, 0}, {149, 0}, {0, -460}, {320, 330}}) {

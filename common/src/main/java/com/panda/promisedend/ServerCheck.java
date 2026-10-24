@@ -13,7 +13,8 @@ import net.minecraft.world.level.Level;
  * {@code -PendServerCheck}), once the server has started it generates the End around (300, 0), checks the biome there
  * (the Shattered Rim, or with {@code terrain.enabled} off the End's own) and the Voidstone the Rim yields, and logs
  * {@code [promisedend servercheck] PASS} or {@code FAIL}. Booting to "Done" alone never generates an End chunk, so it
- * can't show that the worldgen runs without a client.
+ * can't show that the worldgen runs without a client. For the same reason it also makes and ticks a Crystal Warden
+ * there.
  */
 public final class ServerCheck {
     public static final String PROPERTY = "promisedend.servercheck";
@@ -59,6 +60,23 @@ public final class ServerCheck {
             }
         }
         PromisedEnd.LOGGER.info("[promisedend servercheck] voidstone within {} of {}: {}", RADIUS, centre, voidstone);
-        return voidstone < 200 ? "too little Voidstone around x=300: " + voidstone : null;
+        if (voidstone < 200) return "too little Voidstone around x=300: " + voidstone;
+        return construct(end, centre.above(26));
+    }
+
+    /** A Crystal Warden made, added and ticked on the server: its GeckoLib side and AI must load without a client. */
+    private static String construct(net.minecraft.server.level.ServerLevel end, BlockPos at) {
+        var warden = com.panda.promisedend.registry.ModEntities.CRYSTAL_WARDEN.get().create(end, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        if (warden == null) return "couldn't create a Crystal Warden";
+        warden.snapTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+        end.addFreshEntity(warden);
+        for (int i = 0; i < 40; i++) warden.tick();
+        PromisedEnd.LOGGER.info("[promisedend servercheck] crystal warden ticked 40 times at {}: health {}, phase {}, y {}", at,
+                warden.getHealth(), warden.phase(), String.format(java.util.Locale.ROOT, "%.2f", warden.getY()));
+        String failure = null;
+        if (warden.getMaxHealth() != 30.0F) failure = "the Crystal Warden has " + warden.getMaxHealth() + " max health";
+        else if (warden.getY() < at.getY() - 1) failure = "the Crystal Warden fell: y " + warden.getY();
+        warden.discard();
+        return failure;
     }
 }

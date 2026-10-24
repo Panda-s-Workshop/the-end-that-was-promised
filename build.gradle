@@ -27,6 +27,10 @@ allprojects {
     version = rootProject.mod_version
     group = rootProject.mod_group_id
 
+    repositories {
+        maven { url = "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/" }
+    }
+
     tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
         options.release = rootProject.java_version as int

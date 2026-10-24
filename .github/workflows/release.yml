@@ -75,6 +75,8 @@ jobs:
           loaders: neoforge
           game-versions: ${{ steps.version.outputs.mc }}
           java: 25
+          dependencies: |
+            geckolib(required){curseforge:388172}
 
       - name: Publish the Fabric jar
         uses: Kir-Antipov/mc-publish@v3.3
@@ -93,6 +95,7 @@ jobs:
           java: 25
           dependencies: |
             fabric-api(required){curseforge:306612}
+            geckolib(required){curseforge:388172}
 
       # both publish steps share one GitHub release, which takes the first step's (NeoForge) name
       - name: Name the GitHub release

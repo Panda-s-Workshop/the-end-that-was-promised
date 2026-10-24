@@ -1,0 +1,62 @@
+{
+  "entity.crystal_warden.ambient": {
+    "subtitle": "subtitles.promisedend.crystal_warden.ambient",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.chime",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.crystal_warden.hurt": {
+    "subtitle": "subtitles.promisedend.crystal_warden.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.hit",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
+  "entity.crystal_warden.death": {
+    "subtitle": "subtitles.promisedend.crystal_warden.death",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_cluster.break",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.crystal_warden.lock_on": {
+    "subtitle": "subtitles.promisedend.crystal_warden.lock_on",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.resonate",
+        "type": "event",
+        "pitch": 1.4
+      }
+    ]
+  },
+  "entity.crystal_warden.beam": {
+    "subtitle": "subtitles.promisedend.crystal_warden.beam",
+    "sounds": [
+      {
+        "name": "minecraft:entity.guardian.attack",
+        "type": "event",
+        "pitch": 1.5
+      }
+    ]
+  },
+  "entity.crystal_warden.power_down": {
+    "subtitle": "subtitles.promisedend.crystal_warden.power_down",
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.deactivate",
+        "type": "event",
+        "pitch": 1.6
+      }
+    ]
+  }
+}

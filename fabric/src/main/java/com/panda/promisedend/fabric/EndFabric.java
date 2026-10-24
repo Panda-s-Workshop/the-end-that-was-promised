@@ -38,6 +38,8 @@ public final class EndFabric implements ModInitializer {
                     return i < 0 ? FIRST.size() : i;
                 }))
                 .forEach(EndFabric::registerAll);
+        com.panda.promisedend.registry.ModEntities.attributes(
+                net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry::register);
 
         // terrain.enabled=false: a copy of the Rim's debris goes on every End biome in #promisedend:rim_fallback, where
         // the feature keeps to the ring; NeoForge reads the same from data/promisedend/neoforge/biome_modifier/

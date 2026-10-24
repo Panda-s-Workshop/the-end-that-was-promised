@@ -20,6 +20,8 @@ public final class EndNeoForge {
     public EndNeoForge(IEventBus modBus, ModContainer container) {
         PromisedEnd.init();
         modBus.addListener((RegisterEvent e) -> DeferredRegister.all().forEach(register -> registerInto(e, register)));
+        modBus.addListener((net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent e) ->
+                com.panda.promisedend.registry.ModEntities.attributes((type, attributes) -> e.put(type, attributes.build())));
         container.registerConfig(ModConfig.Type.SYNCED, NeoForgeConfig.SPEC);
         EndConfig.use(new NeoForgeConfig());
 

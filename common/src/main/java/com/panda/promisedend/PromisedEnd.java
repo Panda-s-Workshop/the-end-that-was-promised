@@ -2,7 +2,9 @@ package com.panda.promisedend;
 
 import com.mojang.logging.LogUtils;
 import com.panda.promisedend.registry.ModBlocks;
+import com.panda.promisedend.registry.ModEntities;
 import com.panda.promisedend.registry.ModItems;
+import com.panda.promisedend.registry.ModSounds;
 import com.panda.promisedend.registry.ModTabs;
 import com.panda.promisedend.registry.ModWorldgen;
 import java.util.List;
@@ -15,7 +17,8 @@ public final class PromisedEnd {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     /** The classes whose static DeferredRegisters hold the mod's content. */
-    private static final List<Class<?>> CONTENT = List.of(ModBlocks.class, ModItems.class, ModTabs.class, ModWorldgen.class);
+    private static final List<Class<?>> CONTENT = List.of(ModSounds.class, ModEntities.class, ModBlocks.class, ModItems.class, ModTabs.class,
+            ModWorldgen.class);
 
     private static boolean initialised;
 

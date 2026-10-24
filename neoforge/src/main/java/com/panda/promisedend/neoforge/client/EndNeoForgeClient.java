@@ -14,6 +14,14 @@ import net.neoforged.neoforge.event.GameShuttingDownEvent;
 public final class EndNeoForgeClient {
     public EndNeoForgeClient(IEventBus modBus, ModContainer container) {
         NeoForge.EVENT_BUS.addListener((GameShuttingDownEvent e) -> DevExit.onClientStopping());
+        modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) ->
+                com.panda.promisedend.client.ModRenderers.register(new com.panda.promisedend.client.ModRenderers.Sink() {
+                    @Override
+                    public <T extends net.minecraft.world.entity.Entity> void register(net.minecraft.world.entity.EntityType<? extends T> type,
+                            net.minecraft.client.renderer.entity.EntityRendererProvider<T> provider) {
+                        e.registerEntityRenderer(type, provider);
+                    }
+                }));
         PromisedEnd.openCodex = () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen());
     }
 }

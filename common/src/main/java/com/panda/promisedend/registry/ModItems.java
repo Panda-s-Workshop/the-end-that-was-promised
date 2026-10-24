@@ -34,6 +34,11 @@ public final class ModItems {
     public static final DeferredItem<HintItem> CRACKED_VOID_ANCHOR = ITEMS.registerItem("cracked_void_anchor",
             p -> new HintItem(p, "cracked_void_anchor", 2), p -> p.stacksTo(1));
 
+    // ---- constructs -------------------------------------------------------------------------------
+    public static final DeferredItem<Item> CRYSTAL_FRAGMENT = ITEMS.registerSimpleItem("crystal_fragment");
+    public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> CRYSTAL_WARDEN_SPAWN_EGG = ITEMS.registerItem("crystal_warden_spawn_egg",
+            net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.CRYSTAL_WARDEN.get()));
+
     // ---- the Promise Codex ------------------------------------------------------------------------
     public static final DeferredItem<com.panda.promisedend.item.PromiseCodexItem> PROMISE_CODEX = ITEMS.registerItem("promise_codex",
             com.panda.promisedend.item.PromiseCodexItem::new, p -> p.stacksTo(1));

@@ -1,0 +1,25 @@
+package com.panda.promisedend.registry;
+
+import com.panda.promisedend.PromisedEnd;
+import com.panda.promisedend.platform.registry.DeferredRegister;
+import java.util.function.Supplier;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.sounds.SoundEvent;
+
+/** The mod's sound events. Each one plays a vanilla sound for now (assets/promisedend/sounds.json) under our subtitle. */
+public final class ModSounds {
+    private static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(Registries.SOUND_EVENT, PromisedEnd.MODID);
+
+    public static final Supplier<SoundEvent> CRYSTAL_WARDEN_AMBIENT = sound("entity.crystal_warden.ambient");
+    public static final Supplier<SoundEvent> CRYSTAL_WARDEN_HURT = sound("entity.crystal_warden.hurt");
+    public static final Supplier<SoundEvent> CRYSTAL_WARDEN_DEATH = sound("entity.crystal_warden.death");
+    public static final Supplier<SoundEvent> CRYSTAL_WARDEN_LOCK_ON = sound("entity.crystal_warden.lock_on");
+    public static final Supplier<SoundEvent> CRYSTAL_WARDEN_BEAM = sound("entity.crystal_warden.beam");
+    public static final Supplier<SoundEvent> CRYSTAL_WARDEN_POWER_DOWN = sound("entity.crystal_warden.power_down");
+
+    private static Supplier<SoundEvent> sound(String name) {
+        return SOUNDS.register(name, SoundEvent::createVariableRangeEvent);
+    }
+
+    private ModSounds() {}
+}
