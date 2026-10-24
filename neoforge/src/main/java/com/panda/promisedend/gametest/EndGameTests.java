@@ -331,8 +331,9 @@ public final class EndGameTests {
     }
 
     /**
-     * Safe footing, in the real End's void gap (r = 700): the middle of a 9x9 platform counts, 2 blocks from its
-     * edge doesn't; a floor of bottom slabs counts through {@code #promisedend:void_safe_ground}.
+     * Safe footing, in the real End's void gap (r = 700): the middle of a 9x9 platform counts and so does one block in
+     * from its edge, the edge itself doesn't; the middle of a 3-wide bridge counts, a 1-wide bridge doesn't; a floor of
+     * bottom slabs counts through {@code #promisedend:void_safe_ground}.
      */
     private static void voidAnchorSafeGround(GameTestHelper helper) {
         var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
@@ -341,9 +342,9 @@ public final class EndGameTests {
             return;
         }
         int y = 64;
-        BlockPos stone = new BlockPos(700, y, 0), slabs = new BlockPos(700, y, 32);
+        BlockPos stone = new BlockPos(700, y, 0), slabs = new BlockPos(700, y, 32), bridges = new BlockPos(700, y, -32);
         // the test server's End isn't the real one: it has a floor a few blocks thick, so carve a true void first
-        for (BlockPos c : List.of(stone, slabs)) {
+        for (BlockPos c : List.of(stone, slabs, bridges)) {
             for (int dx = -10; dx <= 10; dx++) {
                 for (int dz = -10; dz <= 10; dz++) {
                     for (int dy = end.getMinY(); dy < end.getMinY() + 12; dy++) {
@@ -358,10 +359,18 @@ public final class EndGameTests {
                 end.setBlockAndUpdate(slabs.offset(dx, 0, dz), net.minecraft.world.level.block.Blocks.STONE_SLAB.defaultBlockState());
             }
         }
+        // a 3-wide bridge along x at bridges, a 1-wide one 6 blocks south of it
+        for (int dx = -6; dx <= 6; dx++) {
+            for (int dz = -1; dz <= 1; dz++) end.setBlockAndUpdate(bridges.offset(dx, 0, dz), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
+            end.setBlockAndUpdate(bridges.offset(dx, 0, 6), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
+        }
         List<String> bad = new ArrayList<>();
         if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.above())) bad.add("the platform's middle isn't safe");
-        if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(2, 1, 0))) bad.add("2 blocks from the void edge counts as safe (heights east: "
+        if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(3, 1, 0))) bad.add("one block in from the platform's edge isn't safe");
+        if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(4, 1, 0))) bad.add("the platform's edge block counts as safe (heights east: "
                 + end.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, stone.getX() + 5, stone.getZ()) + ", floor " + end.getMinY() + ")");
+        if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.above())) bad.add("the middle of a 3-wide bridge isn't safe");
+        if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.offset(0, 1, 6))) bad.add("a 1-wide bridge counts as safe");
         if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(0, 1, 9))) bad.add("the void itself counts as safe");
         // feet stand inside a bottom slab's block
         if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, slabs)) bad.add("a floor of bottom slabs isn't safe");

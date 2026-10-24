@@ -10,7 +10,8 @@ import net.minecraft.world.level.Level;
 
 /**
  * A development check of the End on a dedicated server: with {@code -Dpromisedend.servercheck=true} (Gradle
- * {@code -PendServerCheck}), once the server has started it generates the End around (300, 0) and logs
+ * {@code -PendServerCheck}), once the server has started it generates the End around (300, 0), checks the biome there
+ * (the Shattered Rim, or with {@code terrain.enabled} off the End's own) and the Voidstone the Rim yields, and logs
  * {@code [promisedend servercheck] PASS} or {@code FAIL}. Booting to "Done" alone never generates an End chunk, so it
  * can't show that the worldgen runs without a client.
  */
@@ -43,8 +44,11 @@ public final class ServerCheck {
         var biome = end.getBiome(centre);
         String id = biome.unwrapKey().map(k -> k.identifier().toString()).orElse("?");
         PromisedEnd.LOGGER.info("[promisedend servercheck] biome at {}: {}", centre, id);
-        if (!id.equals("promisedend:shattered_rim")) return "expected the Shattered Rim at x=300, got " + id;
-        if (!biome.is(TagKey.create(Registries.BIOME, Identifier.parse("c:is_end")))) return "the Shattered Rim isn't in #c:is_end";
+        boolean terrain = EndConfig.terrainEnabled();
+        PromisedEnd.LOGGER.info("[promisedend servercheck] terrain {}", terrain ? "on" : "off");
+        if (terrain && !id.equals("promisedend:shattered_rim")) return "expected the Shattered Rim at x=300, got " + id;
+        if (!terrain && id.startsWith(PromisedEnd.MODID + ":")) return "terrain is off, yet x=300 is " + id;
+        if (!biome.is(TagKey.create(Registries.BIOME, Identifier.parse("c:is_end")))) return id + " isn't in #c:is_end";
         int voidstone = 0;
         var block = ModBlocks.VOIDSTONE_SET.base().get();
         for (int x = -RADIUS; x <= RADIUS; x++) {

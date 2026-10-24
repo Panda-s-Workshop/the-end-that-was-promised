@@ -35,8 +35,11 @@ import net.minecraft.world.phys.Vec3;
 public final class VoidAnchor {
     public static final int RECORD_INTERVAL = 20;
     public static final int SLOW_FALLING_TICKS = 100;
-    /** Safe footing is at least this far from a column with nothing in it down to the void. */
-    public static final int EDGE_MARGIN = 3;
+    /**
+     * Safe footing has ground under every neighbouring column this far out: the middle of a 3-wide bridge counts, a
+     * 1-wide bridge or an island's last block doesn't.
+     */
+    public static final int EDGE_MARGIN = 1;
     /** A glider is caught this far below the floor, still above vanilla's void damage at floor - 64. */
     public static final int GLIDER_DEPTH = 56;
     /** How far round a footing that no longer holds the rescue looks for one that does. */
@@ -143,7 +146,7 @@ public final class VoidAnchor {
      */
     public static BlockPos endFallback(ServerLevel level) {
         BlockPos spawn = ServerLevel.END_SPAWN_POINT;
-        // the platform is only 5 wide, so it fails the edge margin; it's where vanilla puts every arrival, so it's fine
+        // vanilla puts every arrival here, so its platform counts whatever the edge margin says
         if (level.getBlockState(spawn.below()).isFaceSturdy(level, spawn.below(), Direction.UP) && fits(level, spawn)) return spawn;
         for (int x = spawn.getX(); x >= 16; x -= 4) {
             int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, spawn.getZ());

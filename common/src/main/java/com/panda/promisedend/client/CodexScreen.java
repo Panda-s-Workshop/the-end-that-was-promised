@@ -9,6 +9,7 @@ import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -17,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
+import org.joml.Vector2i;
 
 /**
  * The Promise Codex: an open book. The left page lists the four acts with their progress; the right page
@@ -111,7 +113,12 @@ public class CodexScreen extends Screen {
             AdvancementHolder holder = minecraft.player.connection.getAdvancements().get(act.goals().get(i).advancement());
             Component text = holder != null && holder.value().display().isPresent() ? holder.value().display().get().description()
                     : Component.translatable(act.goals().get(i).hint());
-            g.setTooltipForNextFrame(font.split(text, 180), mx, my); // wrapped: one line runs off a narrow screen
+            // on the right page, just under the goal, wrapped to the page: a tooltip at the mouse flips over the act list
+            // on a narrow screen
+            int[] row = goalBounds(i);
+            int px = x0 + R_X + 2, py = row[1] + row[3] + 4;
+            ClientTooltipPositioner onPage = (sw, sh, x, y, tw, th) -> new Vector2i(Math.min(px, sw - tw - 4), Math.min(py, sh - th - 4));
+            g.setTooltipForNextFrame(font, font.split(text, R_W - 10), onPage, mx, my, false);
             return;
         }
     }

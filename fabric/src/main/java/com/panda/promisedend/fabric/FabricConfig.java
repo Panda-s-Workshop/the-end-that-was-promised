@@ -11,8 +11,9 @@ import java.util.Properties;
 import net.fabricmc.loader.api.FabricLoader;
 
 /**
- * The mod's settings on Fabric: config/promisedend.properties, written with the defaults on first start. Unlike
- * NeoForge's synced config it is read once at startup, on each side from its own file.
+ * The mod's settings on Fabric: config/promisedend.properties ({@code terrain.enabled}, {@code terrain.edge_distance},
+ * {@code anchor.trigger_depth}), written with the defaults on first start. Unlike NeoForge's synced config it is read
+ * once at startup, on each side from its own file.
  */
 final class FabricConfig implements EndConfig.Source {
     private final boolean terrainEnabled;
@@ -21,9 +22,9 @@ final class FabricConfig implements EndConfig.Source {
 
     private FabricConfig(Properties p) {
         EndConfig.Source d = EndConfig.DEFAULTS;
-        terrainEnabled = Boolean.parseBoolean(p.getProperty("terrainEnabled", String.valueOf(d.terrainEnabled())));
-        edgeDistance = clamp(p.getProperty("edgeDistance"), d.edgeDistance(), 2000, 1000000);
-        anchorTriggerDepth = clamp(p.getProperty("anchorTriggerDepth"), d.anchorTriggerDepth(), 0, 60);
+        terrainEnabled = Boolean.parseBoolean(p.getProperty("terrain.enabled", String.valueOf(d.terrainEnabled())).trim());
+        edgeDistance = clamp(p.getProperty("terrain.edge_distance"), d.edgeDistance(), 2000, 1000000);
+        anchorTriggerDepth = clamp(p.getProperty("anchor.trigger_depth"), d.anchorTriggerDepth(), 0, 60);
     }
 
     static FabricConfig load() {
@@ -37,15 +38,15 @@ final class FabricConfig implements EndConfig.Source {
             }
         } else {
             EndConfig.Source d = EndConfig.DEFAULTS;
-            p.setProperty("terrainEnabled", String.valueOf(d.terrainEnabled()));
-            p.setProperty("edgeDistance", String.valueOf(d.edgeDistance()));
-            p.setProperty("anchorTriggerDepth", String.valueOf(d.anchorTriggerDepth()));
+            p.setProperty("terrain.enabled", String.valueOf(d.terrainEnabled()));
+            p.setProperty("terrain.edge_distance", String.valueOf(d.edgeDistance()));
+            p.setProperty("anchor.trigger_depth", String.valueOf(d.anchorTriggerDepth()));
             try (Writer out = Files.newBufferedWriter(file)) {
                 p.store(out, """
                          The End That Was Promised
-                         terrainEnabled: our End biomes replace the vanilla outer-End biomes; false for packs with another End biome overhaul (true/false)
-                         edgeDistance: where the Unfinished Edge begins, in blocks from the End's origin (2000-1000000)
-                         anchorTriggerDepth: how far below the dimension's lowest block a falling player with a Void Anchor is pulled back (0-60)""");
+                         terrain.enabled: our End biomes replace the vanilla outer-End biomes; false for packs with another End biome overhaul (true/false)
+                         terrain.edge_distance: where the Unfinished Edge begins, in blocks from the End's origin (2000-1000000)
+                         anchor.trigger_depth: how far below the dimension's lowest block a falling player with a Void Anchor is pulled back (0-60)""");
             } catch (IOException e) {
                 PromisedEnd.LOGGER.warn("Couldn't write {}", file, e);
             }
