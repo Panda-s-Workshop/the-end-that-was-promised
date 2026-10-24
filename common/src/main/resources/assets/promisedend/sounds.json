@@ -58,5 +58,45 @@
         "pitch": 1.6
       }
     ]
+  },
+  "entity.crystal_warden.arrive": {
+    "subtitle": "subtitles.promisedend.crystal_warden.arrive",
+    "sounds": [
+      {
+        "name": "minecraft:block.end_portal_frame.fill",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
+  "entity.ender_dragon.call_wardens": {
+    "subtitle": "subtitles.promisedend.ender_dragon.call_wardens",
+    "sounds": [
+      {
+        "name": "minecraft:entity.ender_dragon.growl",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
+  "entity.ender_dragon.void_breath_gather": {
+    "subtitle": "subtitles.promisedend.ender_dragon.void_breath_gather",
+    "sounds": [
+      {
+        "name": "minecraft:block.respawn_anchor.charge",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.ender_dragon.void_breath": {
+    "subtitle": "subtitles.promisedend.ender_dragon.void_breath",
+    "sounds": [
+      {
+        "name": "minecraft:entity.dragon_fireball.explode",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
   }
 }

@@ -50,7 +50,13 @@ public final class PromisedEnd {
         com.panda.promisedend.worldgen.EndBiomes.setSeed(server.getWorldGenSettings().options().seed());
     }
 
-    /** For each server player at the end of every server tick (both loaders). */
+    /** At the end of every server tick (both loaders). */
+    public static void onServerTick(net.minecraft.server.MinecraftServer server) {
+        server.getPlayerList().getPlayers().forEach(PromisedEnd::onPlayerTick);
+        com.panda.promisedend.logic.DragonPhase3.tick(server);
+    }
+
+    /** For each server player at the end of every server tick. */
     public static void onPlayerTick(net.minecraft.server.level.ServerPlayer player) {
         com.panda.promisedend.logic.VoidAnchor.tick(player);
         com.panda.promisedend.logic.RimProgress.tick(player);

@@ -48,7 +48,7 @@ public final class EndFabric implements ModInitializer {
 
         ServerLifecycleEvents.SERVER_STARTING.register(PromisedEnd::onServerStarting);
         ServerLifecycleEvents.SERVER_STARTED.register(com.panda.promisedend.ServerCheck::onServerStarted);
-        ServerTickEvents.END_SERVER_TICK.register(server -> server.getPlayerList().getPlayers().forEach(PromisedEnd::onPlayerTick));
+        ServerTickEvents.END_SERVER_TICK.register(PromisedEnd::onServerTick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> VoidAnchor.forget(handler.getPlayer()));
         net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> com.panda.promisedend.EndCommand.register(dispatcher));
     }

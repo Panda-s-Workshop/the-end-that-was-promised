@@ -68,6 +68,9 @@ public final class EndGameTests {
         FUNCTIONS.register("crystal_warden_beam_cap_and_rest", () -> EndGameTests::crystalWardenBeamCapAndRest);
         FUNCTIONS.register("crystal_warden_ignores_the_dragon", () -> EndGameTests::crystalWardenIgnoresTheDragon);
         FUNCTIONS.register("crystal_warden_shatters_and_drops", () -> EndGameTests::crystalWardenShattersAndDrops);
+        FUNCTIONS.register("dragon_phase3_triggers", () -> EndGameTests::dragonPhase3Triggers);
+        FUNCTIONS.register("warden_heals_dragon", () -> EndGameTests::wardenHealsDragon);
+        FUNCTIONS.register("dragon_void_breath_dive", () -> EndGameTests::dragonVoidBreathDive);
     }
 
     /** Tests that need longer than the default 100 ticks. */
@@ -835,6 +838,119 @@ public final class EndGameTests {
         });
     }
 
+    // ---- the dragon's phase 3 -----------------------------------------------------------------------------------
+
+    /** A dragon that holds still (its AI would fly it off round the level). */
+    private static net.minecraft.world.entity.boss.enderdragon.EnderDragon dragon(GameTestHelper helper, int x, int y, int z) {
+        var dragon = helper.spawn(net.minecraft.world.entity.EntityTypes.ENDER_DRAGON, new BlockPos(x, y, z));
+        dragon.setNoAi(true);
+        return dragon;
+    }
+
+    private static List<com.panda.promisedend.entity.CrystalWarden> wardensOf(GameTestHelper helper, net.minecraft.world.entity.boss.enderdragon.EnderDragon dragon) {
+        return helper.getLevel().getEntitiesOfClass(com.panda.promisedend.entity.CrystalWarden.class, dragon.getBoundingBox().inflate(24),
+                w -> dragon.getUUID().equals(w.dragonId()));
+    }
+
+    /**
+     * The server's own tick puts a dragon into phase 3 once, below a quarter of its health and not before: it calls the
+     * Wrath-0 count of wardens (3; a ring round it off the End), each linked to it, persistent, and none more on later ticks; when the
+     * dragon is killed (here by the kill command, which removes it without the dying) its wardens shatter.
+     */
+    private static void dragonPhase3Triggers(GameTestHelper helper) {
+        var dragon = dragon(helper, 6, 2, 6);
+        helper.runAtTickTime(5, () -> {
+            if (com.panda.promisedend.logic.DragonPhase3.entered(dragon)) helper.fail("in phase 3 at full health");
+            if (!wardensOf(helper, dragon).isEmpty()) helper.fail("wardens at full health");
+            dragon.setHealth(dragon.getMaxHealth() * 0.2F);
+        });
+        helper.runAtTickTime(10, () -> {
+            if (!com.panda.promisedend.logic.DragonPhase3.entered(dragon)) helper.fail("at a fifth of its health it isn't in phase 3");
+            var wardens = wardensOf(helper, dragon);
+            if (wardens.size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) helper.fail("phase 3 called " + wardens.size() + " wardens, wanted 3");
+            for (var w : wardens) {
+                if (!w.isPersistenceRequired()) helper.fail("a called warden can despawn");
+                if (w.home() == null || Math.abs(Math.sqrt(w.home().distToCenterSqr(dragon.getX(), w.home().getY() + 0.5, dragon.getZ()))
+                        - com.panda.promisedend.logic.DragonPhase3.RING_RADIUS) > 1.5) helper.fail("a warden's home is off the ring: " + w.home());
+            }
+        });
+        helper.runAtTickTime(30, () -> {
+            if (wardensOf(helper, dragon).size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) helper.fail("it called wardens again");
+            dragon.kill(helper.getLevel());
+        });
+        helper.runAtTickTime(36, () -> {
+            var left = wardensOf(helper, dragon);
+            if (!left.isEmpty()) helper.fail(left.size() + " wardens outlived their dragon");
+            helper.succeed();
+        });
+    }
+
+    /** A linked warden heals its dragon 1 a second while it beams, and not while it locks on. */
+    private static void wardenHealsDragon(GameTestHelper helper) {
+        var dragon = dragon(helper, 6, 7, 10);
+        dragon.setHealth(100.0F);
+        var warden = warden(helper, 2, 3, 6);
+        var target = dummy(helper, 9, 1, 6);
+        warden.setDragon(dragon);
+        warden.setTarget(target);
+        warden.startLockOn(target);
+        helper.runAtTickTime(15, () -> {
+            if (dragon.getHealth() != 100.0F) helper.fail("the dragon healed during the lock-on: " + dragon.getHealth());
+        });
+        helper.runAtTickTime(66, () -> {
+            // beam ticks 0, 20 and 40 have landed: 3 health in a little over 2 s
+            float healed = dragon.getHealth() - 100.0F;
+            dragon.discard();
+            if (!warden.isBeaming(target)) helper.fail("it should still be beaming, is " + warden.phase());
+            if (healed != 3.0F) helper.fail("after about 2 s of beam the dragon healed " + healed + ", wanted 3 (1 a second)");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The dive: a 1.5 s telegraph with no breath yet, then the charge, then void breath on the mark (radius 3, 6 s,
+     * Slowness II, 2 damage a second) that leaves the dragon's constructs alone.
+     */
+    private static void dragonVoidBreathDive(GameTestHelper helper) {
+        var dragon = dragon(helper, 6, 7, 6);
+        dragon.addTag(com.panda.promisedend.logic.DragonPhase3.TAG);
+        var victim = dummy(helper, 6, 1, 6);
+        var construct = warden(helper, 7, 2, 6);
+        construct.setNoAi(true);
+        float full = victim.getHealth();
+        net.minecraft.world.phys.Vec3 mark = victim.position();
+        com.panda.promisedend.logic.DragonPhase3.startDive(helper.getLevel(), dragon, mark);
+        java.util.function.Supplier<List<net.minecraft.world.entity.AreaEffectCloud>> clouds = () -> helper.getLevel().getEntitiesOfClass(
+                net.minecraft.world.entity.AreaEffectCloud.class, new net.minecraft.world.phys.AABB(mark, mark).inflate(2),
+                c -> c.entityTags().contains(com.panda.promisedend.logic.DragonPhase3.BREATH_TAG));
+        helper.runAtTickTime(20, () -> {
+            if (!clouds.get().isEmpty()) helper.fail("the breath landed during the telegraph");
+            if (victim.getHealth() != full) helper.fail("damage during the telegraph");
+        });
+        helper.runAtTickTime(40, () -> {
+            var found = clouds.get();
+            if (found.size() != 1) {
+                helper.fail("wanted one cloud of void breath on the mark, found " + found.size());
+                return;
+            }
+            var cloud = found.get(0);
+            if (cloud.getRadius() != com.panda.promisedend.logic.DragonPhase3.BREATH_RADIUS) helper.fail("the cloud's radius is " + cloud.getRadius());
+            if (cloud.getDuration() != com.panda.promisedend.logic.DragonPhase3.BREATH_TICKS) helper.fail("the cloud lasts " + cloud.getDuration());
+            if (dragon.getPhaseManager().getCurrentPhase().getPhase() != net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhase.CHARGING_PLAYER)
+                helper.fail("the dragon didn't charge the mark");
+        });
+        helper.runAtTickTime(80, () -> {
+            // about 49 ticks of breath: hits at 1, 21 and 41
+            float dealt = full - victim.getHealth();
+            var slowness = victim.getEffect(net.minecraft.world.effect.MobEffects.SLOWNESS);
+            dragon.discard();
+            if (dealt != 6.0F) helper.fail("about 2.5 s in the breath dealt " + dealt + ", wanted 6 (2 a second)");
+            if (slowness == null || slowness.getAmplifier() != 1) helper.fail("no Slowness II in the breath: " + slowness);
+            if (construct.getHealth() != construct.getMaxHealth()) helper.fail("the breath hurt a construct: " + construct.getHealth());
+            helper.succeed();
+        });
+    }
+
     /**
      * The shipped rig matches the class (the design and Java contract): the animation file has exactly the clips the class
      * plays, every clip moves only bones the model has, the texture and its glowmask exist, and every sound event of ours
@@ -1113,6 +1229,7 @@ public final class EndGameTests {
                 @Override public boolean terrainEnabled() { return false; }
                 @Override public int edgeDistance() { return previous.edgeDistance(); }
                 @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
+                @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
             });
             ChunkGenerator generator = access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.NORMAL).value()
                     .createWorldDimensions().get(LevelStem.END).orElseThrow().generator();

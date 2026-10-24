@@ -11,7 +11,9 @@ import com.panda.promisedend.registry.ModSounds;
 import com.panda.promisedend.registry.ModTags;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
@@ -57,6 +59,10 @@ import org.jspecify.annotations.Nullable;
  * vanilla tags send through armour and the hurt cooldown without knockback, so it holds 2 a second whatever else hurts
  * the target. It never works on the dragon or another construct ({@code #promisedend:constructs}). Every step is synced
  * ({@link #phase()}, {@link #beamTargetId()}) so clients play the clips and draw the thread and the beam.
+ *
+ * <p>The dragon's phase 3 ({@link com.panda.promisedend.logic.DragonPhase3}) calls four to its pillars, each linked to it
+ * ({@link #setDragon}): a linked warden heals the dragon 1 a second while it beams (drawn as a tether to the dragon),
+ * never despawns, and shatters when the dragon dies.
  */
 public class CrystalWarden extends Monster implements GeoEntity {
     /** The lock-on tell: the lock_on clip is 1.0 s. */
@@ -81,12 +87,19 @@ public class CrystalWarden extends Monster implements GeoEntity {
      */
     public static final float LENS_HEIGHT = 1.24F;
     public static final double LENS_FORWARD = 0.67;
+    /** What a linked warden gives its dragon while it beams: 1 health every 20 ticks. */
+    public static final float DRAGON_HEAL = 1.0F;
+    public static final int DRAGON_HEAL_INTERVAL = 20;
+    /** A linked warden whose dragon can't be found for this long (30 s) takes it as gone and shatters. */
+    public static final int DRAGON_MISSING_TICKS = 600;
     public static final ResourceKey<DamageType> BEAM_DAMAGE_TYPE = ResourceKey.create(Registries.DAMAGE_TYPE, PromisedEnd.id("crystal_beam"));
 
     public enum Phase { IDLE, LOCK, BEAM }
 
     private static final EntityDataAccessor<Byte> DATA_PHASE = SynchedEntityData.defineId(CrystalWarden.class, EntityDataSerializers.BYTE);
     private static final EntityDataAccessor<Integer> DATA_TARGET = SynchedEntityData.defineId(CrystalWarden.class, EntityDataSerializers.INT);
+    /** The linked dragon's entity id, -1 when there is none or it isn't loaded: clients draw the tether to it. */
+    private static final EntityDataAccessor<Integer> DATA_DRAGON = SynchedEntityData.defineId(CrystalWarden.class, EntityDataSerializers.INT);
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
@@ -97,6 +110,9 @@ public class CrystalWarden extends Monster implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private @Nullable BlockPos home;
+    private @Nullable UUID dragonId;
+    private @Nullable EnderDragon dragon;
+    private int dragonMissing;
     private int phaseTicks;
     private int rest;
     /** Clients count the ticks since the phase last changed themselves, for the lock-on thread's charge. */
@@ -125,6 +141,7 @@ public class CrystalWarden extends Monster implements GeoEntity {
         super.defineSynchedData(builder);
         builder.define(DATA_PHASE, (byte) Phase.IDLE.ordinal());
         builder.define(DATA_TARGET, -1);
+        builder.define(DATA_DRAGON, -1);
     }
 
     @Override
@@ -166,6 +183,41 @@ public class CrystalWarden extends Monster implements GeoEntity {
         return home;
     }
 
+    /** Links it to the dragon that called it. */
+    public void setDragon(EnderDragon dragon) {
+        this.dragonId = dragon.getUUID();
+        this.dragon = dragon;
+        this.entityData.set(DATA_DRAGON, dragon.getId());
+    }
+
+    public @Nullable UUID dragonId() {
+        return dragonId;
+    }
+
+    /** The linked dragon's entity id as synced, -1 for none. */
+    public int dragonEntityId() {
+        return this.entityData.get(DATA_DRAGON);
+    }
+
+    /**
+     * Whether its dragon is gone: dead or dying, removed as killed (the kill command skips the dying), or not found for
+     * {@link #DRAGON_MISSING_TICKS}. The dragon is looked up again after a reload or when it was unloaded.
+     */
+    private boolean dragonGone(ServerLevel level) {
+        if (dragon != null && dragon.isRemoved()) {
+            boolean killed = dragon.getRemovalReason() == RemovalReason.KILLED;
+            dragon = null;
+            if (killed) return true;
+        }
+        if (dragon == null) {
+            dragon = level.getEntity(dragonId) instanceof EnderDragon found ? found : null;
+            this.entityData.set(DATA_DRAGON, dragon == null ? -1 : dragon.getId());
+        }
+        if (dragon == null) return ++dragonMissing >= DRAGON_MISSING_TICKS;
+        dragonMissing = 0;
+        return !dragon.isAlive();
+    }
+
     private void setPhase(Phase phase, @Nullable LivingEntity target) {
         this.entityData.set(DATA_PHASE, (byte) phase.ordinal());
         this.entityData.set(DATA_TARGET, target == null ? -1 : target.getId());
@@ -203,6 +255,12 @@ public class CrystalWarden extends Monster implements GeoEntity {
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         if (home == null) home = blockPosition();
+        // the call ends with the dragon: its wardens break with it
+        if (dragonId != null && dragonGone(level)) {
+            kill(level);
+            return;
+        }
+        EnderDragon linked = dragon;
         LivingEntity target = getTarget();
         switch (phase()) {
             case IDLE -> {
@@ -232,6 +290,7 @@ public class CrystalWarden extends Monster implements GeoEntity {
                         locked.hurtServer(level, source, BEAM_DAMAGE);
                     }
                     if (phaseTicks > 0 && phaseTicks % BEAM_SOUND_INTERVAL == 0) playSound(ModSounds.CRYSTAL_WARDEN_BEAM.get(), 1.5F, 1.0F);
+                    if (linked != null && phaseTicks % DRAGON_HEAL_INTERVAL == 0) linked.heal(DRAGON_HEAL);
                     phaseTicks++;
                 }
             }
@@ -301,6 +360,16 @@ public class CrystalWarden extends Monster implements GeoEntity {
 
     // no fall damage: it is in #minecraft:fall_damage_immune
 
+    /** A warden its dragon called stays for the fight, on any difficulty and however far the players are. */
+    @Override
+    public void checkDespawn() {
+        if (dragonId != null) {
+            setNoActionTime(0);
+            return;
+        }
+        super.checkDespawn();
+    }
+
     /** It shatters at once instead of tipping over: shards of its crystal, then gone (its loot and xp drop on death). */
     @Override
     protected void tickDeath() {
@@ -332,12 +401,15 @@ public class CrystalWarden extends Monster implements GeoEntity {
     protected void addAdditionalSaveData(ValueOutput output) {
         super.addAdditionalSaveData(output);
         output.storeNullable("home", BlockPos.CODEC, home);
+        output.storeNullable("dragon", UUIDUtil.CODEC, dragonId);
     }
 
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
         this.home = input.read("home", BlockPos.CODEC).orElse(null);
+        this.dragonId = input.read("dragon", UUIDUtil.CODEC).orElse(null);
+        this.dragon = null;
         // a reload mid-beam ends it
         setPhase(Phase.IDLE, null);
     }
@@ -360,7 +432,8 @@ public class CrystalWarden extends Monster implements GeoEntity {
 
     /**
      * Drifts round its pillar: a new spot within {@link #HOVER_RADIUS}, up to 2 above it, every few seconds, steered to
-     * every tick (a move control moves only on the ticks it is given a target).
+     * every tick (a move control moves only on the ticks it is given a target). A spot it wouldn't fit in (in the
+     * pillar's side) is thrown away and another tried; with none it stays where it is.
      */
     final class HoverGoal extends Goal {
         private int wait;
@@ -379,9 +452,16 @@ public class CrystalWarden extends Monster implements GeoEntity {
         public void tick() {
             if (--wait <= 0 || spot == null) {
                 wait = 60 + getRandom().nextInt(60);
-                double angle = getRandom().nextDouble() * Math.PI * 2;
-                double r = getRandom().nextDouble() * HOVER_RADIUS;
-                spot = new Vec3(home.getX() + 0.5 + Math.cos(angle) * r, home.getY() + getRandom().nextDouble() * 2.0, home.getZ() + 0.5 + Math.sin(angle) * r);
+                spot = position();
+                for (int tries = 0; tries < 4; tries++) {
+                    double angle = getRandom().nextDouble() * Math.PI * 2;
+                    double r = getRandom().nextDouble() * HOVER_RADIUS;
+                    Vec3 next = new Vec3(home.getX() + 0.5 + Math.cos(angle) * r, home.getY() + getRandom().nextDouble() * 2.0, home.getZ() + 0.5 + Math.sin(angle) * r);
+                    if (level().noCollision(CrystalWarden.this, getDimensions(getPose()).makeBoundingBox(next))) {
+                        spot = next;
+                        break;
+                    }
+                }
             }
             if (position().distanceToSqr(spot) > 0.25) getMoveControl().setWantedPosition(spot.x, spot.y, spot.z, 0.6);
         }

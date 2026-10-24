@@ -32,7 +32,9 @@ import net.minecraft.world.phys.Vec3;
  * with the crystal and the lens drawn unlit from crystal_warden_glowmask.png. While it locks on, a thin thread of light
  * runs from the lens to the target and thickens over the second; while it beams, a full-bright beam, drawn as vanilla
  * draws a guardian's or a beacon's (particles are lit by the End's dim light and read grey). When the target is the
- * camera, the line stops short of it and fades out over its last stretch instead of ending in a cut.
+ * camera, the line stops short of it and fades out over its last stretch instead of ending in a cut. A warden its dragon
+ * called draws a thin tether from its crystal to the dragon while it beams: the dragon heals through it, as through an
+ * end crystal's beam.
  */
 public final class CrystalWardenRenderer extends GeoEntityRenderer<CrystalWarden, LivingEntityRenderState> {
     private static final Identifier BEAM_TEXTURE = PromisedEnd.id("textures/entity/crystal_warden_beam.png");
@@ -42,6 +44,11 @@ public final class CrystalWardenRenderer extends GeoEntityRenderer<CrystalWarden
     private static final DataTicket<Vec3> SPAN = DataTicket.create("promisedend_warden_span", Vec3.class);
     /** How far through the lock-on it is (0 to 1), 2 while it beams, -1 when it does neither. */
     private static final DataTicket<Float> CHARGE = DataTicket.create("promisedend_warden_charge", Float.class);
+    /** The tether, from the warden's feet to its crystal and from there to the dragon. */
+    private static final DataTicket<Vec3> TETHER_FROM = DataTicket.create("promisedend_warden_tether_from", Vec3.class);
+    private static final DataTicket<Vec3> TETHER = DataTicket.create("promisedend_warden_tether", Vec3.class);
+    /** Where the crystal sits, in blocks above its feet (14 px up at the model's scale). */
+    private static final double CORE_HEIGHT = 14.0 / 16.0 * CrystalWarden.MODEL_SCALE;
     /** The last stretch of the line that fades out (0 unless the target is the camera). */
     private static final DataTicket<Float> FADE = DataTicket.create("promisedend_warden_fade", Float.class);
     /** The target's own camera sits at the end of the line: stop this far short of it in first person, */
@@ -71,7 +78,9 @@ public final class CrystalWardenRenderer extends GeoEntityRenderer<CrystalWarden
     public boolean shouldRender(CrystalWarden warden, Frustum frustum, double camX, double camY, double camZ, float partialTick) {
         if (super.shouldRender(warden, frustum, camX, camY, camZ, partialTick)) return true;
         if (warden.phase() == CrystalWarden.Phase.IDLE || !(warden.level().getEntity(warden.beamTargetId()) instanceof Entity target)) return false;
-        return frustum.isVisible(new AABB(warden.lensPosition(partialTick), CrystalWarden.aimPoint(target, partialTick)).inflate(0.2));
+        if (frustum.isVisible(new AABB(warden.lensPosition(partialTick), CrystalWarden.aimPoint(target, partialTick)).inflate(0.2))) return true;
+        Entity dragon = warden.phase() == CrystalWarden.Phase.BEAM ? warden.level().getEntity(warden.dragonEntityId()) : null;
+        return dragon != null && frustum.isVisible(new AABB(warden.getPosition(partialTick), dragon.getPosition(partialTick)).inflate(0.5));
     }
 
     /** It shatters (CrystalWarden.tickDeath) rather than tipping over. */
@@ -100,6 +109,15 @@ public final class CrystalWardenRenderer extends GeoEntityRenderer<CrystalWarden
             fade = CAMERA_FADE;
         }
         geo.addGeckolibData(FADE, fade);
+        Entity dragon = phase == CrystalWarden.Phase.BEAM ? warden.level().getEntity(warden.dragonEntityId()) : null;
+        if (dragon != null) {
+            Vec3 core = warden.getPosition(partialTick).add(0, CORE_HEIGHT, 0);
+            geo.addGeckolibData(TETHER_FROM, new Vec3(0, CORE_HEIGHT, 0));
+            geo.addGeckolibData(TETHER, dragon.getPosition(partialTick).add(0, dragon.getBbHeight() * 0.5, 0).subtract(core));
+        } else {
+            // render states are reused from frame to frame: clear the last frame's tether
+            geo.addGeckolibData(TETHER, Vec3.ZERO);
+        }
         geo.addGeckolibData(LENS, lens.subtract(warden.getPosition(partialTick)));
         geo.addGeckolibData(SPAN, span);
         geo.addGeckolibData(CHARGE, phase == CrystalWarden.Phase.BEAM ? 2.0F
@@ -123,6 +141,7 @@ public final class CrystalWardenRenderer extends GeoEntityRenderer<CrystalWarden
         int r = 255, g = beam ? 236 : 168, b = beam ? 252 : 238, a = beam ? 235 : (int) (150 + 90 * charge);
         float fade = Math.min(geo.getOrDefaultGeckolibData(FADE, 0.0F), length);
         float solid = length - fade;
+        if (beam) tether(geo, pose, collector, state.ageInTicks);
         float scroll = state.ageInTicks * (beam ? 0.3F : 0.1F);
         Vec3 dir = span.normalize();
         pose.pushPose();
@@ -135,6 +154,21 @@ public final class CrystalWardenRenderer extends GeoEntityRenderer<CrystalWarden
             segment(vc, p, half, 0, solid, scroll, r, g, b, a, a);
             if (fade > 0) segment(vc, p, half, solid, length, scroll, r, g, b, a, 0);
         });
+        pose.popPose();
+    }
+
+    /** The thin pink line to the dragon, its texture running towards the dragon. */
+    private static void tether(GeoRenderState geo, PoseStack pose, SubmitNodeCollector collector, float age) {
+        Vec3 from = geo.getGeckolibData(TETHER_FROM);
+        Vec3 span = geo.getOrDefaultGeckolibData(TETHER, Vec3.ZERO);
+        float length = (float) span.length();
+        if (from == null || length < 0.5F) return;
+        Vec3 dir = span.normalize();
+        pose.pushPose();
+        pose.translate(from.x, from.y, from.z);
+        pose.rotateDegrees(Axis.YP, (float) Math.toDegrees(Math.PI / 2 - Math.atan2(dir.z, dir.x)));
+        pose.rotateDegrees(Axis.XP, (float) Math.toDegrees(Math.acos(dir.y)));
+        collector.submitCustomGeometry(pose, BEAM, (p, vc) -> segment(vc, p, 0.05F, 0, length, age * 0.4F, 255, 150, 235, 170, 170));
         pose.popPose();
     }
 

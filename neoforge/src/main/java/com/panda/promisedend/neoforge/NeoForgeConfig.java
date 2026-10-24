@@ -5,8 +5,8 @@ import com.panda.promisedend.PromisedEnd;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
- * The mod's settings as a NeoForge config (synced from server to clients): {@code [terrain] enabled, edge_distance}
- * and {@code [anchor] trigger_depth}. Until the file is loaded the defaults apply, and the first read says so.
+ * The mod's settings as a NeoForge config (synced from server to clients): {@code [terrain] enabled, edge_distance},
+ * {@code [anchor] trigger_depth} and {@code [dragon] phase3}. Until the file is loaded the defaults apply, and the first read says so.
  */
 public final class NeoForgeConfig implements EndConfig.Source {
     private static final ModConfigSpec.Builder B = new ModConfigSpec.Builder();
@@ -14,6 +14,7 @@ public final class NeoForgeConfig implements EndConfig.Source {
     private static final ModConfigSpec.BooleanValue TERRAIN;
     private static final ModConfigSpec.IntValue EDGE_DISTANCE;
     private static final ModConfigSpec.IntValue ANCHOR_TRIGGER_DEPTH;
+    private static final ModConfigSpec.BooleanValue DRAGON_PHASE3;
 
     static {
         B.push("terrain");
@@ -25,6 +26,10 @@ public final class NeoForgeConfig implements EndConfig.Source {
         B.push("anchor");
         ANCHOR_TRIGGER_DEPTH = B.comment("How far below the dimension's lowest block a falling player with a Void Anchor is pulled back (the End: Y -24).")
                 .defineInRange("trigger_depth", 24, 0, 52);
+        B.pop();
+        B.push("dragon");
+        DRAGON_PHASE3 = B.comment("The dragon's third phase: below a quarter of its health it calls four Crystal Wardens to its pillars and dives with void breath.")
+                .define("phase3", true);
         B.pop();
     }
 
@@ -54,5 +59,10 @@ public final class NeoForgeConfig implements EndConfig.Source {
     @Override
     public int anchorTriggerDepth() {
         return loaded() ? ANCHOR_TRIGGER_DEPTH.get() : EndConfig.DEFAULTS.anchorTriggerDepth();
+    }
+
+    @Override
+    public boolean dragonPhase3() {
+        return loaded() ? DRAGON_PHASE3.get() : EndConfig.DEFAULTS.dragonPhase3();
     }
 }

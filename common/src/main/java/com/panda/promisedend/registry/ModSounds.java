@@ -16,6 +16,10 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> CRYSTAL_WARDEN_LOCK_ON = sound("entity.crystal_warden.lock_on");
     public static final Supplier<SoundEvent> CRYSTAL_WARDEN_BEAM = sound("entity.crystal_warden.beam");
     public static final Supplier<SoundEvent> CRYSTAL_WARDEN_POWER_DOWN = sound("entity.crystal_warden.power_down");
+    public static final Supplier<SoundEvent> CRYSTAL_WARDEN_ARRIVE = sound("entity.crystal_warden.arrive");
+    public static final Supplier<SoundEvent> DRAGON_CALL_WARDENS = sound("entity.ender_dragon.call_wardens");
+    public static final Supplier<SoundEvent> DRAGON_VOID_BREATH_GATHER = sound("entity.ender_dragon.void_breath_gather");
+    public static final Supplier<SoundEvent> DRAGON_VOID_BREATH = sound("entity.ender_dragon.void_breath");
 
     private static Supplier<SoundEvent> sound(String name) {
         return SOUNDS.register(name, SoundEvent::createVariableRangeEvent);

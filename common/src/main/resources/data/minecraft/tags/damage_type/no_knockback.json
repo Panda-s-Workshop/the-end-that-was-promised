@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "promisedend:crystal_beam"
+    "promisedend:crystal_beam",
+    "promisedend:void_breath"
   ]
 }

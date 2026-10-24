@@ -12,12 +12,16 @@ public final class EndConfig {
 
         /** How far below the dimension's lowest block a falling player with a Void Anchor is pulled back. */
         int anchorTriggerDepth();
+
+        /** The dragon's third phase: below a quarter of its health it calls Crystal Wardens and dives with void breath. */
+        boolean dragonPhase3();
     }
 
     public static final Source DEFAULTS = new Source() {
         @Override public boolean terrainEnabled() { return true; }
         @Override public int edgeDistance() { return 8000; }
         @Override public int anchorTriggerDepth() { return 24; }
+        @Override public boolean dragonPhase3() { return true; }
     };
 
     private static Source source = DEFAULTS;
@@ -43,5 +47,9 @@ public final class EndConfig {
 
     public static int anchorTriggerDepth() {
         return source.anchorTriggerDepth();
+    }
+
+    public static boolean dragonPhase3() {
+        return source.dragonPhase3();
     }
 }
