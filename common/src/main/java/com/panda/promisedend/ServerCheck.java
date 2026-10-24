@@ -61,7 +61,26 @@ public final class ServerCheck {
         }
         PromisedEnd.LOGGER.info("[promisedend servercheck] voidstone within {} of {}: {}", RADIUS, centre, voidstone);
         if (voidstone < 200) return "too little Voidstone around x=300: " + voidstone;
-        return construct(end, centre.above(26));
+        String failure = construct(end, centre.above(26));
+        return failure != null ? failure : wrath(server);
+    }
+
+    /**
+     * The anvil's mixin applies on this loader's server (it runs when the class loads, and a target it can't find fails
+     * here), and the world's Wrath goes through its saved data and back.
+     */
+    private static String wrath(MinecraftServer server) {
+        try {
+            Class.forName("net.minecraft.world.inventory.AnvilMenu");
+        } catch (ClassNotFoundException | Error e) {
+            return "the anvil didn't load: " + e;
+        }
+        int before = com.panda.promisedend.logic.DragonWrath.stored(server);
+        com.panda.promisedend.logic.DragonWrath.setStored(server, 3);
+        int read = com.panda.promisedend.logic.DragonWrath.stored(server);
+        com.panda.promisedend.logic.DragonWrath.setStored(server, before);
+        PromisedEnd.LOGGER.info("[promisedend servercheck] anvil loaded; Wrath stored {}, set to 3 read {}", before, read);
+        return read == 3 ? null : "Wrath set to 3 read back " + read;
     }
 
     /** A Crystal Warden made, added and ticked on the server: its GeckoLib side and AI must load without a client. */

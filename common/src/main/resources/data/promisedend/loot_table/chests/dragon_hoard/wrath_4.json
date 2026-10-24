@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:chest",
+  "random_sequence": "promisedend:chests/dragon_hoard/wrath_4",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:dragon_scale",
+          "modifier": [
+            {
+              "type": "minecraft:set_count",
+              "count": 7
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

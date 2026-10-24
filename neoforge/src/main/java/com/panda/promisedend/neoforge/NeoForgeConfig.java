@@ -6,7 +6,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
  * The mod's settings as a NeoForge config (synced from server to clients): {@code [terrain] enabled, edge_distance},
- * {@code [anchor] trigger_depth} and {@code [dragon] phase3}. Until the file is loaded the defaults apply, and the first read says so.
+ * {@code [anchor] trigger_depth} and {@code [dragon] phase3, wrath, max_wrath}. Until the file is loaded the defaults apply, and the first read says so.
  */
 public final class NeoForgeConfig implements EndConfig.Source {
     private static final ModConfigSpec.Builder B = new ModConfigSpec.Builder();
@@ -15,6 +15,8 @@ public final class NeoForgeConfig implements EndConfig.Source {
     private static final ModConfigSpec.IntValue EDGE_DISTANCE;
     private static final ModConfigSpec.IntValue ANCHOR_TRIGGER_DEPTH;
     private static final ModConfigSpec.BooleanValue DRAGON_PHASE3;
+    private static final ModConfigSpec.BooleanValue DRAGON_WRATH;
+    private static final ModConfigSpec.IntValue MAX_WRATH;
 
     static {
         B.push("terrain");
@@ -28,8 +30,12 @@ public final class NeoForgeConfig implements EndConfig.Source {
                 .defineInRange("trigger_depth", 24, 0, 52);
         B.pop();
         B.push("dragon");
-        DRAGON_PHASE3 = B.comment("The dragon's third phase: below a quarter of its health it calls four Crystal Wardens to its pillars and dives with void breath.")
+        DRAGON_PHASE3 = B.comment("The dragon's third phase: below a quarter of its health it calls Crystal Wardens to its pillars (3 to 5 by Wrath) and dives with void breath.")
                 .define("phase3", true);
+        DRAGON_WRATH = B.comment("Each dragon killed raises the world's Wrath by 1: the next dragon has more health and calls more Wardens, and its hoard is bigger. Off: every fight is the first.")
+                .define("wrath", true);
+        MAX_WRATH = B.comment("The highest Wrath a world reaches.")
+                .defineInRange("max_wrath", 5, 0, 5);
         B.pop();
     }
 
@@ -64,5 +70,15 @@ public final class NeoForgeConfig implements EndConfig.Source {
     @Override
     public boolean dragonPhase3() {
         return loaded() ? DRAGON_PHASE3.get() : EndConfig.DEFAULTS.dragonPhase3();
+    }
+
+    @Override
+    public boolean dragonWrath() {
+        return loaded() ? DRAGON_WRATH.get() : EndConfig.DEFAULTS.dragonWrath();
+    }
+
+    @Override
+    public int maxWrath() {
+        return loaded() ? MAX_WRATH.get() : EndConfig.DEFAULTS.maxWrath();
     }
 }

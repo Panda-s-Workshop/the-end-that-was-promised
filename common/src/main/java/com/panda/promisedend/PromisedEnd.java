@@ -53,6 +53,7 @@ public final class PromisedEnd {
     /** At the end of every server tick (both loaders). */
     public static void onServerTick(net.minecraft.server.MinecraftServer server) {
         server.getPlayerList().getPlayers().forEach(PromisedEnd::onPlayerTick);
+        com.panda.promisedend.logic.DragonWrath.tick(server);
         com.panda.promisedend.logic.DragonPhase3.tick(server);
     }
 

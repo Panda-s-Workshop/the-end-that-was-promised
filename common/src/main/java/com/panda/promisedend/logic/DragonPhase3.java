@@ -88,11 +88,6 @@ public final class DragonPhase3 {
         return WARDENS_BY_WRATH[Mth.clamp(wrath, 0, WARDENS_BY_WRATH.length - 1)];
     }
 
-    /** The world's Dragon Wrath: 0 until rematches raise it. */
-    static int wrath(ServerLevel level) {
-        return 0;
-    }
-
     /** Whether a dragon at this health enters phase 3 now. */
     public static boolean shouldEnter(float health, float maxHealth, boolean entered, boolean enabled) {
         return enabled && !entered && health > 0 && health < maxHealth * THRESHOLD;
@@ -126,7 +121,7 @@ public final class DragonPhase3 {
     private static void enter(ServerLevel level, EnderDragon dragon) {
         dragon.addTag(TAG);
         dragon.playSound(ModSounds.DRAGON_CALL_WARDENS.get(), 16.0F, 1.0F);
-        for (BlockPos home : wardenHomes(level, dragon, wardenCount(wrath(level)))) {
+        for (BlockPos home : wardenHomes(level, dragon, wardenCount(DragonWrath.effective(level.getServer())))) {
             CrystalWarden warden = ModEntities.CRYSTAL_WARDEN.get().create(level, EntitySpawnReason.EVENT);
             if (warden == null) continue;
             warden.snapTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5, level.getRandom().nextFloat() * 360.0F, 0.0F);

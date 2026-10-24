@@ -36,6 +36,9 @@ public final class ModItems {
 
     // ---- constructs -------------------------------------------------------------------------------
     public static final DeferredItem<Item> CRYSTAL_FRAGMENT = ITEMS.registerSimpleItem("crystal_fragment");
+
+    // ---- the dragon's hoard: a Dragon Scale repairs half an elytra in an anvil (mixin.AnvilMenuMixin) ----------------
+    public static final DeferredItem<Item> DRAGON_SCALE = ITEMS.registerSimpleItem("dragon_scale");
     public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> CRYSTAL_WARDEN_SPAWN_EGG = ITEMS.registerItem("crystal_warden_spawn_egg",
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.CRYSTAL_WARDEN.get()));
 

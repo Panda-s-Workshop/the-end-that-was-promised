@@ -1,8 +1,10 @@
 package com.panda.promisedend;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.panda.promisedend.logic.DragonWrath;
 import java.util.Collection;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -12,7 +14,8 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * {@code /promisedend codex reset <targets>}: forgets every goal of ours in the Promise Codex (our advancements;
- * vanilla's, such as killing the dragon, stay). Game-master permission.
+ * vanilla's, such as killing the dragon, stay). {@code /promisedend wrath get|set <0-5>}: the world's Dragon Wrath (set
+ * is held under {@code dragon.max_wrath}). Game-master permission.
  */
 public final class EndCommand {
     private EndCommand() {}
@@ -22,7 +25,29 @@ public final class EndCommand {
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(Commands.literal("codex")
                         .then(Commands.literal("reset")
-                                .then(Commands.argument("targets", EntityArgument.players()).executes(EndCommand::resetCodex)))));
+                                .then(Commands.argument("targets", EntityArgument.players()).executes(EndCommand::resetCodex))))
+                .then(Commands.literal("wrath")
+                        .then(Commands.literal("get").executes(EndCommand::getWrath))
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("wrath", IntegerArgumentType.integer(0, DragonWrath.MAX)).executes(EndCommand::setWrath)))));
+    }
+
+    /** Returns the Wrath the next fight is at. */
+    private static int getWrath(CommandContext<CommandSourceStack> c) {
+        if (!EndConfig.dragonWrath()) {
+            c.getSource().sendSuccess(() -> Component.translatable("commands.promisedend.wrath.off"), false);
+            return 0;
+        }
+        int wrath = DragonWrath.effective(c.getSource().getServer());
+        c.getSource().sendSuccess(() -> Component.translatable("commands.promisedend.wrath.get", wrath, EndConfig.maxWrath()), false);
+        return wrath;
+    }
+
+    private static int setWrath(CommandContext<CommandSourceStack> c) {
+        int wrath = Math.min(IntegerArgumentType.getInteger(c, "wrath"), EndConfig.maxWrath());
+        DragonWrath.setStored(c.getSource().getServer(), wrath);
+        c.getSource().sendSuccess(() -> Component.translatable("commands.promisedend.wrath.set", wrath), true);
+        return wrath;
     }
 
     private static int resetCodex(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {

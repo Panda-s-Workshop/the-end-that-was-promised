@@ -11,6 +11,8 @@ import net.minecraft.world.level.block.Block;
 public final class ModTags {
     /** What repairs Voidstone tools in an anvil. */
     public static final TagKey<Item> VOIDSTONE_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("voidstone_tool_materials"));
+    /** What a Dragon Scale repairs in an anvil, half its durability a scale (the elytra). */
+    public static final TagKey<Item> REPAIRED_BY_DRAGON_SCALE = TagKey.create(Registries.ITEM, PromisedEnd.id("repaired_by_dragon_scale"));
 
     /**
      * Ground the Void Anchor remembers as safe footing on top of every block with a sturdy top face: blocks

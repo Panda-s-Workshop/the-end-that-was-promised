@@ -15,6 +15,12 @@ public final class EndConfig {
 
         /** The dragon's third phase: below a quarter of its health it calls Crystal Wardens and dives with void breath. */
         boolean dragonPhase3();
+
+        /** Dragon rematches raise the world's Wrath: a stronger dragon, more Wardens, a bigger hoard. */
+        boolean dragonWrath();
+
+        /** The highest Wrath a world reaches (0 to 5). */
+        int maxWrath();
     }
 
     public static final Source DEFAULTS = new Source() {
@@ -22,6 +28,8 @@ public final class EndConfig {
         @Override public int edgeDistance() { return 8000; }
         @Override public int anchorTriggerDepth() { return 24; }
         @Override public boolean dragonPhase3() { return true; }
+        @Override public boolean dragonWrath() { return true; }
+        @Override public int maxWrath() { return 5; }
     };
 
     private static Source source = DEFAULTS;
@@ -51,5 +59,13 @@ public final class EndConfig {
 
     public static boolean dragonPhase3() {
         return source.dragonPhase3();
+    }
+
+    public static boolean dragonWrath() {
+        return source.dragonWrath();
+    }
+
+    public static int maxWrath() {
+        return source.maxWrath();
     }
 }

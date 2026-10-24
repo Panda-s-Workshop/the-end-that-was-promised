@@ -25,6 +25,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -71,10 +72,20 @@ public final class EndGameTests {
         FUNCTIONS.register("dragon_phase3_triggers", () -> EndGameTests::dragonPhase3Triggers);
         FUNCTIONS.register("warden_heals_dragon", () -> EndGameTests::wardenHealsDragon);
         FUNCTIONS.register("dragon_void_breath_dive", () -> EndGameTests::dragonVoidBreathDive);
+        FUNCTIONS.register("wrath_increments_on_kill", () -> EndGameTests::wrathIncrementsOnKill);
+        FUNCTIONS.register("dragon_drops_scales", () -> EndGameTests::dragonDropsScales);
+        FUNCTIONS.register("dragon_scale_repairs_elytra", () -> EndGameTests::dragonScaleRepairsElytra);
     }
 
-    /** Tests that need longer than the default 100 ticks. */
-    private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220);
+    /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
+    private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
+            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240);
+    /**
+     * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
+     * (batches run one after another).
+     */
+    private static final java.util.Map<String, String> OWN_BATCH = java.util.Map.of("wrath_increments_on_kill", "wrath_kill",
+            "dragon_drops_scales", "wrath_hoard");
 
     private EndGameTests() {}
 
@@ -85,10 +96,14 @@ public final class EndGameTests {
 
     private static void registerTests(RegisterGameTestsEvent event) {
         Holder<TestEnvironmentDefinition<?>> env = event.registerEnvironment(PromisedEnd.id("default"));
+        java.util.Map<String, Holder<TestEnvironmentDefinition<?>>> own = new java.util.HashMap<>();
+        OWN_BATCH.values().forEach(batch -> own.put(batch, event.registerEnvironment(PromisedEnd.id(batch))));
         for (var entry : FUNCTIONS.getEntries()) {
             ResourceKey<Consumer<GameTestHelper>> key = ResourceKey.create(Registries.TEST_FUNCTION, entry.getId());
-            int timeout = TIMEOUTS.getOrDefault(entry.getId().getPath(), 100);
-            event.registerTest(key.identifier(), new FunctionGameTestInstance(key, new TestData<>(env, ARENA, timeout, 0, true)));
+            String path = entry.getId().getPath();
+            int timeout = TIMEOUTS.getOrDefault(path, 100);
+            var testEnv = OWN_BATCH.containsKey(path) ? own.get(OWN_BATCH.get(path)) : env;
+            event.registerTest(key.identifier(), new FunctionGameTestInstance(key, new TestData<>(testEnv, ARENA, timeout, 0, true)));
         }
     }
 
@@ -841,10 +856,134 @@ public final class EndGameTests {
     // ---- the dragon's phase 3 -----------------------------------------------------------------------------------
 
     /** A dragon that holds still (its AI would fly it off round the level). */
+    /**
+     * A dragon that stays put, at vanilla's 200 health whatever the world's Wrath (marked as already scaled, so a Wrath
+     * test running at the same moment can't change it under another test).
+     */
     private static net.minecraft.world.entity.boss.enderdragon.EnderDragon dragon(GameTestHelper helper, int x, int y, int z) {
         var dragon = helper.spawn(net.minecraft.world.entity.EntityTypes.ENDER_DRAGON, new BlockPos(x, y, z));
         dragon.setNoAi(true);
+        dragon.addTag(com.panda.promisedend.logic.DragonWrath.SCALED_TAG);
         return dragon;
+    }
+
+    // ---- Dragon Wrath, the hoard and the scale ------------------------------------------------------------------
+
+    /**
+     * A dragon that dies raises the world's Wrath by one once it has vanished (not while dying), the next dragon's health
+     * is scaled by the new Wrath and starts full, and {@code /promisedend wrath set|get} sets and reads it. The world's
+     * Wrath is put back as it was.
+     */
+    private static void wrathIncrementsOnKill(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        int before = com.panda.promisedend.logic.DragonWrath.stored(server);
+        com.panda.promisedend.logic.DragonWrath.setStored(server, 1);
+        List<String> bad = new ArrayList<>();
+        var dragon = dragon(helper, 6, 2, 6);
+        net.minecraft.world.entity.boss.enderdragon.EnderDragon[] next = new net.minecraft.world.entity.boss.enderdragon.EnderDragon[1];
+        helper.runAtTickTime(2, () -> dragon.setHealth(0.0F));
+        helper.runAtTickTime(100, () -> {
+            if (com.panda.promisedend.logic.DragonWrath.dyingAt(dragon) != 1) bad.add("the dying dragon wasn't noted at Wrath 1");
+            if (com.panda.promisedend.logic.DragonWrath.stored(server) != 1) bad.add("Wrath rose while the dragon was still dying");
+        });
+        helper.runAtTickTime(212, () -> {
+            if (!dragon.isRemoved()) bad.add("the dragon hadn't vanished 210 ticks after it died");
+            if (com.panda.promisedend.logic.DragonWrath.stored(server) != 2) bad.add("after the kill Wrath is " + com.panda.promisedend.logic.DragonWrath.stored(server) + ", wanted 2");
+            next[0] = helper.spawn(net.minecraft.world.entity.EntityTypes.ENDER_DRAGON, new BlockPos(6, 2, 6));
+            next[0].setNoAi(true);
+        });
+        helper.runAtTickTime(216, () -> {
+            try {
+                float want = com.panda.promisedend.logic.DragonWrath.maxHealth(2);
+                if (want != 300.0F) bad.add("Wrath 2 is " + want + " health, wanted 300");
+                if (next[0].getMaxHealth() != want) bad.add("the next dragon's max health is " + next[0].getMaxHealth() + ", wanted " + want);
+                if (next[0].getHealth() != next[0].getMaxHealth()) bad.add("the next dragon starts at " + next[0].getHealth() + " of " + next[0].getMaxHealth());
+                if (!next[0].entityTags().contains(com.panda.promisedend.logic.DragonWrath.FOUGHT_AT_TAG + 2)) bad.add("the next dragon doesn't keep the Wrath it is fought at: " + next[0].entityTags());
+                next[0].discard();
+                var source = server.createCommandSourceStack().withSuppressedOutput();
+                int set = server.getCommands().getDispatcher().execute("promisedend wrath set 4", source);
+                int got = server.getCommands().getDispatcher().execute("promisedend wrath get", source);
+                if (set != 4 || got != 4 || com.panda.promisedend.logic.DragonWrath.stored(server) != 4) bad.add("wrath set 4 / get gave " + set + " / " + got);
+            } catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) {
+                bad.add("the wrath command failed: " + e.getMessage());
+            } finally {
+                com.panda.promisedend.logic.DragonWrath.setStored(server, before);
+            }
+            if (!bad.isEmpty()) helper.fail("wrath: " + bad);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Once a dragon has vanished its hoard is set in a chest (off the End: on the ground under where it vanished), from
+     * the table of the Wrath it was fought at: 3 + Wrath Dragon Scales, 5 at Wrath 2. The world's Wrath is put back.
+     */
+    private static void dragonDropsScales(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        int before = com.panda.promisedend.logic.DragonWrath.stored(server);
+        com.panda.promisedend.logic.DragonWrath.setStored(server, 2);
+        var dragon = dragon(helper, 6, 2, 6);
+        helper.runAtTickTime(2, () -> dragon.setHealth(0.0F));
+        helper.runAtTickTime(212, () -> {
+            List<String> bad = new ArrayList<>();
+            try {
+                BlockPos at = com.panda.promisedend.logic.DragonWrath.lastHoard();
+                if (at == null || !(helper.getLevel().getBlockEntity(at) instanceof net.minecraft.world.level.block.entity.ChestBlockEntity chest)) {
+                    bad.add("no hoard chest, last hoard at " + at);
+                } else {
+                    // the dragon rises as it dies, past the barrier roof over a test arena, so the chest stands on that roof
+                    BlockPos rel = helper.relativePos(at);
+                    if (rel.getX() != 6 || rel.getZ() != 6) bad.add("the chest isn't under where the dragon vanished: " + rel);
+                    if (!helper.getLevel().getBlockState(at.below()).isFaceSturdy(helper.getLevel(), at.below(), net.minecraft.core.Direction.UP))
+                        bad.add("the chest isn't on solid ground: " + helper.getLevel().getBlockState(at.below()));
+                    chest.unpackLootTable(null);
+                    int scales = 0;
+                    for (int i = 0; i < chest.getContainerSize(); i++) {
+                        var stack = chest.getItem(i);
+                        if (stack.is(com.panda.promisedend.registry.ModItems.DRAGON_SCALE.get())) scales += stack.getCount();
+                        else if (!stack.isEmpty()) bad.add("the hoard holds " + stack);
+                    }
+                    if (scales != com.panda.promisedend.logic.DragonWrath.scales(2) || scales != 5) bad.add("the Wrath-2 hoard holds " + scales + " scales, wanted 5");
+                    chest.clearContent();
+                    helper.getLevel().removeBlock(at, false); // above the arena, so the test's own clean-up misses it
+                }
+            } finally {
+                com.panda.promisedend.logic.DragonWrath.setStored(server, before);
+            }
+            if (!bad.isEmpty()) helper.fail("hoard: " + bad);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * In an anvil one Dragon Scale repairs half an elytra's durability and two repair the rest; phantom membrane still
+     * repairs a quarter (vanilla), and a scale repairs nothing outside its tag (a damaged diamond sword).
+     */
+    private static void dragonScaleRepairsElytra(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var scale = com.panda.promisedend.registry.ModItems.DRAGON_SCALE.get();
+        List<String> bad = new ArrayList<>();
+        int max = new ItemStack(net.minecraft.world.item.Items.ELYTRA).getMaxDamage();
+        java.util.function.BiFunction<ItemStack, ItemStack, ItemStack> anvil = (item, material) -> {
+            var menu = new net.minecraft.world.inventory.AnvilMenu(0, player.getInventory());
+            menu.getSlot(0).set(item);
+            menu.getSlot(1).set(material);
+            menu.createResult();
+            return menu.getSlot(2).getItem();
+        };
+        ItemStack elytra = new ItemStack(net.minecraft.world.item.Items.ELYTRA);
+        elytra.setDamageValue(400);
+        ItemStack one = anvil.apply(elytra.copy(), new ItemStack(scale, 1));
+        if (one.isEmpty() || one.getDamageValue() != 400 - max / 2) bad.add("one scale left " + (one.isEmpty() ? "no result" : one.getDamageValue()) + " damage, wanted " + (400 - max / 2));
+        ItemStack two = anvil.apply(elytra.copy(), new ItemStack(scale, 2));
+        if (two.isEmpty() || two.getDamageValue() != 0) bad.add("two scales left " + (two.isEmpty() ? "no result" : two.getDamageValue()) + " damage, wanted 0");
+        ItemStack membrane = anvil.apply(elytra.copy(), new ItemStack(net.minecraft.world.item.Items.PHANTOM_MEMBRANE, 1));
+        if (membrane.isEmpty() || membrane.getDamageValue() != 400 - max / 4) bad.add("phantom membrane left " + (membrane.isEmpty() ? "no result" : membrane.getDamageValue()) + ", wanted " + (400 - max / 4));
+        ItemStack sword = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
+        sword.setDamageValue(400);
+        if (!anvil.apply(sword, new ItemStack(scale, 1)).isEmpty()) bad.add("a scale repairs a diamond sword");
+        if (!bad.isEmpty()) helper.fail("scale repair: " + bad);
+        helper.succeed();
     }
 
     private static List<com.panda.promisedend.entity.CrystalWarden> wardensOf(GameTestHelper helper, net.minecraft.world.entity.boss.enderdragon.EnderDragon dragon) {
@@ -1230,6 +1369,8 @@ public final class EndGameTests {
                 @Override public int edgeDistance() { return previous.edgeDistance(); }
                 @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
                 @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
+                @Override public boolean dragonWrath() { return previous.dragonWrath(); }
+                @Override public int maxWrath() { return previous.maxWrath(); }
             });
             ChunkGenerator generator = access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.NORMAL).value()
                     .createWorldDimensions().get(LevelStem.END).orElseThrow().generator();
