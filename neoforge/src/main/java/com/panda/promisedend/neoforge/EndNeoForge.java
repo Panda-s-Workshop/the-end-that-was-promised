@@ -26,6 +26,7 @@ public final class EndNeoForge {
         NeoForge.EVENT_BUS.addListener((ServerAboutToStartEvent e) -> PromisedEnd.onServerStarting(e.getServer()));
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStartedEvent e) -> com.panda.promisedend.ServerCheck.onServerStarted(e.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post e) -> e.getServer().getPlayerList().getPlayers().forEach(PromisedEnd::onPlayerTick));
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.RegisterCommandsEvent e) -> com.panda.promisedend.EndCommand.register(e.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedOutEvent e) -> {
             if (e.getEntity() instanceof net.minecraft.server.level.ServerPlayer p) VoidAnchor.forget(p);
         });

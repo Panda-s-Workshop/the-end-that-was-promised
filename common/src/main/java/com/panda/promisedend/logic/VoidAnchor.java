@@ -105,12 +105,20 @@ public final class VoidAnchor {
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
                     if (dx == 0 && dz == 0) continue;
-                    // a column whose motion-blocking height is the floor itself has nothing in it: void
-                    if (level.getHeight(Heightmap.Types.MOTION_BLOCKING, feet.getX() + dx * d, feet.getZ() + dz * d) <= floor) return false;
+                    if (columnTop(level, feet.getX() + dx * d, feet.getZ() + dz * d) <= floor) return false;
                 }
             }
         }
         return true;
+    }
+
+    /**
+     * The height above a column's highest block, the floor itself when the column is empty: void. It loads the chunk
+     * first ({@code Level.getHeight} reads an unloaded chunk as the floor) and counts any block, since other mods'
+     * solid blocks are rarely in the motion-blocking tags.
+     */
+    private static int columnTop(ServerLevel level, int x, int z) {
+        return level.getChunk(x >> 4, z >> 4).getHeight(Heightmap.Types.WORLD_SURFACE, x & 15, z & 15) + 1;
     }
 
     /** Room to stand at {@code feet}: the feet block is open or a safe partial block, and the head block is open. */
@@ -149,7 +157,7 @@ public final class VoidAnchor {
         // vanilla puts every arrival here, so its platform counts whatever the edge margin says
         if (level.getBlockState(spawn.below()).isFaceSturdy(level, spawn.below(), Direction.UP) && fits(level, spawn)) return spawn;
         for (int x = spawn.getX(); x >= 16; x -= 4) {
-            int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, spawn.getZ());
+            int top = columnTop(level, x, spawn.getZ());
             BlockPos feet = new BlockPos(x, top, spawn.getZ());
             if (top > level.getMinY() && isSafeGround(level, feet) && fits(level, feet)) return feet;
         }
@@ -220,6 +228,9 @@ public final class VoidAnchor {
         player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, SLOW_FALLING_TICKS, 0, false, false, true));
         player.getInventory().setItem(slot, new ItemStack(ModItems.CRACKED_VOID_ANCHOR.get()));
         level.playSound(null, to.x, to.y, to.z, SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 1.0F, 0.7F);
+        // and the crack: a low item break under a crystal shattering
+        level.playSound(null, to.x, to.y, to.z, SoundEvents.ITEM_BREAK.value(), SoundSource.PLAYERS, 0.8F, 0.8F);
+        level.playSound(null, to.x, to.y, to.z, SoundEvents.AMETHYST_CLUSTER_BREAK, SoundSource.PLAYERS, 0.9F, 0.7F);
         // where they left the void and where they landed, so the pull is seen as well as heard
         from.sendParticles(ParticleTypes.REVERSE_PORTAL, fromPos.x, fromPos.y + 1, fromPos.z, 60, 0.4, 0.8, 0.4, 0.05);
         // a ring of rising motes around the landing spot, far enough out to be seen in first person (a particle that

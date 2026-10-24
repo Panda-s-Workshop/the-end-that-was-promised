@@ -57,6 +57,9 @@ public final class EndGameTests {
         FUNCTIONS.register("void_anchor_landing", () -> EndGameTests::voidAnchorLanding);
         FUNCTIONS.register("void_anchor_end_fallback", () -> EndGameTests::voidAnchorEndFallback);
         FUNCTIONS.register("rim_progress_by_distance", () -> EndGameTests::rimProgressByDistance);
+        FUNCTIONS.register("rim_outpost_footprint", () -> EndGameTests::rimOutpostFootprint);
+        FUNCTIONS.register("act_one_goals_by_inventory", () -> EndGameTests::actOneGoalsByInventory);
+        FUNCTIONS.register("codex_reset_command", () -> EndGameTests::codexResetCommand);
     }
 
     private EndGameTests() {}
@@ -346,7 +349,7 @@ public final class EndGameTests {
         // the test server's End isn't the real one: it has a floor a few blocks thick, so carve a true void first
         for (BlockPos c : List.of(stone, slabs, bridges)) {
             for (int dx = -10; dx <= 10; dx++) {
-                for (int dz = -10; dz <= 10; dz++) {
+                for (int dz = -10; dz <= 16; dz++) {
                     for (int dy = end.getMinY(); dy < end.getMinY() + 12; dy++) {
                         end.setBlockAndUpdate(new BlockPos(c.getX() + dx, dy, c.getZ() + dz), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
                     }
@@ -359,16 +362,25 @@ public final class EndGameTests {
                 end.setBlockAndUpdate(slabs.offset(dx, 0, dz), net.minecraft.world.level.block.Blocks.STONE_SLAB.defaultBlockState());
             }
         }
-        // a 3-wide bridge along x at bridges, a 1-wide one 6 blocks south of it
+        // a 3-wide bridge along x at bridges, a 1-wide one 6 blocks south of it, and 12 south a 1-wide one with carpet
+        // lanes either side: carpet stands for a block outside the motion-blocking tags, as most other mods' are
+        var carpet = net.minecraft.world.level.block.Blocks.MOSS_CARPET.defaultBlockState();
         for (int dx = -6; dx <= 6; dx++) {
+            end.setBlockAndUpdate(bridges.offset(dx, 0, 12), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
+            // no updates, or the unsupported carpet drops
+            end.setBlock(bridges.offset(dx, 0, 11), carpet, net.minecraft.world.level.block.Block.UPDATE_CLIENTS | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
+            end.setBlock(bridges.offset(dx, 0, 13), carpet, net.minecraft.world.level.block.Block.UPDATE_CLIENTS | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
             for (int dz = -1; dz <= 1; dz++) end.setBlockAndUpdate(bridges.offset(dx, 0, dz), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
             end.setBlockAndUpdate(bridges.offset(dx, 0, 6), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
         }
         List<String> bad = new ArrayList<>();
         if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.above())) bad.add("the platform's middle isn't safe");
         if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(3, 1, 0))) bad.add("one block in from the platform's edge isn't safe");
-        if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(4, 1, 0))) bad.add("the platform's edge block counts as safe (heights east: "
-                + end.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, stone.getX() + 5, stone.getZ()) + ", floor " + end.getMinY() + ")");
+        if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(4, 1, 0))) bad.add("the platform's edge block counts as safe");
+        int carpetHeight = end.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, bridges.getX(), bridges.getZ() + 11);
+        if (carpetHeight > end.getMinY()) bad.add("carpet is motion-blocking (height " + carpetHeight + "): the carpet bridge proves nothing");
+        if (end.getBlockState(bridges.offset(0, 0, 11)).isAir()) bad.add("the carpet dropped");
+        if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.offset(0, 1, 12))) bad.add("a bridge flanked by blocks outside the motion-blocking tags isn't safe");
         if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.above())) bad.add("the middle of a 3-wide bridge isn't safe");
         if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.offset(0, 1, 6))) bad.add("a 1-wide bridge counts as safe");
         if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(0, 1, 9))) bad.add("the void itself counts as safe");
@@ -419,7 +431,21 @@ public final class EndGameTests {
         if (!level.getBlockState(at.below()).isFaceSturdy(level, at.below(), net.minecraft.core.Direction.UP)) bad.add("landed over " + level.getBlockState(at.below()) + " at " + at);
         if (at.distManhattan(footing) > com.panda.promisedend.logic.VoidAnchor.SEARCH_RADIUS * 3) bad.add("landed far from the footing: " + at);
         var slow = player.getEffect(net.minecraft.world.effect.MobEffects.SLOW_FALLING);
-        if (slow == null || slow.getDuration() > com.panda.promisedend.logic.VoidAnchor.SLOW_FALLING_TICKS) bad.add("Slow Falling after the rescue: " + slow);
+        if (slow == null || slow.getDuration() != com.panda.promisedend.logic.VoidAnchor.SLOW_FALLING_TICKS) bad.add("Slow Falling after the rescue isn't 5 s: " + slow);
+        // standing in lava on good ground records nothing
+        BlockPos lava = standOn(level, helper.absolutePos(new BlockPos(8, 2, 2)));
+        for (BlockPos n : List.of(lava.east(), lava.west(), lava.north(), lava.south(), lava.east().north(), lava.east().south(), lava.west().north(), lava.west().south())) standOn(level, n);
+        level.setBlockAndUpdate(lava, net.minecraft.world.level.block.Blocks.LAVA.defaultBlockState());
+        player.teleportTo(lava.getX() + 0.5, lava.getY(), lava.getZ() + 0.5);
+        player.setOnGround(true);
+        player.baseTick();
+        player.baseTick();
+        player.setOnGround(true);
+        if (!player.isInLava()) bad.add("the mock player isn't in lava: the lava check proves nothing");
+        else if (com.panda.promisedend.logic.VoidAnchor.isSafeFooting(player)) bad.add("footing in lava counts as safe");
+        level.setBlockAndUpdate(lava, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+        player.clearFire();
+        player.setHealth(player.getMaxHealth());
         // feet inside a bottom slab
         BlockPos slab = standOn(level, helper.absolutePos(new BlockPos(5, 2, 5)));
         level.setBlockAndUpdate(slab, net.minecraft.world.level.block.Blocks.STONE_SLAB.defaultBlockState());
@@ -484,6 +510,99 @@ public final class EndGameTests {
             bad.add("with nothing to stand on, landed at " + third + " over " + end.getBlockState(spawn.below()));
         }
         if (!bad.isEmpty()) helper.fail("End fallback: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Rim Outpost is 11×11: its purpur corner pillars stand 10 blocks apart on both axes, on an island
+     * of its own.
+     */
+    private static void rimOutpostFootprint(GameTestHelper helper) {
+        var template = helper.getLevel().getServer().getStructureTemplateManager().get(PromisedEnd.id("rim_outpost"));
+        if (template.isEmpty()) {
+            helper.fail("no rim_outpost template");
+            return;
+        }
+        var pillars = template.get().filterBlocks(BlockPos.ZERO, new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),
+                net.minecraft.world.level.block.Blocks.PURPUR_PILLAR);
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        for (var p : pillars) {
+            minX = Math.min(minX, p.pos().getX());
+            maxX = Math.max(maxX, p.pos().getX());
+            minZ = Math.min(minZ, p.pos().getZ());
+            maxZ = Math.max(maxZ, p.pos().getZ());
+            minY = Math.min(minY, p.pos().getY());
+            maxY = Math.max(maxY, p.pos().getY());
+        }
+        PromisedEnd.LOGGER.info("rim outpost: {} pillar blocks, {}x{} across, {} tall with the spire, template {}", pillars.size(),
+                maxX - minX + 1, maxZ - minZ + 1, maxY - minY + 1, template.get().getSize());
+        if (maxX - minX + 1 != 11 || maxZ - minZ + 1 != 11) helper.fail("the outpost isn't 11×11: " + (maxX - minX + 1) + "×" + (maxZ - minZ + 1));
+        helper.succeed();
+    }
+
+    /**
+     * Act I's goals as a player meets them: Voidstone in the inventory ticks "Take the deep stone"; a Cracked Void
+     * Anchor (the outpost chest's) doesn't tick "Make an anchor", the anchor recharged from it does.
+     */
+    private static void actOneGoalsByInventory(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var player = helper.makeMockServerPlayerInLevel();
+        List<String> bad = new ArrayList<>();
+        var mine = server.getAdvancements().get(PromisedEnd.id("rim/mine_voidstone"));
+        var forge = server.getAdvancements().get(PromisedEnd.id("rim/forge_anchor"));
+        if (mine == null || forge == null) {
+            helper.fail("Act I's advancements are missing");
+            return;
+        }
+        player.getInventory().add(new net.minecraft.world.item.ItemStack(ModBlocks.VOIDSTONE_SET.base().get()));
+        player.inventoryMenu.broadcastChanges();
+        if (!player.getAdvancements().getOrStartProgress(mine).isDone()) bad.add("Voidstone in the inventory didn't tick mine_voidstone");
+        player.getInventory().add(new net.minecraft.world.item.ItemStack(ModItems.CRACKED_VOID_ANCHOR.get()));
+        player.inventoryMenu.broadcastChanges();
+        if (player.getAdvancements().getOrStartProgress(forge).isDone()) bad.add("a cracked anchor ticked forge_anchor");
+        player.getInventory().add(new net.minecraft.world.item.ItemStack(ModItems.VOID_ANCHOR.get()));
+        player.inventoryMenu.broadcastChanges();
+        if (!player.getAdvancements().getOrStartProgress(forge).isDone()) bad.add("an anchor in the inventory didn't tick forge_anchor");
+        // the outpost chest gives a cracked anchor, never a charged one
+        var table = server.reloadableRegistries().getLootTable(ResourceKey.create(Registries.LOOT_TABLE, PromisedEnd.id("chests/rim_outpost")));
+        var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(helper.getLevel())
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, player.position())
+                .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
+        int cracked = 0;
+        for (int i = 0; i < 60; i++) {
+            for (var stack : table.getRandomItems(params, 1000 + i)) {
+                if (stack.is(ModItems.VOID_ANCHOR.get())) bad.add("an outpost chest rolled a charged Void Anchor");
+                if (stack.is(ModItems.CRACKED_VOID_ANCHOR.get())) cracked++;
+            }
+        }
+        if (cracked == 0) bad.add("no outpost chest in 60 rolled a cracked anchor");
+        if (!bad.isEmpty()) helper.fail("Act I goals: " + bad);
+        helper.succeed();
+    }
+
+    /** {@code /promisedend codex reset <player>} forgets our goals and leaves vanilla's (as @s: every mock player shares one name). */
+    private static void codexResetCommand(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var player = helper.makeMockServerPlayerInLevel();
+        var forge = server.getAdvancements().get(PromisedEnd.id("rim/forge_anchor"));
+        var vanilla = server.getAdvancements().get(com.panda.promisedend.logic.CodexBook.KILL_DRAGON);
+        if (forge == null || vanilla == null) {
+            helper.fail("advancements missing");
+            return;
+        }
+        forge.value().criteria().keySet().forEach(c -> player.getAdvancements().award(forge, c));
+        vanilla.value().criteria().keySet().forEach(c -> player.getAdvancements().award(vanilla, c));
+        List<String> bad = new ArrayList<>();
+        try {
+            int n = server.getCommands().getDispatcher().execute("promisedend codex reset @s",
+                    server.createCommandSourceStack().withEntity(player).withSuppressedOutput());
+            if (n != 1) bad.add("the command reset " + n + " players, not 1");
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) {
+            bad.add("the command failed: " + e.getMessage());
+        }
+        if (player.getAdvancements().getOrStartProgress(forge).isDone()) bad.add("forge_anchor still done after the reset");
+        if (!player.getAdvancements().getOrStartProgress(vanilla).isDone()) bad.add("the reset took vanilla's kill_dragon too");
+        if (!bad.isEmpty()) helper.fail("codex reset: " + bad);
         helper.succeed();
     }
 
@@ -735,7 +854,8 @@ public final class EndGameTests {
             for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 6, 16))) level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
         }
         if (voidstone == 0) bad.add("no Voidstone in the islands");
-        if (voidstone < endStone) bad.add("islands should be mostly Voidstone: " + voidstone + " voidstone, " + endStone + " end stone");
+        double share = voidstone / (double) Math.max(1, voidstone + endStone);
+        if (share < 0.62 || share > 0.80) bad.add("islands should be about 70 % Voidstone: " + voidstone + " voidstone, " + endStone + " end stone");
         if (below == 0) bad.add("the islands have no tapering underside");
         if (widths.stream().anyMatch(w -> w < 6 || w > 18)) bad.add("islands outside 6–18 across: " + widths);
         PromisedEnd.LOGGER.info("rim islands: {} voidstone / {} end stone, widths {}", voidstone, endStone, widths);
