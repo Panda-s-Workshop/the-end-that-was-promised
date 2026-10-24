@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": "promisedend:voidstone",
+  "result": {
+    "id": "promisedend:chiseled_voidstone",
+    "count": 1
+  }
+}

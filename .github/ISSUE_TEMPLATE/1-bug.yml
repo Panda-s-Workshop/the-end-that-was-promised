@@ -1,0 +1,104 @@
+name: 🐛 Bug report
+description: Something behaves wrong, without crashing.
+labels: ["type: bug", "status: needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! One problem per issue, please. For crashes use the **Crash report** form, and for problems that only happen together with another mod, **Conflict with another mod**. Questions go to [Discussions](https://github.com/Panda-s-Workshop/the-end-that-was-promised/discussions).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What's wrong, and where. Screenshots help a lot.
+      placeholder: A Silent Librarian walks through the bars of a sealed archive's cage.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      placeholder: |
+        1. Enter the End and fly to the outer islands
+        2. Go to the sealed archive at 104 9 120
+        3. Wait near the cage
+    validations:
+      required: false
+
+  - type: input
+    id: where
+    attributes:
+      label: Seed and coordinates
+      description: The world seed and the coordinates from F3, so the same room can be found again.
+      placeholder: Seed 1111, in the End at 2104 60 -880
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - End terrain, biomes and structures
+        - The dragon fight and Wrath
+        - Constructs and bosses
+        - Gear, the Void Anchor and elytra augments
+        - Rift Gates, shrines and Starfall
+        - Screens and the Promise Codex
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: The End That Was Promised version
+      description: From the jar's name or the mods list, such as 0.1.0.
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: neoforge
+    attributes:
+      label: NeoForge version
+      description: The End That Was Promised is for Minecraft 26.3 on NeoForge and Fabric.
+      placeholder: 26.3.0.89
+    validations:
+      required: true
+
+  - type: textarea
+    id: mods
+    attributes:
+      label: Other mods
+      description: Your mod list, the modpack's name and version, or "none". Mods that add enchantments matter most.
+    validations:
+      required: true
+
+  - type: input
+    id: log
+    attributes:
+      label: Log
+      description: Upload `logs/latest.log` to [mclo.gs](https://mclo.gs) and paste the link.
+      placeholder: https://mclo.gs/...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I'm on the latest The End That Was Promised release.
+          required: false
+        - label: I searched the open and closed issues for this problem.
+          required: true

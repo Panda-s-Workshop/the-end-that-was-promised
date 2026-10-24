@@ -1,0 +1,39 @@
+{
+  "parent": "promisedend:rim/enter_rim",
+  "criteria": {
+    "in_outpost": {
+      "trigger": "minecraft:location",
+      "conditions": {
+        "player": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:location": {
+              "structures": "promisedend:rim_outpost"
+            }
+          }
+        }
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:chiseled_voidstone"
+    },
+    "title": {
+      "translate": "advancements.promisedend.rim.find_outpost.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.rim.find_outpost.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "in_outpost"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

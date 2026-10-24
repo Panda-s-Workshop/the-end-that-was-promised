@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": "promisedend:voidstone",
+  "result": {
+    "id": "promisedend:polished_voidstone_stairs",
+    "count": 1
+  }
+}

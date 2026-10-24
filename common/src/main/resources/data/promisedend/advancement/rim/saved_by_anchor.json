@@ -1,0 +1,28 @@
+{
+  "parent": "promisedend:rim/forge_anchor",
+  "criteria": {
+    "rescued": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:void_anchor"
+    },
+    "title": {
+      "translate": "advancements.promisedend.rim.saved_by_anchor.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.rim.saved_by_anchor.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "rescued"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

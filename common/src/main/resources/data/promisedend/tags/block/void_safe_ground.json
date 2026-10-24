@@ -1,0 +1,10 @@
+{
+  "values": [
+    "#minecraft:slabs",
+    "#minecraft:stairs",
+    "minecraft:dirt_path",
+    "minecraft:farmland",
+    "minecraft:soul_sand",
+    "minecraft:mud"
+  ]
+}

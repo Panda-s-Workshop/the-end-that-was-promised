@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/slab_top",
+  "textures": {
+    "bottom": "promisedend:block/polished_voidstone",
+    "top": "promisedend:block/polished_voidstone",
+    "side": "promisedend:block/polished_voidstone"
+  }
+}

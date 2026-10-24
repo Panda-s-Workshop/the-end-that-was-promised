@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": [
+    "${mod_authors}"
+  ],
+  "contact": {
+    "homepage": "https://panda-s-workshop.github.io/the-end-that-was-promised/",
+    "sources": "https://github.com/Panda-s-Workshop/the-end-that-was-promised",
+    "issues": "https://github.com/Panda-s-Workshop/the-end-that-was-promised/issues"
+  },
+  "license": "${mod_license}",
+  "icon": "logo.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.panda.promisedend.fabric.EndFabric"
+    ],
+    "client": [
+      "com.panda.promisedend.fabric.client.EndFabricClient"
+    ]
+  },
+  "accessWidener": "promisedend.accesswidener",
+  "mixins": [
+    "promisedend.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": ">=${fabric_api_min}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=25"
+  }
+}

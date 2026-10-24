@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "N": "minecraft:iron_nugget",
+    "P": "promisedend:polished_voidstone",
+    "E": "minecraft:ender_pearl"
+  },
+  "pattern": [
+    "NPN",
+    "PEP",
+    "NPN"
+  ],
+  "result": {
+    "id": "promisedend:void_anchor"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "parent": "promisedend:rim/root",
+  "criteria": {
+    "in_rim": {
+      "trigger": "minecraft:location",
+      "conditions": {
+        "player": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:location": {
+              "biomes": "promisedend:shattered_rim"
+            }
+          }
+        }
+      }
+    },
+    "in_ring": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:voidstone"
+    },
+    "title": {
+      "translate": "advancements.promisedend.rim.enter_rim.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.rim.enter_rim.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "in_rim",
+      "in_ring"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

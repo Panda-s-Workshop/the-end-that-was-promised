@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "###"
+  ],
+  "key": {
+    "#": "promisedend:voidstone"
+  },
+  "result": {
+    "id": "promisedend:voidstone_slab",
+    "count": 6
+  }
+}

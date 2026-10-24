@@ -1,0 +1,35 @@
+{
+  "parent": "promisedend:rim/mine_voidstone",
+  "criteria": {
+    "anchor": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:void_anchor"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:void_anchor"
+    },
+    "title": {
+      "translate": "advancements.promisedend.rim.forge_anchor.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.rim.forge_anchor.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "anchor"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

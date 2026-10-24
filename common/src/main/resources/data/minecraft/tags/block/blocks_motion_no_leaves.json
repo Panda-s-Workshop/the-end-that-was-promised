@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "promisedend:voidstone",
+    "promisedend:polished_voidstone",
+    "promisedend:voidstone_bricks",
+    "promisedend:chiseled_voidstone",
+    "#minecraft:slabs",
+    "#minecraft:stairs",
+    "#minecraft:walls"
+  ]
+}

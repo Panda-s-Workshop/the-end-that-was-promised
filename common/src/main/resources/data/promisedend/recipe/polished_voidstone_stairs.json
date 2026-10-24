@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "#  ",
+    "## ",
+    "###"
+  ],
+  "key": {
+    "#": "promisedend:polished_voidstone"
+  },
+  "result": {
+    "id": "promisedend:polished_voidstone_stairs",
+    "count": 4
+  }
+}

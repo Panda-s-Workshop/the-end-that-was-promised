@@ -1,0 +1,35 @@
+{
+  "parent": "promisedend:rim/enter_rim",
+  "criteria": {
+    "voidstone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:voidstone"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:voidstone_pickaxe"
+    },
+    "title": {
+      "translate": "advancements.promisedend.rim.mine_voidstone.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.rim.mine_voidstone.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "voidstone"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

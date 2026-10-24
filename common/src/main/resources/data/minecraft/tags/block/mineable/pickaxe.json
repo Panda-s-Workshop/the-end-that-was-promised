@@ -1,0 +1,18 @@
+{
+  "replace": false,
+  "values": [
+    "promisedend:voidstone",
+    "promisedend:voidstone_stairs",
+    "promisedend:voidstone_slab",
+    "promisedend:voidstone_wall",
+    "promisedend:polished_voidstone",
+    "promisedend:polished_voidstone_stairs",
+    "promisedend:polished_voidstone_slab",
+    "promisedend:polished_voidstone_wall",
+    "promisedend:voidstone_bricks",
+    "promisedend:voidstone_brick_stairs",
+    "promisedend:voidstone_brick_slab",
+    "promisedend:voidstone_brick_wall",
+    "promisedend:chiseled_voidstone"
+  ]
+}

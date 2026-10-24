@@ -1,0 +1,31 @@
+{
+  "criteria": {
+    "entered_end": {
+      "trigger": "minecraft:changed_dimension",
+      "conditions": {
+        "to": "minecraft:the_end"
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:promise_codex"
+    },
+    "title": {
+      "translate": "advancements.promisedend.rim.root.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.rim.root.description"
+    },
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "background": "minecraft:gui/advancements/backgrounds/end"
+  },
+  "requirements": [
+    [
+      "entered_end"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

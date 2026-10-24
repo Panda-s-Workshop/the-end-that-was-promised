@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:polished_voidstone_stairs"
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "random_sequence": "promisedend:blocks/polished_voidstone_stairs"
+}

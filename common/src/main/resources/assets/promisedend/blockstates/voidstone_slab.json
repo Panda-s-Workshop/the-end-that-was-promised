@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "promisedend:block/voidstone_slab"
+    },
+    "type=top": {
+      "model": "promisedend:block/voidstone_slab_top"
+    },
+    "type=double": {
+      "model": "promisedend:block/voidstone"
+    }
+  }
+}
