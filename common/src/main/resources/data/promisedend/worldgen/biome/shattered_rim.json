@@ -39,7 +39,8 @@
   },
   "features": [
     [
-      "promisedend:rim_debris"
+      "promisedend:rim_debris",
+      "promisedend:rim_debris_inner"
     ]
   ],
   "has_precipitation": false,

@@ -53,7 +53,7 @@
   "item.promisedend.voidstone_sword": "Voidstone Sword",
   "itemGroup.promisedend": "The End That Was Promised",
   "message.promisedend.anchor_cracked": "Your Void Anchor is cracked. Recharge it with an ender pearl.",
-  "message.promisedend.anchor_rescued": "Caught. Your Void Anchor cracked.",
+  "message.promisedend.anchor_rescued": "Caught. Your anchor cracked: an ender pearl recharges it.",
   "promisedend.name": "The End That Was Promised",
   "screen.promisedend.codex.act": "Act %s:",
   "screen.promisedend.codex.complete": "Every goal kept",

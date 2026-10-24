@@ -105,7 +105,7 @@ public final class VoidAnchor {
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
                     if (dx == 0 && dz == 0) continue;
-                    if (columnTop(level, feet.getX() + dx * d, feet.getZ() + dz * d) <= floor) return false;
+                    if (!groundUnder(level, feet.getX() + dx * d, feet.getY(), feet.getZ() + dz * d)) return false;
                 }
             }
         }
@@ -119,6 +119,21 @@ public final class VoidAnchor {
      */
     private static int columnTop(ServerLevel level, int x, int z) {
         return level.getChunk(x >> 4, z >> 4).getHeight(Heightmap.Types.WORLD_SURFACE, x & 15, z & 15) + 1;
+    }
+
+    /**
+     * Whether column (x, z) holds a block at or below {@code y}: a roof or a bridge overhead isn't ground. Only a column
+     * with something above {@code y} is scanned, down from {@code y}.
+     */
+    private static boolean groundUnder(ServerLevel level, int x, int y, int z) {
+        int top = columnTop(level, x, z);
+        if (top <= level.getMinY()) return false;
+        if (top <= y + 1) return true;
+        var pos = new BlockPos.MutableBlockPos(x, y, z);
+        for (; pos.getY() >= level.getMinY(); pos.move(Direction.DOWN)) {
+            if (!level.getBlockState(pos).isAir()) return true;
+        }
+        return false;
     }
 
     /** Room to stand at {@code feet}: the feet block is open or a safe partial block, and the head block is open. */
@@ -205,8 +220,9 @@ public final class VoidAnchor {
         ServerLevel from = player.level();
         Vec3 fromPos = player.position();
         GlobalPos target = FOOTING.get(player.getUUID());
-        // footing from another dimension doesn't count: the anchor never carries anyone across worlds; and footing
-        // that no longer holds (mined out from under) is replaced by the nearest spot that does
+        // footing from another dimension doesn't count, and footing that no longer holds (mined out from under) is
+        // replaced by the nearest spot that does. With neither, the End has its own fallbacks; anywhere else it's the
+        // world spawn, as with a bed
         BlockPos near = target == null || target.dimension() != from.dimension() ? null : landingNear(from, target.pos());
         ServerLevel level;
         Vec3 to;

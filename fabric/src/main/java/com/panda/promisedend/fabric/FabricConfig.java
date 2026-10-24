@@ -24,7 +24,7 @@ final class FabricConfig implements EndConfig.Source {
         EndConfig.Source d = EndConfig.DEFAULTS;
         terrainEnabled = Boolean.parseBoolean(p.getProperty("terrain.enabled", String.valueOf(d.terrainEnabled())).trim());
         edgeDistance = clamp(p.getProperty("terrain.edge_distance"), d.edgeDistance(), 2000, 1000000);
-        anchorTriggerDepth = clamp(p.getProperty("anchor.trigger_depth"), d.anchorTriggerDepth(), 0, 60);
+        anchorTriggerDepth = clamp(p.getProperty("anchor.trigger_depth"), d.anchorTriggerDepth(), 0, 52);
     }
 
     static FabricConfig load() {
@@ -46,7 +46,7 @@ final class FabricConfig implements EndConfig.Source {
                          The End That Was Promised
                          terrain.enabled: our End biomes replace the vanilla outer-End biomes; false for packs with another End biome overhaul (true/false)
                          terrain.edge_distance: where the Unfinished Edge begins, in blocks from the End's origin (2000-1000000)
-                         anchor.trigger_depth: how far below the dimension's lowest block a falling player with a Void Anchor is pulled back (0-60)""");
+                         anchor.trigger_depth: how far below the dimension's lowest block a falling player with a Void Anchor is pulled back (0-52)""");
             } catch (IOException e) {
                 PromisedEnd.LOGGER.warn("Couldn't write {}", file, e);
             }

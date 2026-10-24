@@ -60,6 +60,7 @@ public final class EndGameTests {
         FUNCTIONS.register("rim_outpost_footprint", () -> EndGameTests::rimOutpostFootprint);
         FUNCTIONS.register("act_one_goals_by_inventory", () -> EndGameTests::actOneGoalsByInventory);
         FUNCTIONS.register("codex_reset_command", () -> EndGameTests::codexResetCommand);
+        FUNCTIONS.register("void_anchor_unloaded_neighbour", () -> EndGameTests::voidAnchorUnloadedNeighbour);
     }
 
     private EndGameTests() {}
@@ -349,7 +350,7 @@ public final class EndGameTests {
         // the test server's End isn't the real one: it has a floor a few blocks thick, so carve a true void first
         for (BlockPos c : List.of(stone, slabs, bridges)) {
             for (int dx = -10; dx <= 10; dx++) {
-                for (int dz = -10; dz <= 16; dz++) {
+                for (int dz = -10; dz <= 24; dz++) {
                     for (int dy = end.getMinY(); dy < end.getMinY() + 12; dy++) {
                         end.setBlockAndUpdate(new BlockPos(c.getX() + dx, dy, c.getZ() + dz), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
                     }
@@ -370,6 +371,9 @@ public final class EndGameTests {
             // no updates, or the unsupported carpet drops
             end.setBlock(bridges.offset(dx, 0, 11), carpet, net.minecraft.world.level.block.Block.UPDATE_CLIENTS | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
             end.setBlock(bridges.offset(dx, 0, 13), carpet, net.minecraft.world.level.block.Block.UPDATE_CLIENTS | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
+            // 18 south, a 1-wide bridge under a 5-wide roof: the roof is over the void columns, not under them
+            end.setBlockAndUpdate(bridges.offset(dx, 0, 18), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
+            for (int dz = 16; dz <= 20; dz++) end.setBlockAndUpdate(bridges.offset(dx, 4, dz), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
             for (int dz = -1; dz <= 1; dz++) end.setBlockAndUpdate(bridges.offset(dx, 0, dz), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
             end.setBlockAndUpdate(bridges.offset(dx, 0, 6), ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState());
         }
@@ -381,6 +385,7 @@ public final class EndGameTests {
         if (carpetHeight > end.getMinY()) bad.add("carpet is motion-blocking (height " + carpetHeight + "): the carpet bridge proves nothing");
         if (end.getBlockState(bridges.offset(0, 0, 11)).isAir()) bad.add("the carpet dropped");
         if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.offset(0, 1, 12))) bad.add("a bridge flanked by blocks outside the motion-blocking tags isn't safe");
+        if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.offset(0, 1, 18))) bad.add("a 1-wide bridge under a roof counts as safe");
         if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.above())) bad.add("the middle of a 3-wide bridge isn't safe");
         if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, bridges.offset(0, 1, 6))) bad.add("a 1-wide bridge counts as safe");
         if (com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, stone.offset(0, 1, 9))) bad.add("the void itself counts as safe");
@@ -536,7 +541,20 @@ public final class EndGameTests {
         }
         PromisedEnd.LOGGER.info("rim outpost: {} pillar blocks, {}x{} across, {} tall with the spire, template {}", pillars.size(),
                 maxX - minX + 1, maxZ - minZ + 1, maxY - minY + 1, template.get().getSize());
-        if (maxX - minX + 1 != 11 || maxZ - minZ + 1 != 11) helper.fail("the outpost isn't 11×11: " + (maxX - minX + 1) + "×" + (maxZ - minZ + 1));
+        // each corner pillar's span (the roof layer crosses it, so count from its lowest to its highest block): three
+        // stand floor to parapet (7), the south-west one carries the spire (10)
+        java.util.Map<Long, int[]> columns = new java.util.HashMap<>();
+        for (var p : pillars) {
+            int[] span = columns.computeIfAbsent(((long) p.pos().getX() << 32) | (p.pos().getZ() & 0xffffffffL), k -> new int[] {Integer.MAX_VALUE, Integer.MIN_VALUE});
+            span[0] = Math.min(span[0], p.pos().getY());
+            span[1] = Math.max(span[1], p.pos().getY());
+        }
+        List<Integer> heights = columns.values().stream().map(span -> span[1] - span[0] + 1).sorted().toList();
+        PromisedEnd.LOGGER.info("rim outpost corner pillars: {}", heights);
+        List<String> bad = new ArrayList<>();
+        if (maxX - minX + 1 != 11 || maxZ - minZ + 1 != 11) bad.add("the outpost isn't 11×11: " + (maxX - minX + 1) + "×" + (maxZ - minZ + 1));
+        if (!heights.equals(List.of(7, 7, 7, 10))) bad.add("corner pillars aren't 7, 7, 7 and the spire's 10: " + heights);
+        if (!bad.isEmpty()) helper.fail("outpost: " + bad);
         helper.succeed();
     }
 
@@ -577,6 +595,29 @@ public final class EndGameTests {
         }
         if (cracked == 0) bad.add("no outpost chest in 60 rolled a cracked anchor");
         if (!bad.isEmpty()) helper.fail("Act I goals: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Footing on a chunk's edge whose neighbour chunk isn't loaded: the neighbour is loaded and read, not taken for
+     * void (the test End's floor is ground there).
+     */
+    private static void voidAnchorUnloadedNeighbour(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) {
+            helper.fail("no End level on the test server");
+            return;
+        }
+        int cx = 3000 + (int) (end.getGameTime() % 500) * 3;           // a fresh chunk each run of the test server
+        BlockPos feet = new BlockPos(cx * 16 + 15, 64, 8);
+        end.getChunk(cx, 0);
+        if (end.getChunkSource().hasChunk(cx + 1, 0)) {
+            helper.fail("the neighbour chunk is already loaded: the test proves nothing");
+            return;
+        }
+        end.setBlockAndUpdate(feet.below(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+        if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, feet)) helper.fail("footing beside an unloaded chunk was taken for the void's edge");
+        end.setBlockAndUpdate(feet.below(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
         helper.succeed();
     }
 

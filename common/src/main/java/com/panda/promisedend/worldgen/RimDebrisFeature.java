@@ -23,13 +23,18 @@ import net.minecraft.world.level.levelgen.feature.Feature;
  * <p>{@code fallback} marks the copy that packs with our terrain off get ({@code rim_debris_fallback}, on every biome in
  * {@code #promisedend:rim_fallback}: vanilla's and other mods' End biomes). It builds only in the End, and never in
  * one of our own biomes, where the Rim's own copy already builds.
+ *
+ * <p>{@code ring_inner} and {@code ring_outer} narrow the band it builds in ({@code rim_debris_inner}: small stepping
+ * stones close to the main island, so the first crossing is short and the Rim shows through the dragon's fog).
  */
-public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, boolean fallback) implements Feature {
+public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, boolean fallback, int ringInner, int ringOuter) implements Feature {
     public static final MapCodec<RimDebrisFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             Codec.intRange(2, 12).fieldOf("min_radius").forGetter(RimDebrisFeature::minRadius),
             Codec.intRange(2, 12).fieldOf("max_radius").forGetter(RimDebrisFeature::maxRadius),
             Codec.floatRange(0, 1).fieldOf("voidstone").forGetter(RimDebrisFeature::voidstone),
-            Codec.BOOL.optionalFieldOf("fallback", false).forGetter(RimDebrisFeature::fallback)
+            Codec.BOOL.optionalFieldOf("fallback", false).forGetter(RimDebrisFeature::fallback),
+            Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_OUTER).optionalFieldOf("ring_inner", EndRegions.RIM_INNER).forGetter(RimDebrisFeature::ringInner),
+            Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_OUTER).optionalFieldOf("ring_outer", EndRegions.RIM_OUTER).forGetter(RimDebrisFeature::ringOuter)
     ).apply(i, RimDebrisFeature::new));
 
     @Override
@@ -42,7 +47,7 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
         // only in the Rim's ring: the fallback copy sits on whole End biomes, and must not build on the main island or
         // in the void gap
         double distance = Math.hypot(origin.getX(), origin.getZ());
-        if (distance < EndRegions.RIM_INNER || distance > EndRegions.RIM_OUTER) return false;
+        if (distance < ringInner || distance > ringOuter) return false;
         if (fallback && (level.getLevel().dimension() != Level.END
                 || level.getBiome(origin).unwrapKey().map(k -> k.identifier().getNamespace().equals(PromisedEnd.MODID)).orElse(false))) {
             return false;
@@ -54,7 +59,7 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
             double angle = random.nextDouble() * Math.PI * 2;
             int d = radius + 2 + random.nextInt(4);
             BlockPos at = origin.offset((int) Math.round(Math.cos(angle) * d), random.nextInt(9) - 5, (int) Math.round(Math.sin(angle) * d));
-            island(level, random, at, 1 + random.nextInt(2));
+            island(level, random, at, 2 + random.nextInt(2));
         }
         return true;
     }

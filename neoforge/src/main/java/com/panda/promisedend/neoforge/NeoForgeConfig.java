@@ -24,7 +24,7 @@ public final class NeoForgeConfig implements EndConfig.Source {
         B.pop();
         B.push("anchor");
         ANCHOR_TRIGGER_DEPTH = B.comment("How far below the dimension's lowest block a falling player with a Void Anchor is pulled back (the End: Y -24).")
-                .defineInRange("trigger_depth", 24, 0, 60);
+                .defineInRange("trigger_depth", 24, 0, 52);
         B.pop();
     }
 
