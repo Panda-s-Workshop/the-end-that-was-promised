@@ -3,13 +3,13 @@ package com.panda.promisedend.worldgen;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
-import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -19,12 +19,17 @@ import net.minecraft.world.level.levelgen.feature.Feature;
  * A Shattered Rim debris island: a flat-topped lens of Voidstone and end stone that tapers to a point below,
  * like a broken-off piece of the main island, with a few loose shards hanging beside it. On 26.3 a feature is a record
  * whose fields are its configuration ({@code worldgen/feature/rim_debris.json}).
+ *
+ * <p>{@code fallback} marks the copy that packs with our terrain off get ({@code rim_debris_fallback}, on every biome in
+ * {@code #promisedend:rim_fallback}: vanilla's and other mods' End biomes). It builds only in the End, and never in
+ * one of our own biomes, where the Rim's own copy already builds.
  */
-public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone) implements Feature {
+public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, boolean fallback) implements Feature {
     public static final MapCodec<RimDebrisFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             Codec.intRange(2, 12).fieldOf("min_radius").forGetter(RimDebrisFeature::minRadius),
             Codec.intRange(2, 12).fieldOf("max_radius").forGetter(RimDebrisFeature::maxRadius),
-            Codec.floatRange(0, 1).fieldOf("voidstone").forGetter(RimDebrisFeature::voidstone)
+            Codec.floatRange(0, 1).fieldOf("voidstone").forGetter(RimDebrisFeature::voidstone),
+            Codec.BOOL.optionalFieldOf("fallback", false).forGetter(RimDebrisFeature::fallback)
     ).apply(i, RimDebrisFeature::new));
 
     @Override
@@ -34,12 +39,14 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone) im
 
     @Override
     public boolean place(WorldGenLevel level, ChunkGenerator generator, RandomSource random, BlockPos origin) {
-        // only in the Rim's ring: the feature is also on vanilla the_end (a biome modifier) for packs that turn our
-        // terrain off, and there it must not build on the main island or in the void gap
+        // only in the Rim's ring: the fallback copy sits on whole End biomes, and must not build on the main island or
+        // in the void gap
         double distance = Math.hypot(origin.getX(), origin.getZ());
         if (distance < EndRegions.RIM_INNER || distance > EndRegions.RIM_OUTER) return false;
-        // the copy on vanilla the_end is for our own End: another mod's dimension that borrows that biome gets none
-        if (level.getLevel().dimension() != Level.END && level.getBiome(origin).is(Biomes.THE_END)) return false;
+        if (fallback && (level.getLevel().dimension() != Level.END
+                || level.getBiome(origin).unwrapKey().map(k -> k.identifier().getNamespace().equals(PromisedEnd.MODID)).orElse(false))) {
+            return false;
+        }
         int radius = Mth.randomBetweenInclusive(random, minRadius, Math.max(minRadius, maxRadius));
         island(level, random, origin, radius);
         int shards = random.nextInt(4);

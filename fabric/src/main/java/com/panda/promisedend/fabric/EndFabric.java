@@ -16,7 +16,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.levelgen.GenerationStep;
 
 /** The Fabric entry point: registers the common content and wires the common hooks to Fabric API's events. */
@@ -39,10 +39,10 @@ public final class EndFabric implements ModInitializer {
                 }))
                 .forEach(EndFabric::registerAll);
 
-        // terrain.enabled=false: the Rim's debris also goes on vanilla the_end, where the feature keeps to the
-        // ring; NeoForge reads the same from data/promisedend/neoforge/biome_modifier/rim_debris_fallback.json
-        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_END), GenerationStep.Decoration.RAW_GENERATION,
-                ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rim_debris")));
+        // terrain.enabled=false: a copy of the Rim's debris goes on every End biome in #promisedend:rim_fallback, where
+        // the feature keeps to the ring; NeoForge reads the same from data/promisedend/neoforge/biome_modifier/
+        BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("rim_fallback"))),
+                GenerationStep.Decoration.RAW_GENERATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rim_debris_fallback")));
 
         ServerLifecycleEvents.SERVER_STARTING.register(PromisedEnd::onServerStarting);
         ServerLifecycleEvents.SERVER_STARTED.register(com.panda.promisedend.ServerCheck::onServerStarted);

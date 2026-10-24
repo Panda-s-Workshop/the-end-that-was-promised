@@ -1,0 +1,7 @@
+{
+  "type": "promisedend:rim_debris",
+  "min_radius": 4,
+  "max_radius": 7,
+  "voidstone": 0.7,
+  "fallback": true
+}

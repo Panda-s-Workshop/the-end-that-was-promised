@@ -1,6 +1,6 @@
 {
   "type": "neoforge:add_features",
-  "biomes": "minecraft:the_end",
-  "features": "promisedend:rim_debris",
+  "biomes": "#promisedend:rim_fallback",
+  "features": "promisedend:rim_debris_fallback",
   "step": "raw_generation"
 }

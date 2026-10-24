@@ -369,6 +369,17 @@ public final class EndGameTests {
         helper.succeed();
     }
 
+    /** Sets the biome of the 17-block cube round {@code at}, as {@code /fillbiome} does (which needs the chunks loaded). */
+    private static void fillBiome(net.minecraft.server.level.ServerLevel level, BlockPos at, String biome) {
+        for (int cx = (at.getX() - 8) >> 4; cx <= (at.getX() + 8) >> 4; cx++) {
+            for (int cz = (at.getZ() - 8) >> 4; cz <= (at.getZ() + 8) >> 4; cz++) level.getChunk(cx, cz);
+        }
+        var server = level.getServer();
+        server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withLevel(level).withSuppressedOutput(),
+                "fillbiome " + (at.getX() - 8) + " " + (at.getY() - 8) + " " + (at.getZ() - 8) + " " + (at.getX() + 8) + " "
+                        + (at.getY() + 8) + " " + (at.getZ() + 8) + " " + biome);
+    }
+
     /** Stone under {@code feet}, room for a player at it: footing the rescue accepts. */
     private static BlockPos standOn(net.minecraft.server.level.ServerLevel level, BlockPos feet) {
         level.setBlockAndUpdate(feet.below(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
@@ -634,9 +645,10 @@ public final class EndGameTests {
     }
 
     /**
-     * {@code terrain.enabled=false} (packs with another End overhaul): the mixin leaves vanilla's biomes, and
-     * the Rim's content falls back to vanilla {@code the_end} in the same ring, so Voidstone, outposts, the Codex and the
-     * anchor stay obtainable: the outposts are still found near spawn, and the debris feature sits on {@code the_end}.
+     * {@code terrain.enabled=false} (packs with another End overhaul): the mixin leaves the End's biomes alone, and
+     * the Rim's content falls back to whatever End biomes fill the same ring, so Voidstone, outposts, the Codex and the
+     * anchor stay obtainable: the outposts are still found near spawn, and the debris copy sits on every biome in
+     * {@code #promisedend:rim_fallback}, which takes in each biome of {@code #minecraft:is_end} and {@code #c:is_end}.
      */
     private static void terrainOffFallsBack(GameTestHelper helper) {
         var access = helper.getLevel().registryAccess();
@@ -658,10 +670,25 @@ public final class EndGameTests {
         } finally {
             com.panda.promisedend.EndConfig.use(previous);
         }
-        var placed = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rim_debris")));
-        var theEnd = access.lookupOrThrow(Registries.BIOME).getOrThrow(net.minecraft.world.level.biome.Biomes.THE_END);
-        boolean onTheEnd = theEnd.value().getGenerationSettings().features().stream().anyMatch(step -> step.contains(placed));
-        if (!onTheEnd) bad.add("rim_debris isn't among the_end's features (the loader's biome modifier didn't apply)");
+        var placed = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rim_debris_fallback")));
+        var biomes = access.lookupOrThrow(Registries.BIOME);
+        var fallbackTag = net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("rim_fallback"));
+        var outpostTag = net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("has_structure/rim_outpost"));
+        for (var key : List.of(net.minecraft.world.level.biome.Biomes.THE_END, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS,
+                net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS)) {
+            var b = biomes.getOrThrow(key);
+            if (!b.is(fallbackTag)) bad.add(key.identifier() + " isn't in #promisedend:rim_fallback");
+            if (!b.is(outpostTag)) bad.add(key.identifier() + " can't hold a Rim Outpost");
+            if (b.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(placed))) {
+                bad.add("rim_debris_fallback isn't among " + key.identifier() + "'s features (the loader's biome modifier didn't apply)");
+            }
+        }
+        // every End biome by either tag is in the fallback, so another mod's ring biomes are too
+        for (var tag : List.of(BiomeTags.IS_END, net.minecraft.tags.TagKey.create(Registries.BIOME, Identifier.parse("c:is_end")))) {
+            biomes.getTagOrEmpty(tag).forEach(b -> {
+                if (!b.is(fallbackTag)) bad.add(b.unwrapKey().map(k -> k.identifier().toString()).orElse("?") + " is in #" + tag.location() + " but not in the fallback");
+            });
+        }
         if (!bad.isEmpty()) helper.fail("terrain-off fallback: " + bad);
         helper.succeed();
     }
@@ -703,16 +730,31 @@ public final class EndGameTests {
         if (below == 0) bad.add("the islands have no tapering underside");
         if (widths.stream().anyMatch(w -> w < 6 || w > 18)) bad.add("islands outside 6–18 across: " + widths);
         PromisedEnd.LOGGER.info("rim islands: {} voidstone / {} end stone, widths {}", voidstone, endStone, widths);
-        // outside the ring the feature builds nothing (it also sits on vanilla the_end for terrain-off packs)
+        // outside the ring the feature builds nothing
         BlockPos outside = new BlockPos(700, y, 0);
         if (feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(5), outside)) bad.add("placed outside the ring at " + outside);
-        // nor in another dimension that borrows vanilla the_end: give a ring spot here that biome and try again
-        BlockPos borrowed = new BlockPos(0, y, 300);
+        // the terrain-off copy: never in another dimension that borrows an End biome, never on our own biomes (the Rim's
+        // own copy builds there), and on any other End biome in the End's ring
+        var fallback = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE)
+                .getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rim_debris_fallback"))).value().feature().value();
         var server = level.getServer();
-        server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withLevel(level).withSuppressedOutput(),
-                "fillbiome -8 " + (y - 8) + " 292 8 " + (y + 8) + " 308 minecraft:the_end");
+        BlockPos borrowed = new BlockPos(0, y, 300);
+        fillBiome(level, borrowed, "minecraft:the_end");
         if (!level.getBiome(borrowed).is(net.minecraft.world.level.biome.Biomes.THE_END)) bad.add("fillbiome didn't set the_end at " + borrowed);
-        if (feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(6), borrowed)) bad.add("placed on the_end outside the End at " + borrowed);
+        if (fallback.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(6), borrowed)) bad.add("the fallback built on the_end outside the End at " + borrowed);
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) bad.add("no End level on the test server");
+        else {
+            int ey = 120;
+            BlockPos ours = new BlockPos(0, ey, -300), theirs = new BlockPos(-300, ey, 0);
+            fillBiome(end, ours, "promisedend:shattered_rim");
+            fillBiome(end, theirs, "minecraft:end_highlands");
+            if (!end.getBiome(ours).is(ResourceKey.create(Registries.BIOME, PromisedEnd.id("shattered_rim")))) bad.add("fillbiome didn't set the Shattered Rim at " + ours);
+            if (!end.getBiome(theirs).is(net.minecraft.world.level.biome.Biomes.END_HIGHLANDS)) bad.add("fillbiome didn't set end_highlands at " + theirs);
+            if (fallback.place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(7), ours)) bad.add("the fallback built on the Shattered Rim at " + ours);
+            if (!fallback.place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(8), theirs)) bad.add("the fallback built nothing on end_highlands in the End's ring at " + theirs);
+            for (BlockPos pos : BlockPos.betweenClosed(theirs.offset(-16, -16, -16), theirs.offset(16, 6, 16))) end.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
         if (!bad.isEmpty()) helper.fail("rim islands: " + bad);
         helper.succeed();
     }
