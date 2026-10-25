@@ -110,6 +110,8 @@ public record MirePoolFeature(BlockStateProvider water, IntProvider radius, floa
             return !cells.contains(n) && !side.is(pool) && !side.isFaceSturdy(level, n, d.getOpposite());
         }));
         if (cells.size() < MIN_CELLS) return false;
+        // not in a chunk a structure has claimed (an End City next door whose pieces aren't placed yet)
+        if (StructureClaims.claimed(level, cells)) return false;
         for (BlockPos cell : cells) {
             level.setBlock(cell, water.getState(level, random, cell), Block.UPDATE_CLIENTS);
             // a column a block higher: its top is cut away over the water

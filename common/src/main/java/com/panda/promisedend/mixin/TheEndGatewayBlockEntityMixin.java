@@ -26,6 +26,8 @@ abstract class TheEndGatewayBlockEntityMixin {
         BlockPos best = null;
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
+                // vanilla's own search skips the centre column unless bedrock is allowed (the exit search's: the gateway's own)
+                if (dx == 0 && dz == 0 && !allowBedrock) continue;
                 BlockPos top = promisedend$top(level, centre.offset(dx, 0, dz), allowBedrock);
                 if (top == null || level.getBlockState(top).is(ModTags.NOT_A_GATEWAY_EXIT)) continue;
                 if (best == null || top.getY() > best.getY()) best = top;

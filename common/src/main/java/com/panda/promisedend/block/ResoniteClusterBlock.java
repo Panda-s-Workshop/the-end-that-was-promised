@@ -27,9 +27,10 @@ import net.minecraft.world.phys.Vec3;
  * A Resonite Cluster: amethyst's cluster in Resonite, which hums while you're near (now and then, at the
  * cluster, so the sound's falloff is the distance) and chimes when it breaks, however it breaks: by hand, by losing the
  * block it grew on, a piston or an explosion. The chime turns the nearest {@link #DRAWN} mobs from
- * {@code #promisedend:hears_resonite} (Endermen) within {@link #CHIME_RADIUS} blocks on the player who broke it, if they
- * are in survival or adventure (a creative builder's break rings and draws none), and on the nearest such player
- * within the radius when no player broke it (a piston, an explosion): the soft aggro radius.
+ * {@code #promisedend:hears_resonite} (Endermen) within {@link #CHIME_RADIUS} blocks on the player whose break set it off
+ * (the cluster itself, or the block it stood on), if they are in survival or adventure (a creative builder's break
+ * rings and draws none), and on the nearest such player within the radius when no player broke anything (a piston, an
+ * explosion) or a machine's fake player did: the soft aggro radius.
  */
 public class ResoniteClusterBlock extends AmethystClusterBlock {
     public static final TagKey<EntityType<?>> HEARS = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("hears_resonite"));
@@ -45,8 +46,8 @@ public class ResoniteClusterBlock extends AmethystClusterBlock {
      * seconds.
      */
     public static final int HUM_ONE_IN = 300;
-    /** The player breaking a cluster, from the break hook to the removal it causes in the same call. */
-    private static final ThreadLocal<java.util.Map.Entry<BlockPos, Player>> BREAKER = new ThreadLocal<>();
+    /** The player whose break is under way on this thread: every cluster that goes in it (its own, or one it stood on) is theirs. */
+    private static final ThreadLocal<Player> BREAKER = new ThreadLocal<>();
 
     public ResoniteClusterBlock(Properties properties) {
         super(7.0F, 3.0F, properties);
@@ -59,20 +60,19 @@ public class ResoniteClusterBlock extends AmethystClusterBlock {
         level.addParticle(ParticleTypes.GLOW, pos.getX() + random.nextDouble(), pos.getY() + random.nextDouble(), pos.getZ() + random.nextDouble(), 0, 0.02, 0);
     }
 
-    @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
-        if (!level.isClientSide()) BREAKER.set(java.util.Map.entry(pos.immutable(), player));
-        return super.playerWillDestroy(level, pos, state, player);
+    /** The server's block break starts ({@code player}) and ends ({@code null}): see ServerPlayerGameModeMixin. */
+    public static void breaking(Player player) {
+        if (player == null) BREAKER.remove();
+        else BREAKER.set(player);
     }
 
     @Override
     protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
         super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
-        var breaker = BREAKER.get();
-        BREAKER.remove();
+        Player breaker = BREAKER.get();
         Player target;
-        if (breaker != null && breaker.getKey().equals(pos)) {
-            target = EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(breaker.getValue()) ? breaker.getValue() : null;
+        if (breaker != null && !com.panda.promisedend.platform.Services.PLATFORM.isFakePlayer(breaker)) {
+            target = EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(breaker) ? breaker : null;
         } else {
             Vec3 at = Vec3.atCenterOf(pos);
             target = level.getNearestPlayer(at.x, at.y, at.z, CHIME_RADIUS, EntitySelector.NO_CREATIVE_OR_SPECTATOR);

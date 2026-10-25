@@ -111,14 +111,8 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
         }
         // keep out: a formation that would meet anything but air, its ground, a plant or Resonite, or stand under a roof
         // (an End City, the return gateway, a grove across a border), isn't made at all
-        // a structure in any chunk the formation touches: its pieces may not be placed yet (each goes in when its own chunk
-        // is decorated), so the blocks can't tell; the chunk's references can
-        Set<Long> chunks = new java.util.HashSet<>();
-        for (BlockPos p : body) chunks.add(net.minecraft.world.level.ChunkPos.pack(p.getX() >> 4, p.getZ() >> 4));
-        for (long c : chunks) {
-            var references = level.getChunk(net.minecraft.world.level.ChunkPos.getX(c), net.minecraft.world.level.ChunkPos.getZ(c)).getAllReferences();
-            if (references.values().stream().anyMatch(r -> !r.isEmpty())) return false;
-        }
+        // nor in a chunk a structure has claimed, whose pieces may not be placed yet
+        if (StructureClaims.claimed(level, body)) return false;
         // another formation's crystal, budding blocks and clusters are open too: neighbouring spires grow into one clump
         Set<Block> ours = Set.of(crystal.getState(level, random, foot).getBlock(), budding.getState(level, random, foot).getBlock(),
                 cluster.getState(level, random, foot).getBlock());

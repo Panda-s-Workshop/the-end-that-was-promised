@@ -10,4 +10,7 @@ public interface EndPlatform {
 
     /** A builder for a creative tab of the mod's own, which the loader places among its pages. */
     net.minecraft.world.item.CreativeModeTab.Builder tabBuilder();
+
+    /** A machine acting as a player (a deployer, a quarry), not a person. */
+    boolean isFakePlayer(net.minecraft.world.entity.player.Player player);
 }

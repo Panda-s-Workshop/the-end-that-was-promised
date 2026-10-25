@@ -145,7 +145,7 @@ public final class EndGameTests {
         helper.succeed();
     }
 
-    /** Every item, block and advancement text of ours has an English name. */
+    /** Every item, block and advancement text of ours has an English name, and every hint line in a tooltip its text. */
     private static void langCoverage(GameTestHelper helper) {
         var lang = net.minecraft.locale.Language.getInstance();
         List<String> missing = new ArrayList<>();
@@ -160,6 +160,23 @@ public final class EndGameTests {
         com.panda.promisedend.registry.ModEntities.ENTITIES.getEntries().forEach(h -> {
             String key = h.get().getDescriptionId();
             if (!lang.has(key)) missing.add(key);
+        });
+        // the hint lines items and blocks show in their tooltips: each key there, and none left over past the last
+        ModItems.ITEMS.getEntries().forEach(h -> {
+            List<Component> lines = new ArrayList<>();
+            h.get().appendHoverText(new ItemStack(h.get()), net.minecraft.world.item.Item.TooltipContext.EMPTY,
+                    net.minecraft.world.item.component.TooltipDisplay.DEFAULT, lines::add, net.minecraft.world.item.TooltipFlag.NORMAL);
+            String last = null;
+            for (Component c : lines) {
+                if (!(c.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t)) continue;
+                if (!lang.has(t.getKey())) missing.add(t.getKey());
+                last = t.getKey();
+            }
+            if (last != null && last.matches(".*\\.\\d+")) {
+                int dot = last.lastIndexOf('.');
+                String next = last.substring(0, dot + 1) + (Integer.parseInt(last.substring(dot + 1)) + 1);
+                if (lang.has(next)) missing.add(next + " (in the lang file, not in the tooltip)");
+            }
         });
         MinecraftServer server = helper.getLevel().getServer();
         server.getAdvancements().getAllAdvancements().forEach(holder -> {
@@ -538,6 +555,7 @@ public final class EndGameTests {
         // unbreakable and blast-proof, as bedrock: a player holding a lily targets the surface and mustn't mine it
         if (shape.getDestroySpeed(level, at) != -1.0F) bad.add("void-water can be mined (hardness " + shape.getDestroySpeed(level, at) + ")");
         if (shape.getBlock().getExplosionResistance() < 3600000.0F) bad.add("explosions break void-water (resistance " + shape.getBlock().getExplosionResistance() + ")");
+        if (!shape.is(net.minecraft.tags.BlockTags.WITHER_IMMUNE) || !shape.is(net.minecraft.tags.BlockTags.DRAGON_IMMUNE)) bad.add("the Wither or the dragon can remove void-water");
         // 26.3's fluids wash away only what is in #minecraft:washed_away_by_fluids (FlowingFluid.canHoldAnyFluid); short
         // grass is, the control
         var washed = net.minecraft.tags.BlockTags.WASHED_AWAY_BY_FLUIDS;
@@ -676,7 +694,7 @@ public final class EndGameTests {
      * on both sides. On obsidian, which isn't pool ground, nothing. On ten terraces (the east half a block higher) a pool
      * on the upper step and then one at the step: the second settles below and cuts into the upper step, every cell at
      * both heights still walled in, and no rim moss with anything over it. On ten floors four layers deep two pools 4
-     * apart join at one level, with no ridge.
+     * apart join at one level, with no ridge. In a chunk an End City has claimed, no pool.
      */
     private static void mirePoolsWalled(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -774,6 +792,24 @@ public final class EndGameTests {
             for (int k = 2; k < 4; k++) floor(level, centre.below(k), 12, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
         }
         PromisedEnd.LOGGER.info("[mire_pools_walled] deep floors: {} cells, {} one-block walls", deep, deepWalls / 2);
+        // an End City's claim on the chunk with nothing yet built: no pool (the same floor and seed make one unclaimed)
+        {
+            BlockPos centre = new BlockPos(4000, y, 3200);
+            floor(level, centre, 12, endStone);
+            floor(level, centre.below(), 12, endStone);
+            var city = level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getValueOrThrow(net.minecraft.world.level.levelgen.structure.BuiltinStructures.END_CITY);
+            var chunk = level.getChunk(centre);
+            var before = new java.util.HashMap<>(chunk.getAllReferences());
+            chunk.addReferenceForStructure(city, net.minecraft.world.level.ChunkPos.pack(centre.getX() >> 4, centre.getZ() >> 4));
+            boolean claimed = feature.place(level, generator, net.minecraft.util.RandomSource.create(700), centre);
+            chunk.setAllReferences(before);
+            int cells = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -2, -16), centre.offset(16, 4, 16))) if (level.getBlockState(p).is(water)) cells++;
+            if (claimed || cells > 0) bad.add(cells + " void-water in an End City's chunk");
+            boolean free = feature.place(level, generator, net.minecraft.util.RandomSource.create(700), centre);
+            if (!free) bad.add("no pool on the unclaimed control floor, so the claim case can't tell");
+            clear(level, centre);
+        }
         if (deep == 0) bad.add("no pools on the deep floors, so they can't tell");
         if (deepWalls > 0) bad.add(deepWalls / 2 + " one-block walls between pools on the deep floors");
         if (upper == 0) bad.add("no pool on the upper steps, so the terraces can't tell");
@@ -876,10 +912,10 @@ public final class EndGameTests {
 
     /**
      * The chime draws the nearest three Endermen within 12 blocks (4, 6 and 8 off) onto the player, not a fourth 10 off
-     * (the cap), not one 15.6 off (the radius), and not a pig 3 off (not in #promisedend:hears_resonite). A break by a
-     * survival player draws onto that player (the break hook, then the removal, as the server does it), and a creative
-     * player's real break 2 blocks off (the server's own destroyBlock) rings and draws none. A survival player's real
-     * break in a world is the `biomes` scenario's `ring` step.
+     * (the cap), not one 15.6 off (the radius), and not a pig 3 off (not in #promisedend:hears_resonite). A survival
+     * player's real break (the server's destroyBlock) of a cluster, and of the block a cluster stands on, draws onto that
+     * player, and a creative player's real break 2 blocks off rings and draws none. A survival player's real break in a
+     * world is the `biomes` scenario's `ring` step.
      */
     private static void resoniteClusterChimes(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -908,16 +944,25 @@ public final class EndGameTests {
         if (far.getTarget() != null) bad.add("the Enderman 15.6 blocks off targets " + far.getTarget());
         if (pig.getTarget() != null) bad.add("the pig targets " + pig.getTarget());
         within.forEach(e -> e.setTarget(null));
-        // a survival player's break, as the server makes it (the break hook, then the removal): it draws onto them though
-        // they aren't in the level for a nearest-player search to find
-        level.setBlock(also, cluster, 3);
-        ModBlocks.RESONITE_CLUSTER.get().playerWillDestroy(level, also, cluster, survivor);
-        level.removeBlock(also, false);
-        for (int k = 0; k < 4; k++) {
-            boolean on = within.get(k).getTarget() == survivor;
-            if (on != (k < 3)) bad.add("after the survival player's break the Enderman " + (4 + 2 * k) + " blocks off " + (on ? "was" : "wasn't") + " drawn");
+        // a survival player's real break (the server's destroyBlock) of a cluster, then of the Resonite Block another
+        // stands on: each draws onto them, though they aren't in the level for a nearest-player search to find
+        BlockPos support = helper.absolutePos(new BlockPos(2, 2, 2));
+        for (String what : List.of("the cluster", "the block under a cluster")) {
+            BlockPos broken = what.equals("the cluster") ? also : support;
+            if (broken == support) {
+                level.setBlock(support, ModBlocks.RESONITE_BLOCK.get().defaultBlockState(), 3);
+                level.setBlock(support.above(), cluster, 3);
+            } else {
+                level.setBlock(also, cluster, 3);
+            }
+            ((net.minecraft.server.level.ServerPlayer) survivor).gameMode.destroyBlock(broken);
+            if (!level.getBlockState(broken == support ? support.above() : also).isAir()) bad.add("breaking " + what + " left the cluster");
+            for (int k = 0; k < 4; k++) {
+                boolean on = within.get(k).getTarget() == survivor;
+                if (on != (k < 3)) bad.add("after the survival player broke " + what + " the Enderman " + (4 + 2 * k) + " blocks off " + (on ? "was" : "wasn't") + " drawn");
+            }
+            within.forEach(e -> e.setTarget(null));
         }
-        within.forEach(e -> e.setTarget(null));
         // a creative player 2 blocks off breaks one for real (the server's own destroyBlock)
         level.setBlock(also, cluster, 3);
         var creative = helper.makeMockServerPlayerInLevel();

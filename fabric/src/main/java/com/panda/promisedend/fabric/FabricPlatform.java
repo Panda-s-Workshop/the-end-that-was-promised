@@ -21,4 +21,9 @@ public final class FabricPlatform implements EndPlatform {
     public CreativeModeTab.Builder tabBuilder() {
         return FabricCreativeModeTab.builder();
     }
+
+    @Override
+    public boolean isFakePlayer(net.minecraft.world.entity.player.Player player) {
+        return player instanceof net.fabricmc.fabric.api.entity.FakePlayer;
+    }
 }

@@ -20,4 +20,9 @@ public final class NeoForgePlatform implements EndPlatform {
     public CreativeModeTab.Builder tabBuilder() {
         return CreativeModeTab.builder();
     }
+
+    @Override
+    public boolean isFakePlayer(net.minecraft.world.entity.player.Player player) {
+        return player.isFakePlayer();
+    }
 }
