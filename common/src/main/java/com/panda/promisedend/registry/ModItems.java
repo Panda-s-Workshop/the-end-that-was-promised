@@ -35,7 +35,7 @@ public final class ModItems {
             p -> new HintItem(p, "cracked_void_anchor", 2), p -> p.stacksTo(1));
 
     // ---- constructs -------------------------------------------------------------------------------
-    public static final DeferredItem<Item> CRYSTAL_FRAGMENT = ITEMS.registerSimpleItem("crystal_fragment");
+    public static final DeferredItem<HintItem> CRYSTAL_FRAGMENT = ITEMS.registerItem("crystal_fragment", p -> new HintItem(p, "crystal_fragment", 1));
 
     // ---- the dragon's hoard: a Dragon Scale repairs half an elytra in an anvil (mixin.AnvilMenuMixin) ----------------
     public static final DeferredItem<HintItem> DRAGON_SCALE = ITEMS.registerItem("dragon_scale", p -> new HintItem(p, "dragon_scale", 1));

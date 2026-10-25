@@ -97,6 +97,11 @@ public class CrystalWarden extends Monster implements GeoEntity {
     /** What a linked warden gives its dragon while it beams: 1 health every 20 ticks. */
     public static final float DRAGON_HEAL = 1.0F;
     public static final int DRAGON_HEAL_INTERVAL = 20;
+    /**
+     * How many called wardens work on one target at once: the others wait their turn. The beam goes through armour, so
+     * five at once would kill a player in two seconds; and two tells at a time can still be told apart.
+     */
+    public static final int CALLED_ON_ONE_TARGET = 2;
     /** How far above or below its home a called warden closing in may go, towards its target's height. */
     public static final double CALLED_RISE = 6.0;
     /** A linked warden whose dragon can't be found for this long (30 s) takes it as gone and shatters. */
@@ -278,7 +283,7 @@ public class CrystalWarden extends Monster implements GeoEntity {
         switch (phase()) {
             case IDLE -> {
                 if (rest > 0) rest--;
-                else if (canBeam(target)) startLockOn(target);
+                else if (canBeam(target) && myTurn(level, target)) startLockOn(target);
             }
             case LOCK -> {
                 LivingEntity locked = lockedTarget(level);
@@ -309,6 +314,13 @@ public class CrystalWarden extends Monster implements GeoEntity {
                 }
             }
         }
+    }
+
+    /** Whether fewer than {@link #CALLED_ON_ONE_TARGET} of its dragon's other wardens are locking on to or beaming the target. */
+    private boolean myTurn(ServerLevel level, LivingEntity target) {
+        if (dragonId == null) return true;
+        return level.getEntitiesOfClass(CrystalWarden.class, getBoundingBox().inflate(CALLED_FOLLOW_RANGE * 2), w -> w != this && dragonId.equals(w.dragonId)
+                && w.phase() != Phase.IDLE && w.beamTargetId() == target.getId()).size() < CALLED_ON_ONE_TARGET;
     }
 
     private @Nullable LivingEntity lockedTarget(ServerLevel level) {

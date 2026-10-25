@@ -4,8 +4,10 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.panda.promisedend.EndConfig;
 import com.panda.promisedend.PromisedEnd;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import com.panda.promisedend.registry.ModSounds;
 import net.minecraft.ChatFormatting;
@@ -17,6 +19,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
@@ -77,6 +80,11 @@ public final class DragonWrath {
 
     /** Where the last hoard was put, the last Wrath line and how many players it went to, for the tests and the harness. */
     private static @Nullable BlockPos lastHoard;
+    /** The level of the hoard still glimmering, null once it was opened, broken or its time ran out. */
+    private static @Nullable ServerLevel glimmerLevel;
+    private static int glimmerTicks;
+    /** How long an unopened hoard glimmers at most: 5 minutes. */
+    private static final int GLIMMER_TICKS = 6000;
     private static String lastAnnouncement = "";
     private static int told;
 
@@ -132,6 +140,8 @@ public final class DragonWrath {
 
     /** At the end of every server tick (both loaders), before the dragon's phase 3. */
     public static void tick(MinecraftServer server) {
+        if (glimmerLevel != null && glimmerLevel.getServer() != server) glimmerLevel = null;
+        glimmer();
         for (ServerLevel level : server.getAllLevels()) {
             for (EnderDragon dragon : level.getEntities(EntityTypes.ENDER_DRAGON, d -> !d.isRemoved())) {
                 if (!dragon.entityTags().contains(SCALED_TAG) && dragon.isAlive()) scale(dragon, effective(server));
@@ -171,12 +181,16 @@ public final class DragonWrath {
         }
     }
 
-    /** Scales a dragon's health by Wrath once, keeping its share of health (a fresh dragon stays at full). */
+    /**
+     * Scales a dragon's health by Wrath once, keeping its share of health (a fresh dragon stays at full), and names it
+     * for its Wrath ("Ender Dragon · Wrath 2"), which its boss bar shows; a dragon already named keeps its name.
+     */
     public static void scale(EnderDragon dragon, int wrath) {
         dragon.addTag(SCALED_TAG);
         dragon.addTag(FOUGHT_AT_TAG + clamp(wrath));
         AttributeInstance max = dragon.getAttribute(Attributes.MAX_HEALTH);
         if (max == null || wrath <= 0) return;
+        if (!dragon.hasCustomName()) dragon.setCustomName(Component.translatable("entity.promisedend.ender_dragon.wrath", dragon.getType().getDescription(), clamp(wrath)));
         float share = dragon.getHealth() / dragon.getMaxHealth();
         max.addOrReplacePermanentModifier(new AttributeModifier(HEALTH_MODIFIER, HEALTH_PER_WRATH * clamp(wrath), AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
         dragon.setHealth(share * dragon.getMaxHealth());
@@ -209,20 +223,57 @@ public final class DragonWrath {
             // on the island off the podium's rim, not over the portal, and with no speed, so nothing rolls into it
             Vec3 drop = dragon.getDragonFight() != null ? Vec3.atBottomCenterOf(level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                     dragon.getFightOrigin().offset(HOARD_DISTANCE, 0, 0))).add(0, 0.25, 0) : dragon.position();
-            LootParams params = new LootParams.Builder(level).withParameter(LootContextParams.ORIGIN, drop).create(LootContextParamSets.CHEST);
-            level.getServer().reloadableRegistries().getLootTable(hoard(wrath)).getRandomItems(params,
-                    stack -> level.addFreshEntity(new ItemEntity(level, drop.x, drop.y, drop.z, stack, 0, 0, 0)));
+            for (ItemStack stack : roll(level, wrath, drop)) level.addFreshEntity(new ItemEntity(level, drop.x, drop.y, drop.z, stack, 0, 0, 0));
             return null;
         }
         level.setBlock(at, Blocks.CHEST.defaultBlockState(), 3);
         if (level.getBlockEntity(at) instanceof ChestBlockEntity chest) {
-            chest.setLootTable(hoard(wrath), level.getRandom().nextLong());
-            chest.applyComponents(DataComponentMap.builder().set(DataComponents.CUSTOM_NAME, Component.translatable("container.promisedend.dragon_hoard")).build(), DataComponentPatch.EMPTY);
+            // named first: applying components also applies the (empty) contents, which would clear the items
+            Component name = wrath > 0 ? Component.translatable("container.promisedend.dragon_hoard.wrath", clamp(wrath)) : Component.translatable("container.promisedend.dragon_hoard");
+            chest.applyComponents(DataComponentMap.builder().set(DataComponents.CUSTOM_NAME, name).build(), DataComponentPatch.EMPTY);
+            // laid out, not scattered: the stacks side by side along the middle row
+            List<ItemStack> items = roll(level, wrath, Vec3.atCenterOf(at));
+            int row = chest.getContainerSize() / 3, first = row + Math.max(0, (row - items.size()) / 2);
+            for (int i = 0; i < items.size() && first + i < chest.getContainerSize(); i++) chest.setItem(first + i, items.get(i));
             chest.setChanged();
         }
         level.playSound(null, at, ModSounds.DRAGON_HOARD_APPEARS.get(), SoundSource.BLOCKS, 2.0F, 1.0F);
         level.sendParticles(ParticleTypes.END_ROD, at.getX() + 0.5, at.getY() + 0.8, at.getZ() + 0.5, 30, 0.4, 0.5, 0.4, 0.05);
+        glimmerLevel = level;
+        glimmerTicks = 0;
         return at;
+    }
+
+    /** The Wrath's hoard table rolled once, with like items merged into full stacks. */
+    private static List<ItemStack> roll(ServerLevel level, int wrath, Vec3 origin) {
+        LootParams params = new LootParams.Builder(level).withParameter(LootContextParams.ORIGIN, origin).create(LootContextParamSets.CHEST);
+        List<ItemStack> merged = new ArrayList<>();
+        level.getServer().reloadableRegistries().getLootTable(hoard(wrath)).getRandomItems(params, stack -> {
+            for (ItemStack into : merged) {
+                if (stack.isEmpty()) break;
+                if (ItemStack.isSameItemSameComponents(into, stack) && into.getCount() < into.getMaxStackSize()) {
+                    int moved = Math.min(stack.getCount(), into.getMaxStackSize() - into.getCount());
+                    into.grow(moved);
+                    stack.shrink(moved);
+                }
+            }
+            if (!stack.isEmpty()) merged.add(stack.copy());
+        });
+        return merged;
+    }
+
+    /**
+     * A slow glimmer over the last hoard until a player first opens it (or for {@link #GLIMMER_TICKS}): its sparks at
+     * placement come during the dying, when no one is looking at the ground.
+     */
+    private static void glimmer() {
+        if (glimmerLevel == null || lastHoard == null) return;
+        ServerLevel level = glimmerLevel;
+        if (++glimmerTicks > GLIMMER_TICKS || !(level.getBlockEntity(lastHoard) instanceof ChestBlockEntity) || ChestBlockEntity.getOpenCount(level, lastHoard) > 0) {
+            glimmerLevel = null;
+            return;
+        }
+        if (glimmerTicks % 10 == 0) level.sendParticles(ParticleTypes.END_ROD, lastHoard.getX() + 0.5, lastHoard.getY() + 1.2, lastHoard.getZ() + 0.5, 1, 0.25, 0.3, 0.25, 0.01);
     }
 
     private static @Nullable BlockPos byPortal(ServerLevel level, BlockPos origin) {

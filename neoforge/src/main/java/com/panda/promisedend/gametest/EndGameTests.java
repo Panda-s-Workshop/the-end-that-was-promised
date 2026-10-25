@@ -77,6 +77,7 @@ public final class EndGameTests {
         FUNCTIONS.register("dragon_scale_repairs_elytra", () -> EndGameTests::dragonScaleRepairsElytra);
         FUNCTIONS.register("dragon_phase3_wardens_by_wrath", () -> EndGameTests::dragonPhase3WardensByWrath);
         FUNCTIONS.register("void_breath_dodged", () -> EndGameTests::voidBreathDodged);
+        FUNCTIONS.register("called_wardens_take_turns", () -> EndGameTests::calledWardensTakeTurns);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -901,6 +902,10 @@ public final class EndGameTests {
                 if (next[0].getMaxHealth() != want) bad.add("the next dragon's max health is " + next[0].getMaxHealth() + ", wanted " + want);
                 if (next[0].getHealth() != next[0].getMaxHealth()) bad.add("the next dragon starts at " + next[0].getHealth() + " of " + next[0].getMaxHealth());
                 if (!next[0].entityTags().contains(com.panda.promisedend.logic.DragonWrath.FOUGHT_AT_TAG + 2)) bad.add("the next dragon doesn't keep the Wrath it is fought at: " + next[0].entityTags());
+                // its boss bar shows its name: "Ender Dragon · Wrath 2"
+                if (!(next[0].getCustomName() != null && next[0].getCustomName().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents named
+                        && named.getKey().equals("entity.promisedend.ender_dragon.wrath") && java.util.Arrays.asList(named.getArgs()).contains(2)))
+                    bad.add("the next dragon isn't named for its Wrath: " + next[0].getCustomName());
                 next[0].discard();
                 var source = server.createCommandSourceStack().withSuppressedOutput();
                 int set = server.getCommands().getDispatcher().execute("promisedend wrath set 4", source);
@@ -1092,6 +1097,35 @@ public final class EndGameTests {
             dragon.discard();
             if (!warden.isBeaming(target)) helper.fail("it should still be beaming, is " + warden.phase());
             if (healed != 3.0F) helper.fail("after about 2 s of beam the dragon healed " + healed + ", wanted 3 (1 a second)");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Three of a dragon's wardens, one target: no more than two lock on to or beam it at once, and the third waits its
+     * turn (the target is kept at full health so the beams go on).
+     */
+    private static void calledWardensTakeTurns(GameTestHelper helper) {
+        var dragon = dragon(helper, 6, 7, 10);
+        var target = dummy(helper, 9, 1, 6);
+        List<com.panda.promisedend.entity.CrystalWarden> wardens = List.of(warden(helper, 2, 3, 3), warden(helper, 2, 3, 6), warden(helper, 2, 3, 9));
+        for (var w : wardens) {
+            w.setDragon(dragon);
+            w.setTarget(target);
+        }
+        int[] most = {0};
+        for (int t = 1; t <= 90; t++) {
+            helper.runAtTickTime(t, () -> {
+                target.setHealth(target.getMaxHealth());
+                int working = (int) wardens.stream().filter(w -> w.phase() != com.panda.promisedend.entity.CrystalWarden.Phase.IDLE && w.beamTargetId() == target.getId()).count();
+                most[0] = Math.max(most[0], working);
+                if (working > com.panda.promisedend.entity.CrystalWarden.CALLED_ON_ONE_TARGET) helper.fail(working + " wardens on one target at once");
+            });
+        }
+        helper.runAtTickTime(91, () -> {
+            dragon.discard();
+            if (most[0] != com.panda.promisedend.entity.CrystalWarden.CALLED_ON_ONE_TARGET) helper.fail("at most " + most[0] + " worked on the target at once, wanted 2");
+            if (wardens.stream().mapToInt(com.panda.promisedend.entity.CrystalWarden::beams).sum() < 2) helper.fail("fewer than 2 beams in 4.5 s");
             helper.succeed();
         });
     }
