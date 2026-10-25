@@ -60,7 +60,7 @@ import org.jspecify.annotations.Nullable;
  * the target. It never works on the dragon or another construct ({@code #promisedend:constructs}). Every step is synced
  * ({@link #phase()}, {@link #beamTargetId()}) so clients play the clips and draw the thread and the beam.
  *
- * <p>The dragon's phase 3 ({@link com.panda.promisedend.logic.DragonPhase3}) calls 3 to 5 (by the world's Wrath) to its pillars, each linked to it
+ * <p>The dragon's phase 3 ({@link com.panda.promisedend.logic.DragonPhase3}) calls 3 to 5 (by the Wrath it is fought at) to its pillars, each linked to it
  * ({@link #setDragon}): a linked warden heals the dragon 1 a second while it beams (drawn as a tether to the dragon),
  * never despawns, and shatters when the dragon dies.
  */
@@ -77,6 +77,12 @@ public class CrystalWarden extends Monster implements GeoEntity {
     public static final double BEAM_RANGE = 16.0;
     /** How far from its pillar it drifts while it hovers. */
     public static final double HOVER_RADIUS = 3.0;
+    /**
+     * A called warden (linked to a dragon) sees this far, and with a target out of its beam drifts towards it up to
+     * CALLED_LEASH from its pillar, so from the pillars (about 34 blocks out) it reaches a player fighting at the portal.
+     */
+    public static final double CALLED_FOLLOW_RANGE = 40.0;
+    public static final double CALLED_LEASH = 22.0;
     /** The beam's sound is about 1.4 s long: it is played again this often while the beam lasts. */
     public static final int BEAM_SOUND_INTERVAL = 30;
     /** The renderer draws the rig at this scale; the hitbox and the lens below are measured at it. */
@@ -188,6 +194,8 @@ public class CrystalWarden extends Monster implements GeoEntity {
         this.dragonId = dragon.getUUID();
         this.dragon = dragon;
         this.entityData.set(DATA_DRAGON, dragon.getId());
+        var follow = getAttribute(Attributes.FOLLOW_RANGE);
+        if (follow != null) follow.setBaseValue(CALLED_FOLLOW_RANGE);
     }
 
     public @Nullable UUID dragonId() {
@@ -433,7 +441,8 @@ public class CrystalWarden extends Monster implements GeoEntity {
     /**
      * Drifts round its pillar: a new spot within {@link #HOVER_RADIUS}, up to 2 above it, every few seconds, steered to
      * every tick (a move control moves only on the ticks it is given a target). A spot it wouldn't fit in (in the
-     * pillar's side) is thrown away and another tried; with none it stays where it is.
+     * pillar's side) is thrown away and another tried; with none it stays where it is. A called warden with a target out
+     * of its beam instead closes in along the line to it, no further than {@link #CALLED_LEASH} from its pillar.
      */
     final class HoverGoal extends Goal {
         private int wait;
@@ -450,7 +459,11 @@ public class CrystalWarden extends Monster implements GeoEntity {
 
         @Override
         public void tick() {
-            if (--wait <= 0 || spot == null) {
+            Vec3 closer = closeIn();
+            if (closer != null) {
+                spot = closer;
+                wait = 0;
+            } else if (--wait <= 0 || spot == null) {
                 wait = 60 + getRandom().nextInt(60);
                 spot = position();
                 for (int tries = 0; tries < 4; tries++) {
@@ -463,7 +476,20 @@ public class CrystalWarden extends Monster implements GeoEntity {
                     }
                 }
             }
-            if (position().distanceToSqr(spot) > 0.25) getMoveControl().setWantedPosition(spot.x, spot.y, spot.z, 0.6);
+            if (position().distanceToSqr(spot) > 0.25) getMoveControl().setWantedPosition(spot.x, spot.y, spot.z, closer != null ? 1.0 : 0.6);
+        }
+
+        /** Where a called warden goes to bring its target into its beam, or null to drift as usual. */
+        private @Nullable Vec3 closeIn() {
+            LivingEntity target = getTarget();
+            if (dragonId == null || target == null || !target.isAlive()) return null;
+            Vec3 base = Vec3.atBottomCenterOf(home);
+            Vec3 flat = new Vec3(target.getX() - base.x, 0, target.getZ() - base.z);
+            double distance = flat.length();
+            double want = Math.min(CALLED_LEASH, distance - (BEAM_RANGE - 4.0));
+            if (want <= 0.5) return null;
+            Vec3 next = base.add(flat.normalize().scale(want)).add(0, 1.0, 0);
+            return level().noCollision(CrystalWarden.this, getDimensions(getPose()).makeBoundingBox(next)) ? next : null;
         }
 
         @Override

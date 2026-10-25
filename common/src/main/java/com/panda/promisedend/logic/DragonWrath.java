@@ -16,7 +16,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.Containers;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
@@ -75,8 +75,10 @@ public final class DragonWrath {
     /** How many blocks out from the portal's centre the hoard looks for a free spot, in rings of 8. */
     private static final int HOARD_RINGS = 4;
 
-    /** Where the last hoard was put, for the tests and the harness. */
+    /** Where the last hoard was put, the last Wrath line and how many players it went to, for the tests and the harness. */
     private static @Nullable BlockPos lastHoard;
+    private static String lastAnnouncement = "";
+    private static int told;
 
     private DragonWrath() {}
 
@@ -90,9 +92,9 @@ public final class DragonWrath {
         return BASE_SCALES + clamp(wrath);
     }
 
-    /** The stored Wrath after a kill: one more, up to the cap. */
+    /** The stored Wrath after a kill: one more, up to the cap; a value stored above a lowered cap is kept (it counts as the cap). */
     public static int next(int stored, int cap) {
-        return Math.min(clamp(stored) + 1, clamp(cap));
+        return Math.max(clamp(stored), Math.min(clamp(stored) + 1, clamp(cap)));
     }
 
     /** The Wrath a fight is at: the stored value under the cap, or 0 with Wrath turned off. */
@@ -152,11 +154,17 @@ public final class DragonWrath {
             int was = stored(server), now = next(was, EndConfig.maxWrath());
             setStored(server, now);
             // the players at the fight are told, so a rematch is a choice they know about
-            Component line = now > was ? Component.translatable("message.promisedend.wrath.rises", now, EndConfig.maxWrath())
-                    : Component.translatable("message.promisedend.wrath.height", now);
+            int cap = clamp(EndConfig.maxWrath());
+            Component line = now > was ? Component.translatable("message.promisedend.wrath.rises", now, cap)
+                    : Component.translatable("message.promisedend.wrath.height", Math.min(now, cap));
+            lastAnnouncement = line.getString();
+            told = 0;
             for (var player : level.players()) {
                 if (player.distanceToSqr(Vec3.atCenterOf(lastHoard == null ? dragon.blockPosition() : lastHoard)) < ANNOUNCE_RANGE * ANNOUNCE_RANGE)
+                {
                     player.sendSystemMessage(line.copy().withStyle(ChatFormatting.LIGHT_PURPLE));
+                    told++;
+                }
             }
         }
     }
@@ -196,9 +204,12 @@ public final class DragonWrath {
     private static @Nullable BlockPos layHoard(ServerLevel level, EnderDragon dragon, int wrath) {
         BlockPos at = dragon.getDragonFight() != null ? byPortal(level, dragon.getFightOrigin()) : under(level, dragon.blockPosition());
         if (at == null) {
-            Vec3 drop = dragon.getDragonFight() != null ? Vec3.atCenterOf(level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dragon.getFightOrigin())) : dragon.position();
+            // on the island off the podium's rim, not over the portal, and with no speed, so nothing rolls into it
+            Vec3 drop = dragon.getDragonFight() != null ? Vec3.atBottomCenterOf(level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    dragon.getFightOrigin().offset(HOARD_DISTANCE, 0, 0))).add(0, 0.25, 0) : dragon.position();
             LootParams params = new LootParams.Builder(level).withParameter(LootContextParams.ORIGIN, drop).create(LootContextParamSets.CHEST);
-            level.getServer().reloadableRegistries().getLootTable(hoard(wrath)).getRandomItems(params, stack -> Containers.dropItemStack(level, drop.x, drop.y, drop.z, stack));
+            level.getServer().reloadableRegistries().getLootTable(hoard(wrath)).getRandomItems(params,
+                    stack -> level.addFreshEntity(new ItemEntity(level, drop.x, drop.y, drop.z, stack, 0, 0, 0)));
             return null;
         }
         level.setBlock(at, Blocks.CHEST.defaultBlockState(), 3);
@@ -233,14 +244,24 @@ public final class DragonWrath {
         return null;
     }
 
-    /** Air (nothing to replace, not even a torch or a flower), on a solid face. */
+    /**
+     * Air or what a placed block replaces anyway (snow, short grass), never a torch, a carpet or a flower, on a solid
+     * face.
+     */
     private static boolean free(ServerLevel level, BlockPos at) {
-        return level.getBlockState(at).isAir() && level.getBlockState(at.below()).isFaceSturdy(level, at.below(), Direction.UP);
+        var here = level.getBlockState(at);
+        return (here.isAir() || here.canBeReplaced() && here.getFluidState().isEmpty() && !here.is(net.minecraft.tags.BlockTags.FLOWERS))
+                && level.getBlockState(at.below()).isFaceSturdy(level, at.below(), Direction.UP);
     }
 
     /** Where the last hoard chest was set, or null before the first (and after a hoard that dropped as items). */
     public static @Nullable BlockPos lastHoard() {
         return lastHoard;
+    }
+
+    /** The last line that told players Wrath rose (or is at its height), and to how many players it went. */
+    public static String lastAnnouncement() {
+        return lastAnnouncement + " (to " + told + ")";
     }
 
     /** The Wrath a dying dragon was fought at, or -1 if it isn't dying (for tests). */

@@ -31,7 +31,8 @@ class WrathTest {
         assertEquals(5, DragonWrath.next(5, 5), "never past 5");
         assertEquals(2, DragonWrath.next(2, 2), "held under dragon.max_wrath");
         assertEquals(0, DragonWrath.next(0, 0), "a cap of 0 keeps every fight the first");
-        assertEquals(3, DragonWrath.next(7, 3), "a stored value over a lowered cap comes back under it");
+        assertEquals(5, DragonWrath.next(5, 3), "a value stored before the cap was lowered is kept (the fight is at the cap)");
+        assertEquals(3, DragonWrath.next(2, 3));
     }
 
     @Test

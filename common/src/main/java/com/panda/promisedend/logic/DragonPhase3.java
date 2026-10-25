@@ -48,7 +48,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * The dragon's third phase, from a server tick over every level's dragons (vanilla's phase registry has a private
  * factory, so this sits beside it rather than in it). Below a quarter of its health a dragon enters it once: it roars,
- * its boss bar turns purple, and it calls Crystal Wardens to the tallest pillars (3 to 5 by the world's Wrath); each
+ * its boss bar turns purple, and it calls Crystal Wardens to the tallest pillars (3 to 5 by the Wrath it is fought at); each
  * heals it while it beams.
  * Every 20 s it then marks the nearest player's spot with a ring for 1.5 s and charges it, and void breath spreads where
  * the ring was: Slowness II and 2 damage a second for 6 s.
@@ -135,7 +135,7 @@ public final class DragonPhase3 {
     private static void enter(ServerLevel level, EnderDragon dragon) {
         dragon.addTag(TAG);
         dragon.playSound(ModSounds.DRAGON_CALL_WARDENS.get(), 16.0F, 1.0F);
-        // its own call: vanilla's growl an octave under its usual range, and the portal's boom, with a burst at its head
+        // its own call: vanilla's growl well under its routine range (0.8 to 1.1), and the portal's boom, with a burst at its head
         dragon.playSound(SoundEvents.ENDER_DRAGON_GROWL, 6.0F, 0.5F);
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, true, true, dragon.head.getX(), dragon.head.getY(), dragon.head.getZ(), 120, 1.5, 1.5, 1.5, 0.3);
         tell(level, dragon, Component.translatable("message.promisedend.dragon.call_wardens"));
@@ -165,6 +165,8 @@ public final class DragonPhase3 {
             List<Pillar> pillars = EndSpikeFeature.getSpikesForLevel(level).stream()
                     .map(s -> new Pillar(s.getCenterX(), s.getCenterZ(), s.getRadius(), s.getHeight())).toList();
             homes.addAll(pillarHomes(pillars, count, (x, z) -> {
+                // the column's chunk is loaded first: an unloaded one reads as the void
+                level.getChunk(x >> 4, z >> 4);
                 int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                 return top <= level.getMinY() ? Integer.MIN_VALUE : top;
             }));
