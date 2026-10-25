@@ -107,7 +107,7 @@ public final class EndGameTests {
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
             "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460,
-            "updraft_lifts_entity", 360, "updraft_column_bounds", 310);
+            "updraft_lifts_entity", 360);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -1335,8 +1335,19 @@ public final class EndGameTests {
     private static void updraftColumnBounds(GameTestHelper helper) {
         var level = helper.getLevel();
         List<String> bad = new ArrayList<>();
-        BlockPos crafted = new BlockPos(5200, level.getMaxY() - 100, 2800), ancient = crafted.offset(8, 0, 0);
-        Runnable release = forceAround(helper, crafted.offset(4, 0, 0), 12);
+        // in the arena, whose chunks already tick: the two vents' columns 7 apart, a hole opened in the arena's barrier
+        // ceiling over each (put back after) so the sky over them is open
+        BlockPos crafted = helper.absolutePos(new BlockPos(2, 1, 2)), ancient = helper.absolutePos(new BlockPos(9, 1, 9));
+        java.util.Map<BlockPos, net.minecraft.world.level.block.state.BlockState> roof = new java.util.HashMap<>();
+        for (BlockPos vent : List.of(crafted, ancient)) {
+            for (int dy = 1; dy <= 40; dy++) {
+                var over = level.getBlockState(vent.above(dy));
+                if (over.isAir()) continue;
+                if (!over.is(net.minecraft.world.level.block.Blocks.BARRIER)) bad.add("over a vent at " + dy + ": " + over);
+                roof.put(vent.above(dy), over);
+                level.setBlock(vent.above(dy), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+            }
+        }
         var craftedState = ModBlocks.UPDRAFT_VENT.get().defaultBlockState();
         var ancientState = craftedState.setValue(com.panda.promisedend.block.UpdraftVentBlock.ANCIENT, true);
         level.setBlock(crafted, craftedState, 3);
@@ -1346,60 +1357,46 @@ public final class EndGameTests {
         List<Spot> spots = List.of(new Spot("15.5 over a crafted vent", crafted, 0, 15.5, true), new Spot("16 over a crafted vent", crafted, 0, 16, false),
                 new Spot("1.4 off a crafted vent", crafted, 1.4, 2, true), new Spot("1.6 off a crafted vent", crafted, 1.6, 2, false),
                 new Spot("31.5 over an ancient vent", ancient, 0, 31.5, true), new Spot("32 over an ancient vent", ancient, 0, 32, false));
-        boolean[] done = {false};
-        for (int t = 1; t <= 300; t++) {
-            int tick = t;
-            helper.runAtTickTime(t, () -> {
-                if (done[0]) return;
-                if (!level.isPositionEntityTicking(crafted.above()) || !level.isPositionEntityTicking(ancient.above())) {
-                    if (tick == 290) {
-                        release.run();
-                        helper.fail("the vents' chunks weren't entity-ticking by tick 290");
-                    }
-                    return;
-                }
-                done[0] = true;
-                List<net.minecraft.world.entity.Entity> made = new ArrayList<>();
-                List<net.minecraft.world.entity.decoration.ArmorStand> stands = new ArrayList<>();
-                for (Spot spot : spots) {
-                    var stand = new net.minecraft.world.entity.decoration.ArmorStand(level, spot.vent().getX() + 0.5 + spot.dx(), spot.vent().getY() + 1 + spot.dy(), spot.vent().getZ() + 0.5);
-                    level.addFreshEntity(stand);
-                    stands.add(stand);
-                    made.add(stand);
-                }
-                var sideways = new net.minecraft.world.entity.decoration.ArmorStand(level, crafted.getX() + 0.5, crafted.getY() + 5, crafted.getZ() + 0.5);
-                level.addFreshEntity(sideways);
-                made.add(sideways);
-                var crystal = new net.minecraft.world.entity.boss.enderdragon.EndCrystal(level, crafted.getX() + 0.5, crafted.getY() + 8, crafted.getZ() + 0.5);
-                level.addFreshEntity(crystal);
-                made.add(crystal);
-                var shulker = net.minecraft.world.entity.EntityTypes.SHULKER.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
-                shulker.snapTo(crafted.getX() + 0.5, crafted.getY() + 11, crafted.getZ() + 0.5, 0, 0);
-                level.addFreshEntity(shulker);
-                made.add(shulker);
-                for (var e : made) e.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
-                sideways.setDeltaMovement(0.3, 0, 0.2);
-                for (BlockPos vent : List.of(crafted, ancient)) {
-                    com.panda.promisedend.block.UpdraftVentBlockEntity.tick(level, vent, level.getBlockState(vent), (com.panda.promisedend.block.UpdraftVentBlockEntity) level.getBlockEntity(vent));
-                }
-                for (int i = 0; i < spots.size(); i++) {
-                    double vy = stands.get(i).getDeltaMovement().y;
-                    if ((vy > 0.1) != spots.get(i).lifted()) bad.add(spots.get(i).name() + ": " + (spots.get(i).lifted() ? "not lifted" : "lifted") + " (vy " + vy + ")");
-                }
-                var v = sideways.getDeltaMovement();
-                if (v.y < 0.1 || Math.abs(v.x - 0.3) > 1e-9 || Math.abs(v.z - 0.2) > 1e-9) bad.add("a stand moving sideways came out at " + v);
-                if (crystal.getDeltaMovement().lengthSqr() > 0) bad.add("an end crystal was moved: " + crystal.getDeltaMovement());
-                if (shulker.getDeltaMovement().lengthSqr() > 0) bad.add("a shulker was moved: " + shulker.getDeltaMovement());
-                PromisedEnd.LOGGER.info("[updraft_column_bounds] stands {}; sideways {}; crystal {}; shulker {}",
-                        stands.stream().map(st -> String.format(java.util.Locale.ROOT, "%.3f", st.getDeltaMovement().y)).toList(), v, crystal.getDeltaMovement(), shulker.getDeltaMovement());
-                made.forEach(net.minecraft.world.entity.Entity::discard);
-                level.setBlock(crafted, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
-                level.setBlock(ancient, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
-                release.run();
-                if (!bad.isEmpty()) helper.fail("updraft bounds: " + bad);
-                helper.succeed();
-            });
+        List<net.minecraft.world.entity.Entity> made = new ArrayList<>();
+        List<net.minecraft.world.entity.decoration.ArmorStand> stands = new ArrayList<>();
+        for (Spot spot : spots) {
+            var stand = new net.minecraft.world.entity.decoration.ArmorStand(level, spot.vent().getX() + 0.5 + spot.dx(), spot.vent().getY() + 1 + spot.dy(), spot.vent().getZ() + 0.5);
+            level.addFreshEntity(stand);
+            stands.add(stand);
+            made.add(stand);
         }
+        var sideways = new net.minecraft.world.entity.decoration.ArmorStand(level, crafted.getX() + 0.5, crafted.getY() + 5, crafted.getZ() + 0.5);
+        level.addFreshEntity(sideways);
+        made.add(sideways);
+        var crystal = new net.minecraft.world.entity.boss.enderdragon.EndCrystal(level, crafted.getX() + 0.5, crafted.getY() + 8, crafted.getZ() + 0.5);
+        level.addFreshEntity(crystal);
+        made.add(crystal);
+        var shulker = net.minecraft.world.entity.EntityTypes.SHULKER.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        shulker.snapTo(crafted.getX() + 0.5, crafted.getY() + 11, crafted.getZ() + 0.5, 0, 0);
+        level.addFreshEntity(shulker);
+        made.add(shulker);
+        for (var e : made) e.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        sideways.setDeltaMovement(0.3, 0, 0.2);
+        for (BlockPos vent : List.of(crafted, ancient)) {
+            com.panda.promisedend.block.UpdraftVentBlockEntity.tick(level, vent, level.getBlockState(vent), (com.panda.promisedend.block.UpdraftVentBlockEntity) level.getBlockEntity(vent));
+        }
+        for (int i = 0; i < spots.size(); i++) {
+            double vy = stands.get(i).getDeltaMovement().y;
+            if ((vy > 0.1) != spots.get(i).lifted()) bad.add(spots.get(i).name() + ": " + (spots.get(i).lifted() ? "not lifted" : "lifted") + " (vy " + vy + ")");
+        }
+        var v = sideways.getDeltaMovement();
+        if (v.y < 0.1 || Math.abs(v.x - 0.3) > 1e-9 || Math.abs(v.z - 0.2) > 1e-9) bad.add("a stand moving sideways came out at " + v);
+        if (crystal.getDeltaMovement().lengthSqr() > 0) bad.add("an end crystal was moved: " + crystal.getDeltaMovement());
+        if (shulker.getDeltaMovement().lengthSqr() > 0) bad.add("a shulker was moved: " + shulker.getDeltaMovement());
+        PromisedEnd.LOGGER.info("[updraft_column_bounds] columns {} and {}; stands {}; sideways {}; crystal {}; shulker {}",
+                ((com.panda.promisedend.block.UpdraftVentBlockEntity) level.getBlockEntity(crafted)).height(), ((com.panda.promisedend.block.UpdraftVentBlockEntity) level.getBlockEntity(ancient)).height(),
+                stands.stream().map(st -> String.format(java.util.Locale.ROOT, "%.3f", st.getDeltaMovement().y)).toList(), v, crystal.getDeltaMovement(), shulker.getDeltaMovement());
+        made.forEach(net.minecraft.world.entity.Entity::discard);
+        level.setBlock(crafted, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        level.setBlock(ancient, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        roof.forEach((pos, state) -> level.setBlock(pos, state, 3));
+        if (!bad.isEmpty()) helper.fail("updraft bounds: " + bad);
+        helper.succeed();
     }
 
     /**
@@ -3322,7 +3319,11 @@ public final class EndGameTests {
      * The Rim's placed feature builds an island of Voidstone and end stone in mid-air: mostly Voidstone, a
      * tapering underside, 6–18 blocks across. The placement filters (rarity, height, biome) are bypassed: this checks
      * the shape and materials, not where islands appear. The feature keeps to the 150–450 ring itself, so
-     * the islands are built 300 blocks out, high in the test level's sky.
+     * the islands are built 300 blocks out, high in the test level's sky. Then each shape and each wreck from the first
+     * seed that plans it: a tilted top spans 3 or more blocks of height, a split island's second piece is at least
+     * 30 % of its first (a cap's loose shards are far smaller), shards stand 3 or more over a level top, and each
+     * wreck leaves its own blocks (no wreck, none of them). Over 1100 plans the shapes come 4:3:2:2 and a wreck on one
+     * island in six of 8 or more across, within 4 points.
      */
     private static void rimIslandsGenerate(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -3333,23 +3334,117 @@ public final class EndGameTests {
         int voidstone = 0, endStone = 0, below = 0;
         List<Integer> widths = new ArrayList<>();
         List<String> bad = new ArrayList<>();
-        for (int n = 0; n < 12; n++) {
-            double a = Math.toRadians(n * 30);
-            BlockPos centre = new BlockPos((int) Math.round(300 * Math.cos(a)), y, (int) Math.round(300 * Math.sin(a)));
-            if (!feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(77 + n), centre)) bad.add("nothing placed at " + centre);
-            for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 6, 16))) {
-                var state = level.getBlockState(pos);
-                if (state.is(ModBlocks.VOIDSTONE_SET.base().get())) voidstone++;
-                else if (state.is(net.minecraft.world.level.block.Blocks.END_STONE)) endStone++;
-                if (!state.isAir() && pos.getY() < centre.getY() - 2) below++;
+        var rim = (com.panda.promisedend.worldgen.RimDebrisFeature) feature;
+        // the twelve on seeds from 77-88, then the first seed from 1000 for each shape and each wreck; each mixed, since
+        // consecutive seeds give correlated first draws (every island came out the same size)
+        java.util.function.LongUnaryOperator mix = k -> net.minecraft.util.RandomSource.create(k).nextLong();
+        List<Long> seeds = new ArrayList<>();
+        for (long k = 77; k < 89; k++) seeds.add(mix.applyAsLong(k));
+        java.util.Set<Integer> radii = new java.util.TreeSet<>();
+        var wantShapes = java.util.EnumSet.allOf(com.panda.promisedend.worldgen.RimDebrisFeature.Shape.class);
+        var wantWrecks = java.util.EnumSet.allOf(com.panda.promisedend.worldgen.RimDebrisFeature.Wreck.class);
+        int[] shapeCount = new int[4];
+        int wrecked = 0, wreckable = 0;
+        for (long k = 1000; k < 2100; k++) {
+            var plan = rim.plan(net.minecraft.util.RandomSource.create(mix.applyAsLong(k)));
+            radii.add(plan.radius());
+            if (plan.radius() >= 4) {
+                shapeCount[plan.shape().ordinal()]++;
+                wreckable++;
+                if (plan.wreck() != com.panda.promisedend.worldgen.RimDebrisFeature.Wreck.NONE) wrecked++;
             }
-            // the lens across: the unbroken run of blocks through the centre along x
-            int east = 0, west = 0;
-            while (east < 16 && !level.getBlockState(centre.offset(east + 1, 0, 0)).isAir()) east++;
-            while (west < 16 && !level.getBlockState(centre.offset(-west - 1, 0, 0)).isAir()) west++;
-            widths.add(east + west + 1);
-            for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 6, 16))) level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            if (wantShapes.remove(plan.shape()) | wantWrecks.remove(plan.wreck())) seeds.add(mix.applyAsLong(k));
         }
+        int planned = java.util.Arrays.stream(shapeCount).sum();
+        double[] weights = {4 / 11.0, 3 / 11.0, 2 / 11.0, 2 / 11.0};
+        for (int i = 0; i < 4; i++) {
+            if (Math.abs(shapeCount[i] / (double) planned - weights[i]) > 0.04) bad.add("shape " + i + " came " + shapeCount[i] + " of " + planned);
+        }
+        if (Math.abs(wrecked / (double) wreckable - 1 / 6.0) > 0.04) bad.add("a wreck on " + wrecked + " of " + wreckable + " islands");
+        if (radii.size() < 4) bad.add("the plans' radii don't vary: " + radii);
+        if (!wantShapes.isEmpty() || !wantWrecks.isEmpty()) bad.add("no seed planned " + wantShapes + " " + wantWrecks);
+        List<String> traits = new ArrayList<>();
+        for (int n = 0; n < seeds.size(); n++) {
+            long seed = seeds.get(n);
+            var plan = rim.plan(net.minecraft.util.RandomSource.create(seed));
+            double a = Math.toRadians(n * 360.0 / seeds.size());
+            int ring = n < 12 ? 300 : 340;
+            BlockPos centre = new BlockPos((int) Math.round(ring * Math.cos(a)), y, (int) Math.round(ring * Math.sin(a)));
+            if (!feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(seed), centre)) bad.add("nothing placed at " + centre);
+            int high = 0, pillars = 0, bricks = 0, chiseled = 0;
+            java.util.Map<Long, Integer> tops = new java.util.HashMap<>();
+            java.util.Set<BlockPos> stone = new java.util.HashSet<>();
+            for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 10, 16))) {
+                var state = level.getBlockState(pos);
+                if (state.isAir()) continue;
+                boolean isVoidstone = state.is(ModBlocks.VOIDSTONE_SET.base().get()), isEndStone = state.is(net.minecraft.world.level.block.Blocks.END_STONE);
+                if (n < 12 && isVoidstone) voidstone++;
+                else if (n < 12 && isEndStone) endStone++;
+                if (state.is(net.minecraft.world.level.block.Blocks.PURPUR_PILLAR)) pillars++;
+                if (state.is(ModBlocks.VOIDSTONE_BRICK_SET.base().get()) || state.is(ModBlocks.VOIDSTONE_BRICK_SET.stairs().get()) || state.is(ModBlocks.VOIDSTONE_BRICK_SET.slab().get())) bricks++;
+                if (state.is(ModBlocks.CHISELED_VOIDSTONE.get())) chiseled++;
+                if (n < 12 && pos.getY() < centre.getY() - 2) below++;
+                if (!isVoidstone && !isEndStone) continue;
+                // the pieces are counted within the island's own reach, so a cap's loose shards beside it don't count
+                int ox = pos.getX() - centre.getX(), oz = pos.getZ() - centre.getZ();
+                if (ox * ox + oz * oz > (plan.radius() + 0.5) * (plan.radius() + 0.5)) continue;
+                stone.add(pos.immutable());
+                tops.merge(net.minecraft.world.level.ChunkPos.pack(pos.getX(), pos.getZ()), pos.getY(), Math::max);
+            }
+            // the island's pieces: stone joined face to face, largest first; "high" is the largest's stone 3 or more over
+            // the middle's level (a loose shard beside a cap may float higher, and isn't the island's)
+            List<Integer> pieces = new ArrayList<>();
+            int largest = 0;
+            java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+            for (BlockPos start : stone) {
+                if (!seen.add(start)) continue;
+                int size = 0, up = 0;
+                java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>(List.of(start));
+                while (!queue.isEmpty()) {
+                    BlockPos q = queue.poll();
+                    size++;
+                    if (q.getY() >= centre.getY() + 3) up++;
+                    for (var d : net.minecraft.core.Direction.values()) {
+                        BlockPos r = q.relative(d);
+                        if (stone.contains(r) && seen.add(r)) queue.add(r);
+                    }
+                }
+                pieces.add(size);
+                if (size > largest) {
+                    largest = size;
+                    high = up;
+                }
+            }
+            pieces.sort(java.util.Comparator.reverseOrder());
+            double second = pieces.size() > 1 ? pieces.get(1) / (double) pieces.get(0) : 0;
+            int topSpan = tops.isEmpty() ? 0 : java.util.Collections.max(tops.values()) - java.util.Collections.min(tops.values());
+            // the lens across, on the level-topped ones: the unbroken run of blocks through the centre along x
+            if (plan.shape() == com.panda.promisedend.worldgen.RimDebrisFeature.Shape.CAP || plan.shape() == com.panda.promisedend.worldgen.RimDebrisFeature.Shape.SHARDS) {
+                int east = 0, west = 0;
+                while (east < 16 && !level.getBlockState(centre.offset(east + 1, 0, 0)).isAir()) east++;
+                while (west < 16 && !level.getBlockState(centre.offset(-west - 1, 0, 0)).isAir()) west++;
+                widths.add(east + west + 1);
+            }
+            traits.add(seed + " " + plan.shape() + "/" + plan.wreck() + " r" + plan.radius() + ": span " + topSpan + ", second piece " + String.format(java.util.Locale.ROOT, "%.2f", second)
+                    + ", high " + high + ", pillar " + pillars + ", brick " + bricks + ", chiseled " + chiseled);
+            switch (plan.shape()) {
+                case TILTED -> { if (topSpan < 3) bad.add(seed + " tilted: its top spans only " + topSpan); }
+                case SPLIT -> { if (second < 0.3) bad.add(seed + " split: its second piece is " + second + " of the first"); }
+                case SHARDS -> { if (high == 0) bad.add(seed + " shards: nothing 3 over the top"); }
+                case CAP -> {
+                    if (second >= 0.3) bad.add(seed + " cap: in two near-equal pieces (" + second + ")");
+                    if (high > 0) bad.add(seed + " cap: " + high + " blocks 3 over the top");
+                }
+            }
+            switch (plan.wreck()) {
+                case PILLAR -> { if (pillars < 3) bad.add(seed + " pillar wreck: " + pillars + " pillar blocks"); }
+                case CORNER -> { if (bricks < 5) bad.add(seed + " corner wreck: " + bricks + " brick blocks"); }
+                case CHISELED -> { if (chiseled != 1) bad.add(seed + " chiseled wreck: " + chiseled + " chiseled blocks"); }
+                case NONE -> { if (pillars + bricks + chiseled > 0) bad.add(seed + " no wreck, yet wreck blocks"); }
+            }
+            for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 10, 16))) level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+        PromisedEnd.LOGGER.info("rim island shapes over 1100 plans {} (of {}), wrecks {} of {}; built: {}", java.util.Arrays.toString(shapeCount), planned, wrecked, wreckable, traits);
         if (voidstone == 0) bad.add("no Voidstone in the islands");
         double share = voidstone / (double) Math.max(1, voidstone + endStone);
         if (share < 0.62 || share > 0.80) bad.add("islands should be about 70 % Voidstone: " + voidstone + " voidstone, " + endStone + " end stone");
