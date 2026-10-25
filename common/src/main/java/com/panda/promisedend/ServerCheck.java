@@ -94,7 +94,22 @@ public final class ServerCheck {
             end.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
             if (!now.is(pair.get(1)) || now.getValue(axis) != net.minecraft.core.Direction.Axis.Z) return "an axe on " + pair.get(0) + " left " + now;
         }
-        PromisedEnd.LOGGER.info("[promisedend servercheck] an axe strips the chorus log and wood");
+        // 40 strips shed resin (one in two: 8 or fewer by chance about 1 run in 20000)
+        var box = new net.minecraft.world.phys.AABB(at).inflate(3);
+        for (var e : end.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box)) e.discard();
+        for (int i = 0; i < 40; i++) {
+            end.setBlock(at, ModBlocks.CHORUS_LOG.get().defaultBlockState(), 3);
+            var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(at), net.minecraft.core.Direction.UP, at, false);
+            transformer.value().transformBlock(new net.minecraft.world.item.context.UseOnContext(end, null, net.minecraft.world.InteractionHand.OFF_HAND, axe, hit) {});
+        }
+        end.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        int resin = 0;
+        for (var e : end.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box)) {
+            if (e.getItem().is(com.panda.promisedend.registry.ModItems.CHORUS_RESIN.get())) resin += e.getItem().getCount();
+            e.discard();
+        }
+        PromisedEnd.LOGGER.info("[promisedend servercheck] an axe strips the chorus log and wood; 40 strips shed {} Chorus Resin", resin);
+        if (resin <= 8) return "40 strips shed only " + resin + " Chorus Resin";
         return null;
     }
 

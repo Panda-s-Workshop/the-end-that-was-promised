@@ -14,6 +14,10 @@ public final class ModTags {
     public static final TagKey<Item> RESONITE_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("resonite_tool_materials"));
     /** The armour the Resonance bonus counts: four pieces, one a slot. */
     public static final TagKey<Item> RESONANCE_SET = TagKey.create(Registries.ITEM, PromisedEnd.id("resonance_set"));
+    /** What repairs Resonite armour (the ingot), apart from the tools' material. */
+    public static final TagKey<Item> REPAIRS_RESONITE_ARMOR = TagKey.create(Registries.ITEM, PromisedEnd.id("repairs_resonite_armor"));
+    /** What stripping into stripped chorus timber sheds Chorus Resin from: the chorus log and wood. */
+    public static final TagKey<Block> SHEDS_CHORUS_RESIN = TagKey.create(Registries.BLOCK, PromisedEnd.id("sheds_chorus_resin"));
     /** What a Dragon Scale repairs in an anvil, half its durability a scale (the elytra). */
     public static final TagKey<Item> REPAIRED_BY_DRAGON_SCALE = TagKey.create(Registries.ITEM, PromisedEnd.id("repaired_by_dragon_scale"));
 

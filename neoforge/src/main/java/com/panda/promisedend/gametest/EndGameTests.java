@@ -1273,7 +1273,8 @@ public final class EndGameTests {
      * Stripping chorus timber sheds Chorus Resin half the time: a survival player's axe strips 400 chorus logs and wood
      * (in turn), and 160-240 resin come out (4 standard deviations round 200: a chance run fails about 1 in 16000), each popped onto the stripped block.
      * Stripped timber set any other way sheds none: over air, over stripped timber, over end stone (a command or a
-     * player's placing).
+     * player's placing). In a standing trunk (a log over the stripped one) the resin comes out of the open side
+     * towards the player, never inside a block.
      */
     private static void chorusResinFromStripping(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1301,6 +1302,33 @@ public final class EndGameTests {
         }
         PromisedEnd.LOGGER.info("[chorus_resin_from_stripping] {} resin from 400 strips", shed);
         if (shed < 160 || shed > 240) bad.add(shed + " resin from 400 strips (160-240)");
+        // in a standing trunk (timber over it) the resin comes out of a side that is open, towards the player; 40
+        // strips, so none at all is a 1 in 2^40 chance
+        BlockPos mid = at.offset(4, 1, 0);
+        // the side chosen is towards the nearest player in the level (the survivor striking isn't in it): one stands south
+        var watcher = helper.makeMockServerPlayerInLevel();
+        watcher.snapTo(mid.getX() + 0.5, mid.getY(), mid.getZ() + 3.5);
+        var trunkBox = new net.minecraft.world.phys.AABB(mid).inflate(3);
+        int out = 0;
+        for (int i = 0; i < 40; i++) {
+            level.setBlock(mid.below(), ModBlocks.CHORUS_LOG.get().defaultBlockState(), 3);
+            level.setBlock(mid.above(), ModBlocks.CHORUS_LOG.get().defaultBlockState(), 3);
+            level.setBlock(mid, ModBlocks.CHORUS_LOG.get().defaultBlockState(), 3);
+            survivor.setItemInHand(hand, new ItemStack(net.minecraft.world.item.Items.IRON_AXE));
+            var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(mid), net.minecraft.core.Direction.NORTH, mid, false);
+            survivor.getMainHandItem().useOn(new net.minecraft.world.item.context.UseOnContext(survivor, hand, hit));
+            for (var e : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, trunkBox)) {
+                if (!e.getItem().is(resin)) continue;
+                out++;
+                BlockPos in = BlockPos.containing(e.position());
+                if (!level.getBlockState(in).getCollisionShape(level, in).isEmpty()) bad.add("resin from a trunk came out inside " + level.getBlockState(in));
+                else if (e.getZ() < mid.getZ() + 0.5) bad.add("resin from a trunk came out away from the player, at " + e.position());
+                e.discard();
+            }
+        }
+        if (out == 0) bad.add("40 strips in a trunk shed no resin");
+        for (BlockPos p : List.of(mid.below(), mid, mid.above())) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        watcher.discard();
         // set any other way: nothing
         int other = 0;
         for (var under : List.of(net.minecraft.world.level.block.Blocks.AIR, ModBlocks.STRIPPED_CHORUS_LOG.get(), net.minecraft.world.level.block.Blocks.END_STONE)) {

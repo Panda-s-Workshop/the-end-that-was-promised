@@ -72,7 +72,7 @@ public final class ModItems {
     public static final ResourceKey<EquipmentAsset> RESONITE_ASSET = ResourceKey.create(EquipmentAssets.ROOT_ID, PromisedEnd.id("resonite"));
     public static final ArmorMaterial RESONITE_ARMOUR = new ArmorMaterial(GearTiers.RESONITE_ARMOUR_DURABILITY,
             defence(GearTiers.RESONITE_ARMOUR), GearTiers.RESONITE_ARMOUR.enchantability(), SoundEvents.ARMOR_EQUIP_DIAMOND,
-            GearTiers.RESONITE_ARMOUR.toughness(), 0.0F, ModTags.RESONITE_TOOL_MATERIALS, RESONITE_ASSET);
+            GearTiers.RESONITE_ARMOUR.toughness(), 0.0F, ModTags.REPAIRS_RESONITE_ARMOR, RESONITE_ASSET);
     public static final DeferredItem<HintItem> RESONITE_HELMET = armour("resonite_helmet", RESONITE_ARMOUR, ArmorType.HELMET);
     public static final DeferredItem<HintItem> RESONITE_CHESTPLATE = armour("resonite_chestplate", RESONITE_ARMOUR, ArmorType.CHESTPLATE);
     public static final DeferredItem<HintItem> RESONITE_LEGGINGS = armour("resonite_leggings", RESONITE_ARMOUR, ArmorType.LEGGINGS);
