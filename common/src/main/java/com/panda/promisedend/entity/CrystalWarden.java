@@ -79,10 +79,11 @@ public class CrystalWarden extends Monster implements GeoEntity {
     public static final double HOVER_RADIUS = 3.0;
     /**
      * A called warden (linked to a dragon) sees this far, and with a target out of its beam drifts towards it up to
-     * CALLED_LEASH from its pillar, so from the pillars (about 34 blocks out) it reaches a player fighting at the portal.
+     * CALLED_LEASH from its pillar ({@link com.panda.promisedend.logic.WardenReach}). Its home is about 34 blocks from
+     * the portal, so from there every called warden reaches a player anywhere on the podium's rim.
      */
-    public static final double CALLED_FOLLOW_RANGE = 40.0;
-    public static final double CALLED_LEASH = 22.0;
+    public static final double CALLED_FOLLOW_RANGE = 48.0;
+    public static final double CALLED_LEASH = 28.0;
     /** The beam's sound is about 1.4 s long: it is played again this often while the beam lasts. */
     public static final int BEAM_SOUND_INTERVAL = 30;
     /** The renderer draws the rig at this scale; the hitbox and the lens below are measured at it. */
@@ -96,6 +97,8 @@ public class CrystalWarden extends Monster implements GeoEntity {
     /** What a linked warden gives its dragon while it beams: 1 health every 20 ticks. */
     public static final float DRAGON_HEAL = 1.0F;
     public static final int DRAGON_HEAL_INTERVAL = 20;
+    /** How far above or below its home a called warden closing in may go, towards its target's height. */
+    public static final double CALLED_RISE = 6.0;
     /** A linked warden whose dragon can't be found for this long (30 s) takes it as gone and shatters. */
     public static final int DRAGON_MISSING_TICKS = 600;
     public static final ResourceKey<DamageType> BEAM_DAMAGE_TYPE = ResourceKey.create(Registries.DAMAGE_TYPE, PromisedEnd.id("crystal_beam"));
@@ -121,6 +124,8 @@ public class CrystalWarden extends Monster implements GeoEntity {
     private int dragonMissing;
     private int phaseTicks;
     private int rest;
+    /** Beams started since it loaded (not saved): the harness counts which wardens joined a fight. */
+    private int beams;
     /** Clients count the ticks since the phase last changed themselves, for the lock-on thread's charge. */
     private Phase clientPhase = Phase.IDLE;
     private int clientPhaseTicks;
@@ -283,6 +288,7 @@ public class CrystalWarden extends Monster implements GeoEntity {
                     face(locked);
                     if (++phaseTicks >= LOCK_ON_TICKS) {
                         setPhase(Phase.BEAM, locked);
+                        beams++;
                         playSound(ModSounds.CRYSTAL_WARDEN_BEAM.get(), 1.5F, 1.0F);
                     }
                 }
@@ -442,7 +448,8 @@ public class CrystalWarden extends Monster implements GeoEntity {
      * Drifts round its pillar: a new spot within {@link #HOVER_RADIUS}, up to 2 above it, every few seconds, steered to
      * every tick (a move control moves only on the ticks it is given a target). A spot it wouldn't fit in (in the
      * pillar's side) is thrown away and another tried; with none it stays where it is. A called warden with a target out
-     * of its beam instead closes in along the line to it, no further than {@link #CALLED_LEASH} from its pillar.
+     * of its beam instead closes in along the line to it, no further than {@link #CALLED_LEASH} from its pillar, and
+     * towards the target's height; where that spot is taken it stops short on the same line, or holds where it is.
      */
     final class HoverGoal extends Goal {
         private int wait;
@@ -485,11 +492,16 @@ public class CrystalWarden extends Monster implements GeoEntity {
             if (dragonId == null || target == null || !target.isAlive()) return null;
             Vec3 base = Vec3.atBottomCenterOf(home);
             Vec3 flat = new Vec3(target.getX() - base.x, 0, target.getZ() - base.z);
-            double distance = flat.length();
-            double want = Math.min(CALLED_LEASH, distance - (BEAM_RANGE - 4.0));
-            if (want <= 0.5) return null;
-            Vec3 next = base.add(flat.normalize().scale(want)).add(0, 1.0, 0);
-            return level().noCollision(CrystalWarden.this, getDimensions(getPose()).makeBoundingBox(next)) ? next : null;
+            double want = com.panda.promisedend.logic.WardenReach.outFromHome(flat.length());
+            if (want <= 0) return null;
+            // a little over the target's eyes, so the beam isn't lost over a rise between them
+            double y = Mth.clamp(target.getEyeY() + 3.0, base.y + 1.0 - CALLED_RISE, base.y + 1.0 + CALLED_RISE);
+            Vec3 dir = flat.normalize();
+            for (double out = want; out > 0.5; out -= 2.0) {
+                Vec3 next = new Vec3(base.x + dir.x * out, y, base.z + dir.z * out);
+                if (level().noCollision(CrystalWarden.this, getDimensions(getPose()).makeBoundingBox(next))) return next;
+            }
+            return position();
         }
 
         @Override
@@ -501,6 +513,11 @@ public class CrystalWarden extends Monster implements GeoEntity {
         public boolean requiresUpdateEveryTick() {
             return true;
         }
+    }
+
+    /** How many beams it has started since it loaded (the harness). */
+    public int beams() {
+        return beams;
     }
 
     /** Whether an entity is the one this warden is beaming at now (GameTests). */

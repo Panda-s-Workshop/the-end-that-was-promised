@@ -153,8 +153,10 @@ public final class DragonWrath {
             if (!EndConfig.dragonWrath()) continue;
             int was = stored(server), now = next(was, EndConfig.maxWrath());
             setStored(server, now);
-            // the players at the fight are told, so a rematch is a choice they know about
+            // the players at the fight are told, so a rematch is a choice they know about; with the cap at 0 there is
+            // no Wrath to tell of
             int cap = clamp(EndConfig.maxWrath());
+            if (cap == 0) continue;
             Component line = now > was ? Component.translatable("message.promisedend.wrath.rises", now, cap)
                     : Component.translatable("message.promisedend.wrath.height", Math.min(now, cap));
             lastAnnouncement = line.getString();
@@ -246,12 +248,13 @@ public final class DragonWrath {
 
     /**
      * Air or what a placed block replaces anyway (snow, short grass), never a torch, a carpet or a flower, on a solid
-     * face.
+     * face, with no one and nothing standing in it.
      */
     private static boolean free(ServerLevel level, BlockPos at) {
         var here = level.getBlockState(at);
         return (here.isAir() || here.canBeReplaced() && here.getFluidState().isEmpty() && !here.is(net.minecraft.tags.BlockTags.FLOWERS))
-                && level.getBlockState(at.below()).isFaceSturdy(level, at.below(), Direction.UP);
+                && level.getBlockState(at.below()).isFaceSturdy(level, at.below(), Direction.UP)
+                && level.getEntities((Entity) null, new net.minecraft.world.phys.AABB(at)).isEmpty();
     }
 
     /** Where the last hoard chest was set, or null before the first (and after a hoard that dropped as items). */

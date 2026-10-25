@@ -66,8 +66,7 @@ public final class DragonPhase3 {
     private static final int[] WARDENS_BY_WRATH = {3, 3, 3, 4, 4, 5};
     /**
      * How far out from its pillar's side a warden's home is, towards the island's centre; how far over the ground there
-     * it hovers, in reach of a player on the island (it sees 24 blocks and beams 16); and how far under the pillar's
-     * top it stays at most, for a pillar standing over the void.
+     * it hovers; and how far under the pillar's top it stays at most, for a pillar standing over the void.
      */
     public static final int HOME_OUT = 4;
     public static final int HOME_HOVER = 6;
