@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "VSV",
+    "VCV",
+    "VSV"
+  ],
+  "key": {
+    "V": "promisedend:polished_voidstone",
+    "S": "promisedend:drift_silk",
+    "C": "promisedend:crystal_fragment"
+  },
+  "result": {
+    "id": "promisedend:updraft_vent",
+    "count": 1
+  }
+}

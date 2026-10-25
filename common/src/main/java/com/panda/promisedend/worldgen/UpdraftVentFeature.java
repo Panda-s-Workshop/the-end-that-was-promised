@@ -22,13 +22,16 @@ import net.minecraft.world.level.levelgen.feature.Feature;
  * it looks over the tops within {@code search} blocks, nearest first (in a random order within each ring), for ground
  * ({@code #promisedend:updraft_vent_ground}) with the void beside it within {@code edge} blocks and ground on at least
  * two of its four sides within a block of its height (an edge, sloped or not, but not a lone spike), and sinks the vent
- * into the top there. {@code search} and {@code edge} together stay within 16, so it never reads past the chunks next
- * to its own (worldgen can't). The void beside it means nothing within {@link #DROP} blocks
+ * into the top there, unless a vent is already within {@link #SPACING} blocks (the next chunk's search reaches the same
+ * edges). {@code search} and {@code edge}, or {@code search} and the spacing, together stay within 16, so it never reads
+ * past the chunks next to its own (worldgen can't). The void beside it means nothing within {@link #DROP} blocks
  * below the top. Nothing is built in a chunk a structure has claimed.
  */
 public record UpdraftVentFeature(int search, int edge) implements Feature {
     /** How far a column beside the top must fall away, at least, to count as the void. */
     public static final int DROP = 16;
+    /** No two vents within this many blocks of each other, across and up or down. */
+    public static final int SPACING = 4;
 
     public static final MapCodec<UpdraftVentFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             Codec.intRange(0, 12).fieldOf("search").forGetter(UpdraftVentFeature::search),
@@ -50,10 +53,18 @@ public record UpdraftVentFeature(int search, int edge) implements Feature {
             Util.shuffle(ring, random);
             for (int[] d : ring) {
                 BlockPos top = top(level, origin.getX() + d[0], origin.getZ() + d[1]);
-                if (top == null || !edge(level, top) || StructureClaims.claimed(level, List.of(top))) continue;
+                if (top == null || !edge(level, top) || spaced(level, top) || StructureClaims.claimed(level, List.of(top))) continue;
                 level.setBlock(top, ModBlocks.UPDRAFT_VENT.get().defaultBlockState().setValue(UpdraftVentBlock.ANCIENT, true), 2);
                 return true;
             }
+        }
+        return false;
+    }
+
+    /** Whether a vent is already within {@link #SPACING} blocks of {@code top}. */
+    private static boolean spaced(WorldGenLevel level, BlockPos top) {
+        for (BlockPos p : BlockPos.betweenClosed(top.offset(-SPACING, -SPACING, -SPACING), top.offset(SPACING, SPACING, SPACING))) {
+            if (level.getBlockState(p).is(ModBlocks.UPDRAFT_VENT.get())) return true;
         }
         return false;
     }

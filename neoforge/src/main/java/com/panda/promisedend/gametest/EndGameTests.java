@@ -1,5 +1,6 @@
 package com.panda.promisedend.gametest;
 
+import com.panda.promisedend.block.DriftBlossomBlock;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.registry.ModBlocks;
 import com.panda.promisedend.registry.ModItems;
@@ -91,6 +92,8 @@ public final class EndGameTests {
         FUNCTIONS.register("void_water_slows", () -> EndGameTests::voidWaterSlows);
         FUNCTIONS.register("mire_lily_rules", () -> EndGameTests::mireLilyRules);
         FUNCTIONS.register("lumen_moss_drops", () -> EndGameTests::lumenMossDrops);
+        FUNCTIONS.register("drift_blossom_rules", () -> EndGameTests::driftBlossomRules);
+        FUNCTIONS.register("updraft_vent_recipe", () -> EndGameTests::updraftVentRecipe);
         FUNCTIONS.register("mire_pools_walled", () -> EndGameTests::mirePoolsWalled);
         FUNCTIONS.register("resonite_spires_grow", () -> EndGameTests::resoniteSpiresGrow);
         FUNCTIONS.register("resonite_cluster_chimes", () -> EndGameTests::resoniteClusterChimes);
@@ -646,6 +649,99 @@ public final class EndGameTests {
             if (grew != (n <= 16)) bad.add("bone meal " + n + (grew ? " took" : " didn't take"));
         }
         if (!bad.isEmpty()) helper.fail("Mire Lily: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A Drift Blossom stands on end stone only. By hand it drops one Drift Silk (one to four with Fortune III), with
+     * shears or Silk Touch the blossom. Bone meal fills the open end stone within two blocks one blossom at a time, never
+     * three off, and stops when it's full.
+     */
+    private static void driftBlossomRules(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var blossom = ModBlocks.DRIFT_BLOSSOM.get();
+        List<String> bad = new ArrayList<>();
+        var grounds = java.util.Map.of(net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), true,
+                ModBlocks.CHORUS_MOSS.get().defaultBlockState(), false,
+                ModBlocks.VOID_WATER.get().defaultBlockState(), false,
+                net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        int x = 1;
+        for (var e : grounds.entrySet()) {
+            BlockPos at = helper.absolutePos(new BlockPos(x, 2, 1));
+            level.setBlock(at, e.getKey(), 2);
+            if (blossom.defaultBlockState().canSurvive(level, at.above()) != e.getValue()) bad.add("a blossom on " + e.getKey() + (e.getValue() ? " won't hold" : " holds"));
+            level.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            x += 2;
+        }
+        var table = level.getServer().reloadableRegistries().getLootTable(blossom.getLootTable().orElseThrow());
+        var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        var silk = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        silk.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
+        var fortune = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        fortune.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.FORTUNE), 3);
+        // tool, the item it gives, the fewest and the most in one roll
+        record Case(String name, ItemStack tool, net.minecraft.world.item.Item item, int min, int max) {}
+        int fortuneMost = 0;
+        for (var c : List.of(new Case("a hand", ItemStack.EMPTY, ModItems.DRIFT_SILK.get(), 1, 1),
+                new Case("shears", new ItemStack(net.minecraft.world.item.Items.SHEARS), blossom.asItem(), 1, 1),
+                new Case("Silk Touch", silk, blossom.asItem(), 1, 1),
+                new Case("Fortune III", fortune, ModItems.DRIFT_SILK.get(), 1, 4))) {
+            for (int i = 0; i < 100; i++) {
+                var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, c.tool())
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, blossom.defaultBlockState())
+                        .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
+                var drops = table.getRandomItems(params, net.minecraft.util.Mth.murmurHash3Mixer(7000 + i));
+                int n = drops.stream().filter(st -> st.is(c.item())).mapToInt(ItemStack::getCount).sum();
+                if (drops.stream().anyMatch(st -> !st.is(c.item())) || n < c.min() || n > c.max()) {
+                    bad.add("with " + c.name() + " roll " + i + " gave " + drops);
+                    break;
+                }
+                if (c.tool() == fortune) fortuneMost = Math.max(fortuneMost, n);
+            }
+        }
+        if (fortuneMost < 3) bad.add("Fortune III never gave more than " + fortuneMost + " Drift Silk in 100");
+        // a blossom on a floor of end stone 7 across, one cell of it chorus moss: bone meal fills the 23 open cells
+        // within two, then stops; the ring three off stays bare
+        BlockPos centre = helper.absolutePos(new BlockPos(5, 2, 6));
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-3, 0, -3), centre.offset(3, 0, 3))) {
+            level.setBlock(p, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+            level.setBlock(p.above(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+        BlockPos moss = centre.offset(1, 0, 0);
+        level.setBlock(moss, ModBlocks.CHORUS_MOSS.get().defaultBlockState(), 2);
+        level.setBlock(centre.above(), blossom.defaultBlockState(), 2);
+        for (int n = 1; n <= 25; n++) {
+            boolean grew = net.minecraft.world.item.BoneMealItem.growCrop(new ItemStack(net.minecraft.world.item.Items.BONE_MEAL), level, centre.above());
+            int near = 0, three = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-3, 1, -3), centre.offset(3, 1, 3))) {
+                if (!level.getBlockState(p).is(blossom) || p.equals(centre.above())) continue;
+                int ring = Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ()));
+                if (ring <= DriftBlossomBlock.SPREAD) near++;
+                else three++;
+            }
+            int want = Math.min(n, 23);
+            if (near != want) bad.add("after " + n + " bone meal " + near + " blossoms near, not " + want);
+            if (three != 0) bad.add("after " + n + " bone meal a blossom three off");
+            if (grew != (n <= 23)) bad.add("bone meal " + n + (grew ? " took" : " didn't take"));
+        }
+        if (level.getBlockState(moss.above()).is(blossom)) bad.add("a blossom on the chorus moss");
+        if (!bad.isEmpty()) helper.fail("Drift Blossom: " + bad);
+        helper.succeed();
+    }
+
+    /** Six Polished Voidstone, two Drift Silk and a Crystal Fragment craft one Updraft Vent. */
+    private static void updraftVentRecipe(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var v = new ItemStack(ModBlocks.POLISHED_VOIDSTONE_SET.base().get());
+        var silk = new ItemStack(ModItems.DRIFT_SILK.get());
+        var crystal = new ItemStack(ModItems.CRYSTAL_FRAGMENT.get());
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3,
+                List.of(v.copy(), silk.copy(), v.copy(), v.copy(), crystal, v.copy(), v.copy(), silk.copy(), v.copy()));
+        var out = level.getServer().getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level)
+                .map(h -> h.value().assemble(input)).orElse(ItemStack.EMPTY);
+        if (!out.is(ModBlocks.UPDRAFT_VENT.get().asItem()) || out.getCount() != 1) helper.fail("the vent recipe makes " + out);
         helper.succeed();
     }
 
@@ -1456,7 +1552,8 @@ public final class EndGameTests {
      * every ring out from its middle, so no spot near its edge has a side at its own height (sides within a block
      * count), one too; from the middle of one 29 across, with no
      * edge in reach, nothing; on a lone pillar (no ground beside it), on obsidian (not vent ground) and in a chunk an
-     * End City has claimed, nothing (the same island unclaimed gets one).
+     * End City has claimed, nothing (the same island unclaimed gets one). Six more runs on the island 11 across add
+     * vents, none within UpdraftVentFeature.SPACING of another.
      */
     private static void updraftVentOnEdges(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1509,6 +1606,19 @@ public final class EndGameTests {
                 }
                 for (int dy = 1; dy <= com.panda.promisedend.logic.Updraft.HEIGHT_ANCIENT; dy++) if (!level.getBlockState(p.above(dy)).isAir()) bad.add("the air over the vent is shut at " + p.above(dy));
                 if (!(level.getBlockEntity(p) instanceof com.panda.promisedend.block.UpdraftVentBlockEntity)) bad.add("the placed vent has no block entity at " + p);
+            }
+            if (n == 0) {
+                // more runs on the same island: more vents round its edge, but never two within the spacing
+                for (int k = 0; k < 6; k++) feature.place(level, generator, net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer(1400 + k)), centre);
+                var all = vents.apply(centre);
+                int closest = Integer.MAX_VALUE;
+                for (int i = 0; i < all.size(); i++) for (int j = i + 1; j < all.size(); j++) {
+                    BlockPos a = all.get(i), b = all.get(j);
+                    closest = Math.min(closest, Math.max(Math.abs(a.getX() - b.getX()), Math.max(Math.abs(a.getY() - b.getY()), Math.abs(a.getZ() - b.getZ()))));
+                }
+                PromisedEnd.LOGGER.info("[updraft_vent_on_edges] seven runs on {}: {} vents, the closest two {} apart", island.name(), all.size(), closest);
+                if (all.size() < 2) bad.add("seven runs on " + island.name() + " placed " + all.size() + " vents, so the spacing isn't tested");
+                else if (closest <= com.panda.promisedend.worldgen.UpdraftVentFeature.SPACING) bad.add("two vents " + closest + " apart on " + island.name());
             }
             clear(level, centre);
             if (dome) for (BlockPos q : BlockPos.betweenClosed(centre.offset(-12, -12, -12), centre.offset(12, -3, 12))) level.setBlock(q, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
@@ -2332,8 +2442,10 @@ public final class EndGameTests {
             var grove = (com.panda.promisedend.worldgen.ChorusGroveFeature) grove(level, "chorus_grove_fallback");
             var pool = (com.panda.promisedend.worldgen.MirePoolFeature) grove(level, "mire_pool_fallback");
             var spire = (com.panda.promisedend.worldgen.ResoniteSpireFeature) grove(level, "resonite_spire_fallback");
+            var blossom = (net.minecraft.world.level.levelgen.feature.SimpleBlockFeature) grove(level, "drift_blossom_fallback");
             List<net.minecraft.world.level.block.state.BlockState> built = List.of(grove.trunk().getState(level, random, BlockPos.ZERO),
-                    pool.water().getState(level, random, BlockPos.ZERO), spire.budding().getState(level, random, BlockPos.ZERO));
+                    pool.water().getState(level, random, BlockPos.ZERO), spire.budding().getState(level, random, BlockPos.ZERO),
+                    blossom.toPlace().value().getState(level, random, BlockPos.ZERO));
             var previous = com.panda.promisedend.EndConfig.current();
             for (int i = 0; i < biomes.size(); i++) {
                 String biome = biomes.get(i);
@@ -3445,7 +3557,8 @@ public final class EndGameTests {
      * {@code #promisedend:rim_fallback}, which takes in each biome of {@code #minecraft:is_end} and {@code #c:is_end}.
      * The Mire's pools go on vanilla's midlands ({@code #promisedend:mire_fallback}) and the Spires' formations on its
      * highlands ({@code #promisedend:spire_fallback}): with terrain off each builds in the End (a pool with moss round it
-     * and a Lily on it; Resonite with budding Resonite in it), and neither outside the End; with terrain on nothing.
+     * and a Lily on it; Resonite with budding Resonite in it), and neither outside the End; with terrain on nothing. The
+     * Skyfall's blossoms and vents go on vanilla's small islands ({@code #promisedend:skyfall_fallback}) the same way.
      */
     private static void terrainOffFallsBack(GameTestHelper helper) {
         var access = helper.getLevel().registryAccess();
@@ -3471,6 +3584,7 @@ public final class EndGameTests {
             if (pools != null) bad.add(pools);
             String spires = fallbackSpires(helper);
             if (spires != null) bad.add(spires);
+            bad.addAll(fallbackSkyfall(helper));
             // outside the End nothing, even with terrain off: the copies are for the End's own biomes
             BlockPos away = helper.absolutePos(new BlockPos(1, 2, 1)).offset(0, 40, 0);
             var test = helper.getLevel();
@@ -3517,6 +3631,20 @@ public final class EndGameTests {
                 bad.add("the terrain-off spires built with terrain on");
             clear(end, at);
         }
+        // the Skyfall's blossoms and vents on vanilla's small islands, through the same loader hook; with terrain on
+        // neither builds (the terrain_off filter)
+        var smallIslands = biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS);
+        if (!smallIslands.is(net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("skyfall_fallback")))) bad.add("small_end_islands isn't in #promisedend:skyfall_fallback");
+        for (String name : List.of("drift_blossom_fallback", "updraft_vent_fallback")) {
+            var feature = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name)));
+            if (smallIslands.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(feature)))
+                bad.add(name + " isn't among small_end_islands' features (the loader's biome modifier didn't apply)");
+        }
+        if (com.panda.promisedend.EndConfig.terrainEnabled()) {
+            var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+            int[] built = skyfallChunk(end, new BlockPos(9472, end.getMaxY() - 60, 9600));
+            if (built[0] + built[1] != 0) bad.add("with terrain on the terrain-off copies built " + built[0] + " blossoms and " + built[1] + " vents");
+        }
         // the Mire's pools on vanilla's midlands, through the same loader hook; with terrain on the copy builds nothing
         var pools = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("mire_pool_fallback")));
         var midlands = biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.END_MIDLANDS);
@@ -3535,6 +3663,81 @@ public final class EndGameTests {
         }
         if (!bad.isEmpty()) helper.fail("terrain-off fallback: " + bad);
         helper.succeed();
+    }
+
+    /**
+     * With terrain off, the Skyfall's copies run as worldgen runs them, their biome check included (so the loader's biome
+     * modifier): on a chunk of end stone high in the End's sky (one no structure has claimed), made small_end_islands, blossoms in 4 seeds and a vent
+     * sunk into the chunk's edge in 8 (one chunk in two); the same chunk in the test level, outside the End, neither.
+     */
+    private static List<String> fallbackSkyfall(GameTestHelper helper) {
+        List<String> bad = new ArrayList<>();
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        // a vent keeps out of a chunk a structure has claimed (out here, an End City's): a chunk none has, near by
+        BlockPos origin = null;
+        for (int i = 0; i < 16 && origin == null; i++) {
+            BlockPos at = new BlockPos(9408 + 64 * i, end.getMaxY() - 60, 9600);
+            if (!com.panda.promisedend.worldgen.StructureClaims.claimed(end, BlockPos.betweenClosed(at, at.offset(15, 0, 15)))) origin = at;
+        }
+        if (origin == null) {
+            bad.add("no chunk free of structures along x 9408-10368 at z 9600 to test the Skyfall's copies on");
+            return bad;
+        }
+        int[] inEnd = skyfallChunk(end, origin);
+        PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Skyfall's copies on a chunk of small islands: {} blossom spots in 4 seeds, {} vents in 8", inEnd[0], inEnd[1]);
+        if (inEnd[0] == 0) bad.add("no fallback Drift Blossom on a chunk of small islands' end stone in 4 seeds");
+        if (inEnd[1] == 0) bad.add("no fallback Updraft Vent on a chunk of small islands' end stone in 8 seeds");
+        var test = helper.getLevel();
+        int[] away = skyfallChunk(test, new BlockPos(9408, test.getMaxY() - 60, 9600));
+        if (away[0] + away[1] != 0) bad.add("outside the End the Skyfall's copies built " + away[0] + " blossoms and " + away[1] + " vents");
+        return bad;
+    }
+
+    /**
+     * One chunk from {@code origin} (its corner, at the floor's height): made small_end_islands, floored with end stone
+     * two deep with the void round it, then the blossom copy run in 4 seeds and the vent copy in 8, each vent taken off
+     * again. Gives how many spots the blossoms built at and how many vents were built; the chunk is cleared after.
+     */
+    private static int[] skyfallChunk(net.minecraft.server.level.ServerLevel level, BlockPos origin) {
+        var placed = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
+        var blossoms = placed.getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("drift_blossom_fallback")));
+        var vents = placed.getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("updraft_vent_fallback")));
+        fillBiome(level, origin.offset(8, 0, 8), "minecraft:small_end_islands");
+        var stone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        for (BlockPos p : BlockPos.betweenClosed(origin.offset(0, -2, 0), origin.offset(15, -1, 15))) level.setBlock(p, stone, 2);
+        int flowers = 0, built = 0;
+        for (int seed = 0; seed < 4; seed++) flowers += placeAsWorldgen(level, blossoms, 800 + seed, origin);
+        for (int seed = 0; seed < 8; seed++) {
+            built += placeAsWorldgen(level, vents, 900 + seed, origin);
+            for (BlockPos p : BlockPos.betweenClosed(origin.offset(0, -1, 0), origin.offset(15, -1, 15))) {
+                if (level.getBlockState(p).is(ModBlocks.UPDRAFT_VENT.get())) level.setBlock(p, stone, 2);
+            }
+        }
+        for (BlockPos p : BlockPos.betweenClosed(origin.offset(0, -2, 0), origin.offset(15, 1, 15))) {
+            if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+        return new int[] {flowers, built};
+    }
+
+    /**
+     * A placed feature run as worldgen runs it: its modifiers in order with the feature as the top feature (vanilla's
+     * {@code place} has none, so a biome check throws), then the feature at each spot left. How many spots it built at.
+     */
+    private static int placeAsWorldgen(net.minecraft.server.level.ServerLevel level, net.minecraft.core.Holder<net.minecraft.world.level.levelgen.placement.PlacedFeature> placed,
+                                       long seed, BlockPos origin) {
+        var generator = level.getChunkSource().getGenerator();
+        // seeds mixed: consecutive seeds give correlated first rolls (a one-in-two rarity failed in all eight)
+        var random = net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer((int) seed));
+        var context = new net.minecraft.world.level.levelgen.placement.PlacementContext(level, generator, java.util.Optional.of(placed.value()));
+        List<BlockPos> spots = List.of(origin);
+        for (var modifier : placed.value().placement()) {
+            List<BlockPos> next = new ArrayList<>();
+            for (BlockPos p : spots) modifier.modify(context, random, p, next::add);
+            spots = next;
+        }
+        int built = 0;
+        for (BlockPos p : spots) if (placed.value().feature().value().place(level, generator, random, p)) built++;
+        return built;
     }
 
     /**

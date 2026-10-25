@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross_emissive",
+  "textures": {
+    "cross": "promisedend:block/drift_blossom",
+    "cross_emissive": "promisedend:block/drift_blossom_emissive"
+  }
+}

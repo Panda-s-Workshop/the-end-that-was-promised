@@ -1,0 +1,18 @@
+{
+  "feature": "promisedend:updraft_vent",
+  "placement": [
+    {
+      "type": "promisedend:terrain_off"
+    },
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

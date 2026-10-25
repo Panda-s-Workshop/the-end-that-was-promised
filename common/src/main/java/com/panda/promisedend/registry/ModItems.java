@@ -56,6 +56,8 @@ public final class ModItems {
 
     // ---- Resonite gear: the outer End's crystal tier; four armour pieces ring (item.ResonanceSet) -------------------
     public static final DeferredItem<HintItem> CHORUS_RESIN = ITEMS.registerItem("chorus_resin", p -> new HintItem(p, "chorus_resin", 1));
+    /** The Skyfall Archipelago's: from a Drift Blossom broken by hand. */
+    public static final DeferredItem<HintItem> DRIFT_SILK = ITEMS.registerItem("drift_silk", p -> new HintItem(p, "drift_silk", 2));
     public static final DeferredItem<Item> RESONITE_INGOT = ITEMS.registerSimpleItem("resonite_ingot");
     public static final ToolMaterial RESONITE = material(GearTiers.RESONITE, BlockTags.INCORRECT_FOR_DIAMOND_TOOL, ModTags.RESONITE_TOOL_MATERIALS);
     public static final DeferredItem<Item> RESONITE_SWORD = ITEMS.registerSimpleItem("resonite_sword",

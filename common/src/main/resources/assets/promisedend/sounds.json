@@ -139,6 +139,17 @@
       }
     ]
   },
+  "ambient.skyfall_archipelago.additions": {
+    "subtitle": "subtitles.promisedend.skyfall_archipelago.additions",
+    "sounds": [
+      {
+        "name": "minecraft:entity.breeze.idle_air",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 0.5
+      }
+    ]
+  },
   "block.void_water.enter": {
     "subtitle": "subtitles.promisedend.void_water.enter",
     "sounds": [

@@ -67,6 +67,12 @@ public final class EndFabric implements ModInitializer {
         // and spire formations on #promisedend:spire_fallback (vanilla's highlands), so Resonite still exists
         BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("spire_fallback"))),
                 GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("resonite_spire_fallback")));
+        // and Drift Blossoms and ancient vents on #promisedend:skyfall_fallback (vanilla's small islands), so Drift Silk
+        // and the vents still exist; both placed only while our terrain is off (worldgen/TerrainOffFilter)
+        for (String feature : new String[] {"drift_blossom_fallback", "updraft_vent_fallback"}) {
+            BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("skyfall_fallback"))),
+                    GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(feature)));
+        }
 
         ServerLifecycleEvents.SERVER_STARTING.register(PromisedEnd::onServerStarting);
         ServerLifecycleEvents.SERVER_STARTED.register(com.panda.promisedend.ServerCheck::onServerStarted);

@@ -131,6 +131,10 @@ public final class ModBlocks {
     public static final DeferredBlock<com.panda.promisedend.block.MireLilyBlock> MIRE_LILY = withHint(BLOCKS.registerBlock("mire_lily",
             com.panda.promisedend.block.MireLilyBlock::new, p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY).noCollision().instabreak()
                     .sound(SoundType.LILY_PAD).lightLevel(s -> 7).pushReaction(PushReaction.POPPED)), 2);
+    // ---- the Skyfall Archipelago: islets on the air, Drift Blossoms on them
+    public static final DeferredBlock<com.panda.promisedend.block.DriftBlossomBlock> DRIFT_BLOSSOM = withHint(BLOCKS.registerBlock("drift_blossom",
+            com.panda.promisedend.block.DriftBlossomBlock::new, p -> p.mapColor(MapColor.SNOW).noCollision().instabreak()
+                    .sound(SoundType.AZALEA).offsetType(BlockBehaviour.OffsetType.XZ).pushReaction(PushReaction.POPPED)), 2);
     /** Lumen's lamp: a full light, as the sea lantern and glowstone, in a polished voidstone cage. */
     public static final DeferredBlock<Block> LUMEN_LAMP = simple("lumen_lamp",
             p -> p.mapColor(MapColor.SAND).strength(1.0F).sound(SoundType.GLASS).lightLevel(s -> 15));
