@@ -134,6 +134,8 @@ public class CrystalWarden extends Monster implements GeoEntity {
     /** Clients count the ticks since the phase last changed themselves, for the lock-on thread's charge. */
     private Phase clientPhase = Phase.IDLE;
     private int clientPhaseTicks;
+    /** Ticks since this client first saw it linked to a loaded dragon, -1 while it isn't. */
+    private int clientLinkedTicks = -1;
 
     public CrystalWarden(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -339,6 +341,11 @@ public class CrystalWarden extends Monster implements GeoEntity {
         setDeltaMovement(getDeltaMovement().scale(0.6));
     }
 
+    /** Ticks since this client first saw it linked to a loaded dragon (the call's streak), -1 while it isn't. */
+    public int clientLinkedTicks() {
+        return clientLinkedTicks;
+    }
+
     /** Ticks since the phase last changed, as this client saw it. */
     public int clientPhaseTicks() {
         return clientPhaseTicks;
@@ -367,6 +374,7 @@ public class CrystalWarden extends Monster implements GeoEntity {
             } else {
                 clientPhaseTicks++;
             }
+            clientLinkedTicks = dragonEntityId() < 0 ? -1 : clientLinkedTicks + 1;
             sparks(phase);
         }
     }
