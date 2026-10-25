@@ -10,13 +10,13 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * The Resonance set bonus on a player's melee hit: the wrapper adds the ringing hit's damage before the target is hurt
- * and counts the hit only if it landed. Both loaders keep vanilla's {@code hurtOrSimulate} call in {@code attack}
- * (NeoForge's events fire round it).
+ * The Resonance set bonus on a player's melee hit, a swing ({@code attack}) or a spear's stab ({@code stabAttack}, the
+ * jab and the charge): the wrapper adds the ringing hit's damage before the target is hurt and counts the hit only if
+ * it landed. Both loaders keep vanilla's {@code hurtOrSimulate} call in each (NeoForge's events fire round it).
  */
 @Mixin(Player.class)
 abstract class PlayerMixin {
-    @WrapOperation(method = "attack",
+    @WrapOperation(method = {"attack", "stabAttack"},
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;hurtOrSimulate(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))
     private boolean promisedend$resonance(Entity target, DamageSource source, float amount, Operation<Boolean> original) {
         Player self = (Player) (Object) this;

@@ -101,7 +101,7 @@ public final class EndGameTests {
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
-            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 200);
+            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -1076,7 +1076,8 @@ public final class EndGameTests {
     }
 
     /**
-     * A Resonite Cluster drops 4 shards to a pickaxe and 2 to a bare hand, itself to Silk Touch; four shards make a
+     * A Resonite Cluster drops 4 shards to a pickaxe (iron, Voidstone's and Resonite's: our pickaxes are in
+     * {@code #minecraft:cluster_max_harvestables}, as are amethyst's to them) and 2 to a bare hand, itself to Silk Touch; four shards make a
      * Resonite Block, which drops itself; Resonite rings as amethyst does (#minecraft:crystal_sound_blocks).
      */
     private static void resoniteDrops(GameTestHelper helper) {
@@ -1088,7 +1089,9 @@ public final class EndGameTests {
         silk.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
         record Case(String name, ItemStack tool, net.minecraft.world.item.Item item, int count) {}
         for (var c : List.of(new Case("a pickaxe", new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE), ModItems.RESONITE_SHARD.get(), 4),
-                new Case("a bare hand", ItemStack.EMPTY, ModItems.RESONITE_SHARD.get(), 2), new Case("Silk Touch", silk, cluster.asItem(), 1))) {
+                new Case("a bare hand", ItemStack.EMPTY, ModItems.RESONITE_SHARD.get(), 2), new Case("Silk Touch", silk, cluster.asItem(), 1),
+                new Case("Voidstone's pickaxe", new ItemStack(ModItems.VOIDSTONE_PICKAXE.get()), ModItems.RESONITE_SHARD.get(), 4),
+                new Case("Resonite's pickaxe", new ItemStack(ModItems.RESONITE_PICKAXE.get()), ModItems.RESONITE_SHARD.get(), 4))) {
             var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
                     .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
                     .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, c.tool())
@@ -1096,6 +1099,17 @@ public final class EndGameTests {
                     .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
             var drops = table.getRandomItems(params);
             if (drops.size() != 1 || !drops.get(0).is(c.item()) || drops.get(0).getCount() != c.count()) bad.add("to " + c.name() + " a cluster drops " + drops);
+        }
+        // vanilla's amethyst cluster, to our pickaxes: its full 4
+        var amethyst = net.minecraft.world.level.block.Blocks.AMETHYST_CLUSTER;
+        var amethystTable = level.getServer().reloadableRegistries().getLootTable(amethyst.getLootTable().orElseThrow());
+        for (var pick : List.of(ModItems.VOIDSTONE_PICKAXE.get(), ModItems.RESONITE_PICKAXE.get())) {
+            var drops = amethystTable.getRandomItems(new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, new ItemStack(pick))
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, amethyst.defaultBlockState())
+                    .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK));
+            if (drops.size() != 1 || drops.get(0).getCount() != 4) bad.add("to " + pick + " an amethyst cluster drops " + drops);
         }
         var block = ModBlocks.RESONITE_BLOCK.get();
         var blockDrops = level.getServer().reloadableRegistries().getLootTable(block.getLootTable().orElseThrow()).getRandomItems(
@@ -1310,7 +1324,9 @@ public final class EndGameTests {
      * no armour, knockback-proof), its hurt cooldown cleared each time (the swings are all equally weak). Hits 1-3 take the same, the 4th that and 2 more, with Slowness II on the golem for
      * at most a second; the count starts again after it. A hit on another target restarts the count (A, A, A, B, A:
      * no ring), three pieces ring nothing in eight hits, and a gap over 3 s (61 ticks) restarts it (A, A, A, wait, A:
-     * no ring). Every hit lands: the golem's hurt cooldown (26.3's damageCooldownTime) is cleared between hits.
+     * no ring). Every hit lands: the golem's hurt cooldown (26.3's damageCooldownTime) is cleared between hits. A
+     * swing that doesn't land (the cooldown left on) isn't counted: A, A, miss, A rings nothing, the next A rings. A
+     * spear's stabs count the same: four on one golem, the 4th 2 more with Slowness II.
      */
     private static void setBonusResonance(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1329,7 +1345,8 @@ public final class EndGameTests {
         var a = golem.get();
         var b = golem.get();
         java.util.function.ToDoubleFunction<net.minecraft.world.entity.LivingEntity> hit = target -> {
-            // 26.3's hurt cooldown is damageCooldownTime: a second hit within 20 ticks lands only if it is harder
+            // 26.3's hurt cooldown is damageCooldownTime, 20 after a hit: while it is over 10, a second hit lands only
+            // if it is harder
             target.damageCooldownTime = 0;
             target.setInvulnerableTime(0);
             target.hurtTime = 0;
@@ -1364,6 +1381,34 @@ public final class EndGameTests {
             }
         }
         player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, new ItemStack(ModItems.RESONITE_BOOTS.get()));
+        // a swing that doesn't land isn't counted: A, A, then one into the hurt cooldown (nothing taken), then A, A
+        var e = golem.get();
+        hit.applyAsDouble(e);
+        hit.applyAsDouble(e);
+        float health = e.getHealth();
+        player.attack(e);
+        if (e.getHealth() != health) bad.add("the swing into the hurt cooldown landed, so this can't tell");
+        double third = hit.applyAsDouble(e);
+        if (Math.abs(third - d[0]) > 1e-3 || e.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS)) bad.add("a swing that didn't land was counted (" + third + ")");
+        double fourth = hit.applyAsDouble(e);
+        if (Math.abs(fourth - d[0] - com.panda.promisedend.logic.Resonance.BONUS_DAMAGE) > 1e-3) bad.add("the 4th landed hit after a miss took " + fourth);
+        // a spear's stabs: the same count through stabAttack
+        var f = golem.get();
+        player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new ItemStack(net.minecraft.world.item.Items.IRON_SPEAR));
+        double[] stab = new double[4];
+        for (int k = 0; k < 4; k++) {
+            f.damageCooldownTime = 0;
+            f.setInvulnerableTime(0);
+            f.hurtTime = 0;
+            float was = f.getHealth();
+            player.stabAttack(net.minecraft.world.entity.EquipmentSlot.MAINHAND, f, 3.0F, true, false, false);
+            stab[k] = was - f.getHealth();
+        }
+        player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        PromisedEnd.LOGGER.info("[set_bonus_resonance] spear stabs 1-4 took {} {} {} {}", stab[0], stab[1], stab[2], stab[3]);
+        if (stab[0] <= 0 || Math.abs(stab[1] - stab[0]) > 1e-3 || Math.abs(stab[2] - stab[0]) > 1e-3
+                || Math.abs(stab[3] - stab[0] - com.panda.promisedend.logic.Resonance.BONUS_DAMAGE) > 1e-3 || !f.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS))
+            bad.add("a spear's stabs took " + java.util.Arrays.toString(stab) + (f.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS) ? "" : ", no Slowness"));
         // a gap over the window: A, A, A, 61 ticks, A rings nothing
         var c = golem.get();
         for (int k = 0; k < 3; k++) hit.applyAsDouble(c);
@@ -2307,16 +2352,18 @@ public final class EndGameTests {
         });
         // the kill waits until every warden has ticked in an entity-ticking chunk: a forced chunk's entities load in the
         // background, and on a busy test server a warden called at tick 10 sat 26 ticks in a chunk that wasn't ticking
-        // yet, so it never saw its dragon die (P80; the shattering itself is the warden's own tick)
+        // yet, so it never saw its dragon die (the shattering itself is the warden's own tick). Once, under load,
+        // one waited past tick 140 too, so the wait runs to tick 400
         long[] killed = {-1};
-        for (int t = 30; t <= 160; t++) {
+        for (int t = 30; t <= 420; t++) {
             int tick = t;
             helper.runAtTickTime(t, () -> {
                 if (killed[0] < 0) {
                     var wardens = wardensOf(helper, dragon);
                     boolean ready = wardens.stream().allMatch(w -> w.tickCount > 0 && helper.getLevel().isPositionEntityTicking(w.blockPosition()));
-                    if (!ready && tick < 140) return;
+                    if (!ready && tick < 400) return;
                     if (wardens.size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) fail(helper, release, "it called wardens again");
+                    PromisedEnd.LOGGER.info("[dragon_phase3_triggers] wardens ready {}, the dragon killed at tick {}", ready, tick);
                     dragon.kill(helper.getLevel());
                     killed[0] = tick;
                 } else if (tick == killed[0] + 6) {

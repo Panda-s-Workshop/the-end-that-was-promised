@@ -27,6 +27,11 @@ public final class ResonanceSet {
 
     private ResonanceSet() {}
 
+    /** The one target a hit counts on: a dragon's head, body and wings are one dragon. */
+    private static Entity body(Entity target) {
+        return target instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragonPart part ? part.parentMob : target;
+    }
+
     public static boolean wearsSet(Player player) {
         for (EquipmentSlot slot : ARMOUR) {
             if (!player.getItemBySlot(slot).is(ModTags.RESONANCE_SET)) return false;
@@ -38,12 +43,13 @@ public final class ResonanceSet {
     public static float damage(Player player, Entity target, float amount) {
         if (!(player.level() instanceof ServerLevel level) || !wearsSet(player)) return amount;
         Resonance count = COUNTS.get(player);
-        return count != null && count.wouldRing(target.getUUID(), level.getGameTime()) ? amount + Resonance.BONUS_DAMAGE : amount;
+        return count != null && count.wouldRing(body(target).getUUID(), level.getGameTime()) ? amount + Resonance.BONUS_DAMAGE : amount;
     }
 
     /** After the hit: counts it if it landed, and rings on the fourth. */
-    public static void landed(Player player, Entity target, boolean hurt) {
+    public static void landed(Player player, Entity struck, boolean hurt) {
         if (!hurt || !(player.level() instanceof ServerLevel level) || !wearsSet(player)) return;
+        Entity target = body(struck);
         if (!COUNTS.computeIfAbsent(player, p -> new Resonance()).hit(target.getUUID(), level.getGameTime())) return;
         if (target instanceof LivingEntity living) {
             living.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, Resonance.SLOWNESS_TICKS, Resonance.SLOWNESS_AMPLIFIER), player);
