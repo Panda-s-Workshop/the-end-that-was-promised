@@ -100,11 +100,13 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_lifts_entity", () -> EndGameTests::updraftLiftsEntity);
         FUNCTIONS.register("updraft_vent_on_edges", () -> EndGameTests::updraftVentOnEdges);
         FUNCTIONS.register("updraft_keeps_player_aloft", () -> EndGameTests::updraftKeepsPlayerAloft);
+        FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
-            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460);
+            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460,
+            "updraft_lifts_entity", 200);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -1283,6 +1285,41 @@ public final class EndGameTests {
                 helper.succeed();
             });
         }
+    }
+
+    /**
+     * The Lumen Lamp gives light 15 (14 beside it, as the sea lantern's), drops itself, and five Lumen in a polished
+     * voidstone cage make two; four Lumen don't.
+     */
+    private static void lumenLampLights(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 2, 1));
+        var lamp = ModBlocks.LUMEN_LAMP.get().defaultBlockState();
+        level.setBlock(at, lamp, 3);
+        var drops = net.minecraft.world.level.block.Block.getDrops(lamp, level, at, null);
+        if (lamp.getLightEmission() != 15) bad.add("the lamp gives light " + lamp.getLightEmission());
+        if (drops.size() != 1 || !drops.get(0).is(ModBlocks.LUMEN_LAMP.get().asItem())) bad.add("the lamp drops " + drops);
+        var recipes = level.getServer().getRecipeManager();
+        var p = new ItemStack(ModBlocks.POLISHED_VOIDSTONE_SET.base().get());
+        var l = new ItemStack(ModItems.LUMEN.get());
+        java.util.function.Function<List<ItemStack>, ItemStack> craft = cells -> {
+            var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, cells);
+            return recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level).map(r -> r.value().assemble(input)).orElse(ItemStack.EMPTY);
+        };
+        var made = craft.apply(List.of(p.copy(), l.copy(), p.copy(), l.copy(), l.copy(), l.copy(), p.copy(), l.copy(), p.copy()));
+        if (!made.is(ModBlocks.LUMEN_LAMP.get().asItem()) || made.getCount() != 2) bad.add("five Lumen in a polished voidstone cage make " + made);
+        var short1 = craft.apply(List.of(p.copy(), l.copy(), p.copy(), l.copy(), ItemStack.EMPTY, l.copy(), p.copy(), l.copy(), p.copy()));
+        if (!short1.isEmpty()) bad.add("four Lumen make " + short1);
+        // the light engine runs off the tick: read the block light beside it a little later
+        helper.runAtTickTime(10, () -> {
+            int beside = level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, at.above());
+            PromisedEnd.LOGGER.info("[lumen_lamp_lights] light {}, beside it {}; drops {}; the recipe makes {}", lamp.getLightEmission(), beside, drops, made);
+            if (beside != 14) bad.add("the block light beside the lamp is " + beside);
+            level.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+            if (!bad.isEmpty()) helper.fail("Lumen Lamp: " + bad);
+            helper.succeed();
+        });
     }
 
     /**

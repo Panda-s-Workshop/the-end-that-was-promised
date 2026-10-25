@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "PLP",
+    "LLL",
+    "PLP"
+  ],
+  "key": {
+    "P": "promisedend:polished_voidstone",
+    "L": "promisedend:lumen"
+  },
+  "result": {
+    "id": "promisedend:lumen_lamp",
+    "count": 2
+  }
+}
