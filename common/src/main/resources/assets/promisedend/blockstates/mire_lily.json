@@ -1,0 +1,21 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "promisedend:block/mire_lily"
+      },
+      {
+        "model": "promisedend:block/mire_lily",
+        "y": 90
+      },
+      {
+        "model": "promisedend:block/mire_lily",
+        "y": 180
+      },
+      {
+        "model": "promisedend:block/mire_lily",
+        "y": 270
+      }
+    ]
+  }
+}

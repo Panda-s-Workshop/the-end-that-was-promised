@@ -1,0 +1,128 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "promisedend:block/mire_lily",
+    "pad": "promisedend:block/mire_lily",
+    "bloom": "promisedend:block/mire_lily_bloom"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        -1.75,
+        0
+      ],
+      "to": [
+        16,
+        -1.75,
+        16
+      ],
+      "faces": {
+        "up": {
+          "texture": "#pad",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        },
+        "down": {
+          "texture": "#pad",
+          "uv": [
+            0,
+            16,
+            16,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        5,
+        -1.75,
+        8
+      ],
+      "to": [
+        11,
+        4.25,
+        8
+      ],
+      "shade": false,
+      "rotation": {
+        "origin": [
+          8,
+          0,
+          8
+        ],
+        "axis": "y",
+        "angle": 45,
+        "rescale": true
+      },
+      "faces": {
+        "north": {
+          "texture": "#bloom",
+          "uv": [
+            5,
+            10,
+            11,
+            16
+          ]
+        },
+        "south": {
+          "texture": "#bloom",
+          "uv": [
+            5,
+            10,
+            11,
+            16
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        5,
+        -1.75,
+        8
+      ],
+      "to": [
+        11,
+        4.25,
+        8
+      ],
+      "shade": false,
+      "rotation": {
+        "origin": [
+          8,
+          0,
+          8
+        ],
+        "axis": "y",
+        "angle": -45,
+        "rescale": true
+      },
+      "faces": {
+        "north": {
+          "texture": "#bloom",
+          "uv": [
+            5,
+            10,
+            11,
+            16
+          ]
+        },
+        "south": {
+          "texture": "#bloom",
+          "uv": [
+            5,
+            10,
+            11,
+            16
+          ]
+        }
+      }
+    }
+  ]
+}

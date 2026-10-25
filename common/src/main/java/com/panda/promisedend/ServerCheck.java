@@ -14,7 +14,7 @@ import net.minecraft.world.level.Level;
  * (the Shattered Rim, or with {@code terrain.enabled} off the End's own) and the Voidstone the Rim yields, and logs
  * {@code [promisedend servercheck] PASS} or {@code FAIL}. Booting to "Done" alone never generates an End chunk, so it
  * can't show that the worldgen runs without a client. For the same reason it also makes and ticks a Crystal Warden
- * there, strips chorus timber with an axe, and generates the nearest Chorus Thicket.
+ * there, strips chorus timber with an axe, and generates the nearest of each outer biome built so far.
  */
 public final class ServerCheck {
     public static final String PROPERTY = "promisedend.servercheck";
@@ -63,7 +63,8 @@ public final class ServerCheck {
         if (voidstone < 200) return "too little Voidstone around x=300: " + voidstone;
         String failure = construct(end, centre.above(26));
         if (failure == null) failure = strips(end, centre.above(40));
-        if (failure == null && terrain) failure = thicket(end);
+        if (failure == null && terrain) failure = biome(end, "chorus_thicket", "Chorus Thicket", ModBlocks.CHORUS_LOG.get(), 30);
+        if (failure == null && terrain) failure = biome(end, "lumen_mire", "Lumen Mire", ModBlocks.VOID_WATER.get(), 20);
         return failure != null ? failure : wrath(server);
     }
 
@@ -92,22 +93,25 @@ public final class ServerCheck {
         return null;
     }
 
-    /** The nearest Chorus Thicket, generated: its groves are built without a client. */
-    private static String thicket(net.minecraft.server.level.ServerLevel end) {
-        var key = net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("chorus_thicket"));
+    /**
+     * The nearest of one of our biomes, generated: its features are built without a client, and at least
+     * {@code minimum} of {@code block} (what only that biome's features make) lie within 32 blocks.
+     */
+    private static String biome(net.minecraft.server.level.ServerLevel end, String id, String name, net.minecraft.world.level.block.Block block, int minimum) {
+        var key = net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id(id));
         var found = end.findClosestBiome3d(h -> h.is(key), new BlockPos(0, 64, 0), 6400, 32, 64);
-        if (found == null) return "no Chorus Thicket within 6400 blocks";
+        if (found == null) return "no " + name + " within 6400 blocks";
         BlockPos at = found.getFirst();
         for (int cx = (at.getX() - 40) >> 4; cx <= (at.getX() + 40) >> 4; cx++) {
             for (int cz = (at.getZ() - 40) >> 4; cz <= (at.getZ() + 40) >> 4; cz++) end.getChunk(cx, cz);
         }
-        int logs = 0;
-        var log = ModBlocks.CHORUS_LOG.get();
+        int count = 0;
         for (BlockPos p : BlockPos.betweenClosed(at.offset(-32, -40, -32), at.offset(32, 40, 32))) {
-            if (end.getBlockState(p).is(log)) logs++;
+            if (end.getBlockState(p).is(block)) count++;
         }
-        PromisedEnd.LOGGER.info("[promisedend servercheck] Chorus Thicket at {}: {} chorus logs within 32 blocks", at, logs);
-        return logs >= 30 ? null : "only " + logs + " chorus logs in the Chorus Thicket at " + at;
+        String what = block.getName().getString();
+        PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} {} within 32 blocks", name, at, count, what);
+        return count >= minimum ? null : "only " + count + " " + what + " in the " + name + " at " + at;
     }
 
     /**

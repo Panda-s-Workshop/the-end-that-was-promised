@@ -117,6 +117,18 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> CHORUS_MOSS = simple("chorus_moss",
             p -> p.mapColor(MapColor.COLOR_PURPLE).strength(3.0F, 9.0F).sound(SoundType.NYLIUM).requiresCorrectToolForDrops());
 
+    // ---- the Lumen Mire: void-water pools in Lumen Moss, Mire Lilies on the water
+    /** End stone grown over, as Chorus Moss is; it pays Lumen when broken without Silk Touch (its loot table). */
+    public static final DeferredBlock<Block> LUMEN_MOSS = simple("lumen_moss",
+            p -> p.mapColor(MapColor.COLOR_YELLOW).strength(3.0F, 9.0F).sound(SoundType.NYLIUM).requiresCorrectToolForDrops());
+    /** A still pool, not a fluid: no item, nothing drops, a block placed into it replaces it. */
+    public static final DeferredBlock<com.panda.promisedend.block.VoidWaterBlock> VOID_WATER = BLOCKS.registerBlock("void_water",
+            com.panda.promisedend.block.VoidWaterBlock::new, p -> p.mapColor(MapColor.COLOR_BLACK).replaceable().noCollision().noOcclusion()
+                    .strength(100.0F).pushReaction(PushReaction.POPPED).noLootTable().sound(SoundType.EMPTY));
+    public static final DeferredBlock<com.panda.promisedend.block.MireLilyBlock> MIRE_LILY = withItem(BLOCKS.registerBlock("mire_lily",
+            com.panda.promisedend.block.MireLilyBlock::new, p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY).noCollision().instabreak()
+                    .sound(SoundType.LILY_PAD).lightLevel(s -> 7).pushReaction(PushReaction.POPPED)));
+
     private ModBlocks() {}
 
     /** Every block item, in registration order: the creative tab lists them. */

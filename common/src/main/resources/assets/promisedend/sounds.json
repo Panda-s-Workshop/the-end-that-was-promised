@@ -108,5 +108,25 @@
         "pitch": 1.4
       }
     ]
+  },
+  "ambient.chorus_thicket.additions": {
+    "subtitle": "subtitles.promisedend.chorus_thicket.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.chorus_flower.grow",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "ambient.lumen_mire.additions": {
+    "subtitle": "subtitles.promisedend.lumen_mire.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.bubble_column.bubble_pop",
+        "type": "event",
+        "pitch": 0.5
+      }
+    ]
   }
 }

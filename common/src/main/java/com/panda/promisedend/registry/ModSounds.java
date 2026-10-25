@@ -22,6 +22,10 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> DRAGON_VOID_BREATH_GATHER = sound("entity.ender_dragon.void_breath_gather");
     public static final Supplier<SoundEvent> DRAGON_VOID_BREATH = sound("entity.ender_dragon.void_breath");
 
+    // biome ambience (the biomes' minecraft:audio/ambient_sounds)
+    public static final Supplier<SoundEvent> AMBIENT_CHORUS_THICKET = sound("ambient.chorus_thicket.additions");
+    public static final Supplier<SoundEvent> AMBIENT_LUMEN_MIRE = sound("ambient.lumen_mire.additions");
+
     private static Supplier<SoundEvent> sound(String name) {
         return SOUNDS.register(name, SoundEvent::createVariableRangeEvent);
     }

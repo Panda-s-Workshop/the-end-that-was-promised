@@ -85,6 +85,10 @@ public final class EndGameTests {
         FUNCTIONS.register("chorus_wood_set", () -> EndGameTests::chorusWoodSet);
         FUNCTIONS.register("chorus_grove_grows", () -> EndGameTests::chorusGroveGrows);
         FUNCTIONS.register("chorus_grove_keeps_out", () -> EndGameTests::chorusGroveKeepsOut);
+        FUNCTIONS.register("void_water_slows", () -> EndGameTests::voidWaterSlows);
+        FUNCTIONS.register("mire_lily_rules", () -> EndGameTests::mireLilyRules);
+        FUNCTIONS.register("lumen_moss_drops", () -> EndGameTests::lumenMossDrops);
+        FUNCTIONS.register("mire_pools_walled", () -> EndGameTests::mirePoolsWalled);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -462,6 +466,213 @@ public final class EndGameTests {
                 bad.add(block + " burns in a furnace");
         }
         if (!bad.isEmpty()) helper.fail("chorus wood set: " + bad);
+        helper.succeed();
+    }
+
+    // ---- the Lumen Mire ----
+
+    /** A one-block pen at {@code at} (relative): {@code floor} under it, glass round it two high. */
+    private static void pen(GameTestHelper helper, BlockPos at, net.minecraft.world.level.block.state.BlockState floor,
+                            net.minecraft.world.level.block.state.BlockState inside) {
+        helper.setBlock(at.below(), floor);
+        helper.setBlock(at, inside);
+        for (var d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            helper.setBlock(at.relative(d), net.minecraft.world.level.block.Blocks.GLASS);
+            helper.setBlock(at.relative(d).above(), net.minecraft.world.level.block.Blocks.GLASS);
+        }
+    }
+
+    /**
+     * Void-water: a pig dropped over a pool falls through its surface to the pool's floor (no collision) and has
+     * Slowness I there; a pig in the same pen on end stone, the control, stands a block higher with no Slowness. A
+     * player's block placed on the floor goes into the pool (replacing it), a Mire Lily used on its surface goes on top.
+     * It has no item.
+     */
+    private static void voidWaterSlows(GameTestHelper helper) {
+        var endStone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        var water = ModBlocks.VOID_WATER.get().defaultBlockState();
+        BlockPos pool = new BlockPos(1, 2, 1), dry = new BlockPos(4, 3, 1);
+        pen(helper, pool, endStone, water);
+        pen(helper, dry, endStone, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+        var wet = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, pool.above());
+        var control = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, dry);
+        List<String> bad = new ArrayList<>();
+        if (ModBlocks.VOID_WATER.get().asItem() != net.minecraft.world.item.Items.AIR) bad.add("void-water has an item");
+        // a player plants a lily on a second pool's surface, and lays end stone into a third
+        var level = helper.getLevel();
+        var player = helper.makeMockServerPlayerInLevel();
+        var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
+        BlockPos lilyPool = new BlockPos(7, 2, 1), fillPool = new BlockPos(10, 2, 1);
+        pen(helper, lilyPool, endStone, water);
+        pen(helper, fillPool, endStone, water);
+        var lily = new ItemStack(ModBlocks.MIRE_LILY.get());
+        player.setItemInHand(hand, lily);
+        BlockPos at = helper.absolutePos(lilyPool);
+        player.gameMode.useItemOn(player, level, lily, hand, new net.minecraft.world.phys.BlockHitResult(
+                net.minecraft.world.phys.Vec3.atCenterOf(at).add(0, 0.375, 0), net.minecraft.core.Direction.UP, at, false));
+        if (!level.getBlockState(at).is(ModBlocks.VOID_WATER.get())) bad.add("planting a lily took the pool's place: " + level.getBlockState(at));
+        if (!level.getBlockState(at.above()).is(ModBlocks.MIRE_LILY.get())) bad.add("no lily on the pool's surface: " + level.getBlockState(at.above()));
+        var stone = new ItemStack(net.minecraft.world.item.Items.END_STONE);
+        player.setItemInHand(hand, stone);
+        BlockPos floor = helper.absolutePos(fillPool.below());
+        player.gameMode.useItemOn(player, level, stone, hand, new net.minecraft.world.phys.BlockHitResult(
+                net.minecraft.world.phys.Vec3.atCenterOf(floor).add(0, 0.5, 0), net.minecraft.core.Direction.UP, floor, false));
+        if (!level.getBlockState(floor.above()).is(net.minecraft.world.level.block.Blocks.END_STONE)) bad.add("end stone laid on the pool's floor left " + level.getBlockState(floor.above()));
+        helper.runAtTickTime(30, () -> {
+            double wetY = wet.getY() - helper.absolutePos(pool).getY(), dryY = control.getY() - helper.absolutePos(dry).getY();
+            if (Math.abs(wetY) > 0.01) bad.add("the pig in the pool stands at " + wetY + " (the pool's floor is 0)");
+            if (Math.abs(dryY) > 0.01) bad.add("the control pig stands at " + dryY);
+            var slow = wet.getEffect(net.minecraft.world.effect.MobEffects.SLOWNESS);
+            if (slow == null || slow.getAmplifier() != 0) bad.add("the pig in the pool has " + slow);
+            if (control.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS)) bad.add("the control pig is slowed");
+            if (!bad.isEmpty()) helper.fail("void-water: " + bad);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The Mire Lily holds on void-water only (not end stone, Lumen Moss or vanilla water), gives light 7, and bone meal
+     * on it puts one more lily on open void-water within two blocks, and does nothing once there's none.
+     */
+    private static void mireLilyRules(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var lily = ModBlocks.MIRE_LILY.get();
+        List<String> bad = new ArrayList<>();
+        var grounds = java.util.Map.of(ModBlocks.VOID_WATER.get().defaultBlockState(), true,
+                net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), false,
+                ModBlocks.LUMEN_MOSS.get().defaultBlockState(), false,
+                net.minecraft.world.level.block.Blocks.WATER.defaultBlockState(), false);
+        int x = 1;
+        for (var e : grounds.entrySet()) {
+            BlockPos at = helper.absolutePos(new BlockPos(x, 2, 1));
+            level.setBlock(at, e.getKey(), 2);
+            if (lily.defaultBlockState().canSurvive(level, at.above()) != e.getValue()) bad.add("a lily on " + e.getKey() + (e.getValue() ? " won't hold" : " holds"));
+            level.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            x += 2;
+        }
+        if (lily.defaultBlockState().getLightEmission() != 7) bad.add("a lily gives light " + lily.defaultBlockState().getLightEmission());
+        // a 3 by 3 pool walled in glass, a lily in the middle: bone meal fills it one lily at a time, then stops
+        BlockPos centre = helper.absolutePos(new BlockPos(5, 2, 4));
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-2, 0, -2), centre.offset(2, 0, 2))) {
+            boolean in = Math.abs(p.getX() - centre.getX()) <= 1 && Math.abs(p.getZ() - centre.getZ()) <= 1;
+            level.setBlock(p, in ? ModBlocks.VOID_WATER.get().defaultBlockState() : net.minecraft.world.level.block.Blocks.GLASS.defaultBlockState(), 2);
+        }
+        level.setBlock(centre.above(), lily.defaultBlockState(), 2);
+        for (int n = 1; n <= 9; n++) {
+            boolean grew = net.minecraft.world.item.BoneMealItem.growCrop(new ItemStack(net.minecraft.world.item.Items.BONE_MEAL), level, centre.above());
+            int lilies = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-2, 1, -2), centre.offset(2, 1, 2))) if (level.getBlockState(p).is(lily)) lilies++;
+            int want = Math.min(n + 1, 9);
+            if (lilies != want) bad.add("after " + n + " bone meal " + lilies + " lilies, not " + want);
+            if (grew != (n <= 8)) bad.add("bone meal " + n + (grew ? " took" : " didn't take"));
+        }
+        if (!bad.isEmpty()) helper.fail("Mire Lily: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Lumen Moss drops end stone and, one time in five, a Lumen (seven in ten with Fortune III), over 400 seeded rolls
+     * each; with Silk Touch the moss alone. Endermen pick it up.
+     */
+    private static void lumenMossDrops(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var moss = ModBlocks.LUMEN_MOSS.get();
+        List<String> bad = new ArrayList<>();
+        var table = level.getServer().reloadableRegistries().getLootTable(moss.getLootTable().orElseThrow());
+        var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        var silk = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        silk.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
+        var fortune = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        fortune.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.FORTUNE), 3);
+        var plain = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        // tool, the fewest and the most Lumen in 400 rolls (p 0.2: 80 expected; p 0.7: 280)
+        record Case(String name, ItemStack tool, int min, int max) {}
+        for (var c : List.of(new Case("a pickaxe", plain, 50, 115), new Case("Fortune III", fortune, 240, 320), new Case("Silk Touch", silk, 0, 0))) {
+            int lumen = 0;
+            for (int i = 0; i < 400; i++) {
+                var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, c.tool())
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, moss.defaultBlockState())
+                        .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
+                // seeds mixed: consecutive seeds give correlated first rolls
+                var drops = table.getRandomItems(params, net.minecraft.util.Mth.murmurHash3Mixer(5000 + i));
+                var base = c.tool() == silk ? moss.asItem() : net.minecraft.world.item.Items.END_STONE;
+                if (drops.stream().filter(st -> st.is(base)).count() != 1) {
+                    bad.add("with " + c.name() + " roll " + i + " gave " + drops);
+                    break;
+                }
+                lumen += (int) drops.stream().filter(st -> st.is(ModItems.LUMEN.get())).mapToInt(ItemStack::getCount).sum();
+            }
+            PromisedEnd.LOGGER.info("[lumen_moss_drops] {}: {} Lumen in 400", c.name(), lumen);
+            if (lumen < c.min() || lumen > c.max()) bad.add("with " + c.name() + " " + lumen + " Lumen in 400 (" + c.min() + "-" + c.max() + ")");
+        }
+        if (!moss.defaultBlockState().is(net.minecraft.tags.BlockTags.ENDERMAN_HOLDABLE)) bad.add("endermen can't pick it up");
+        if (!bad.isEmpty()) helper.fail("Lumen Moss: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Mire's pool feature as configured, over ten seeds on a wide floor and ten on a 7 by 7 islet: every void-water
+     * cell has solid ground under it and ground or water on all four sides (nothing spills off the islet), a lily only
+     * ever on the water, and over the wide floors at least 4 cells a pool, a lily and a Lumen Moss rim. On the wide
+     * floors a second pool goes 4 blocks off the first, and the two join: no single block of ground left between water
+     * on both sides. On obsidian, which isn't pool ground, nothing.
+     */
+    private static void mirePoolsWalled(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var feature = grove(level, "mire_pool");
+        var water = ModBlocks.VOID_WATER.get();
+        var generator = level.getChunkSource().getGenerator();
+        var endStone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        List<String> bad = new ArrayList<>();
+        int y = level.getMaxY() - 60, lilies = 0, rims = 0, wide = 0, walls = 0;
+        for (int n = 0; n < 21; n++) {
+            BlockPos centre = new BlockPos(4000 + n * 64, y, 2000);
+            int r = n < 10 ? 12 : 3;
+            var ground = n == 20 ? net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState() : endStone;
+            // two layers, so the pool has a floor under it
+            floor(level, centre, r, ground);
+            floor(level, centre.below(), r, ground);
+            boolean placed = feature.place(level, generator, net.minecraft.util.RandomSource.create(700 + n), centre);
+            if (n < 10) feature.place(level, generator, net.minecraft.util.RandomSource.create(800 + n), centre.offset(4, 0, 1));
+            if (n == 20) {
+                if (placed) bad.add("a pool in obsidian");
+                clear(level, centre);
+                continue;
+            }
+            int cells = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -2, -16), centre.offset(16, 4, 16))) {
+                var state = level.getBlockState(p);
+                if (state.is(ModBlocks.MIRE_LILY.get())) {
+                    lilies++;
+                    if (!level.getBlockState(p.below()).is(water)) bad.add("a lily off the water at " + p);
+                }
+                if (state.is(ModBlocks.LUMEN_MOSS.get())) rims++;
+                if (!state.is(water)) continue;
+                cells++;
+                if (p.getY() != y - 1) bad.add("void-water out of the ground's layer at " + p);
+                if (!level.getBlockState(p.below()).isFaceSturdy(level, p.below(), net.minecraft.core.Direction.UP)) bad.add("void-water over nothing at " + p);
+                for (var d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                    BlockPos q = p.relative(d);
+                    var side = level.getBlockState(q);
+                    if (!side.is(water) && !side.isFaceSturdy(level, q, d.getOpposite())) bad.add("void-water open to the " + d + " at " + p);
+                    // a wall one block thick between two pools: they should have joined
+                    if (n < 10 && !side.is(water) && level.getBlockState(q.relative(d)).is(water)) walls++;
+                }
+            }
+            if (n < 10) {
+                if (placed) wide++;
+                if (placed && cells < com.panda.promisedend.worldgen.MirePoolFeature.MIN_CELLS) bad.add(cells + " cells at " + centre);
+            }
+            PromisedEnd.LOGGER.info("[mire_pools_walled] {} (floor {} across): placed {}, {} cells", centre, 2 * r + 1, placed, cells);
+            clear(level, centre);
+        }
+        if (wide < 9) bad.add("only " + wide + " of 10 pools on the wide floors");
+        if (walls > 0) bad.add(walls / 2 + " one-block walls between pools that should have joined");
+        if (lilies == 0) bad.add("no lilies in 20 pools");
+        if (rims == 0) bad.add("no Lumen Moss rim in 20 pools");
+        if (!bad.isEmpty()) helper.fail("Mire pools: " + bad);
         helper.succeed();
     }
 
