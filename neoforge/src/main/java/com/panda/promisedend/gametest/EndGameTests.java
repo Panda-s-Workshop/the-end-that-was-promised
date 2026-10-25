@@ -1005,6 +1005,9 @@ public final class EndGameTests {
      */
     private static void dragonPhase3Triggers(GameTestHelper helper) {
         var dragon = dragon(helper, 6, 2, 6);
+        // the ring of homes reaches the arena's edge and a warden hovers 3 past its home, into chunks the test doesn't
+        // keep ticking: there it would never see its dragon die, as it would in a real fight with a player at it
+        Runnable release = forceAround(helper, dragon.blockPosition(), com.panda.promisedend.logic.DragonPhase3.RING_RADIUS + (int) com.panda.promisedend.entity.CrystalWarden.HOVER_RADIUS + 4);
         helper.runAtTickTime(5, () -> {
             if (com.panda.promisedend.logic.DragonPhase3.entered(dragon)) helper.fail("in phase 3 at full health");
             if (!wardensOf(helper, dragon).isEmpty()) helper.fail("wardens at full health");
@@ -1026,9 +1029,22 @@ public final class EndGameTests {
         });
         helper.runAtTickTime(36, () -> {
             var left = wardensOf(helper, dragon);
+            release.run();
             if (!left.isEmpty()) helper.fail(left.size() + " wardens outlived their dragon");
             helper.succeed();
         });
+    }
+
+    /** Keeps the chunks within {@code reach} of a spot loaded and ticking until the returned clean-up runs. */
+    private static Runnable forceAround(GameTestHelper helper, BlockPos at, int reach) {
+        var level = helper.getLevel();
+        List<net.minecraft.world.level.ChunkPos> forced = new ArrayList<>();
+        for (int cx = (at.getX() - reach) >> 4; cx <= (at.getX() + reach) >> 4; cx++) {
+            for (int cz = (at.getZ() - reach) >> 4; cz <= (at.getZ() + reach) >> 4; cz++) {
+                if (level.setChunkForced(cx, cz, true)) forced.add(new net.minecraft.world.level.ChunkPos(cx, cz));
+            }
+        }
+        return () -> forced.forEach(c -> level.setChunkForced(c.x(), c.z(), false));
     }
 
     /**
@@ -1148,11 +1164,20 @@ public final class EndGameTests {
         java.util.function.Supplier<List<net.minecraft.world.entity.AreaEffectCloud>> clouds = () -> helper.getLevel().getEntitiesOfClass(
                 net.minecraft.world.entity.AreaEffectCloud.class, new net.minecraft.world.phys.AABB(mark, mark).inflate(2),
                 c -> c.entityTags().contains(com.panda.promisedend.logic.DragonPhase3.BREATH_TAG));
+        // the ring clients draw: a mark on the spot, telegraph, then charge, then the breath's edge
+        java.util.function.Supplier<List<com.panda.promisedend.entity.DiveMark>> marks = () -> helper.getLevel().getEntitiesOfClass(
+                com.panda.promisedend.entity.DiveMark.class, new net.minecraft.world.phys.AABB(mark, mark).inflate(0.5));
         helper.runAtTickTime(20, () -> {
             if (!clouds.get().isEmpty()) helper.fail("the breath landed during the telegraph");
             if (victim.getHealth() != full) helper.fail("damage during the telegraph");
+            var shown = marks.get();
+            if (shown.size() != 1 || shown.get(0).stage() != com.panda.promisedend.entity.DiveMark.Stage.TELEGRAPH)
+                helper.fail("wanted one telegraph mark on the spot, found " + shown.stream().map(m -> m.stage().name()).toList());
         });
         helper.runAtTickTime(40, () -> {
+            var shown = marks.get();
+            if (shown.size() != 1 || shown.get(0).stage() == com.panda.promisedend.entity.DiveMark.Stage.TELEGRAPH)
+                helper.fail("after the telegraph the mark should be charging or breathing, found " + shown.stream().map(m -> m.stage().name()).toList());
             var found = clouds.get();
             if (found.size() != 1) {
                 helper.fail("wanted one cloud of void breath on the mark, found " + found.size());
@@ -1172,6 +1197,10 @@ public final class EndGameTests {
             if (dealt != 6.0F) helper.fail("about 2.5 s in the breath dealt " + dealt + ", wanted 6 (2 a second)");
             if (slowness == null || slowness.getAmplifier() != 1) helper.fail("no Slowness II in the breath: " + slowness);
             if (construct.getHealth() != construct.getMaxHealth()) helper.fail("the breath hurt a construct: " + construct.getHealth());
+            var shown = marks.get();
+            if (shown.size() != 1 || shown.get(0).stage() != com.panda.promisedend.entity.DiveMark.Stage.BREATH)
+                helper.fail("while the breath lasts its edge should show, found " + shown.stream().map(m -> m.stage().name()).toList());
+            shown.forEach(net.minecraft.world.entity.Entity::discard);
             helper.succeed();
         });
     }

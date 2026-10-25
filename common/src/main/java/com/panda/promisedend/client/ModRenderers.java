@@ -13,6 +13,7 @@ public final class ModRenderers {
 
     public static void register(Sink sink) {
         sink.register(ModEntities.CRYSTAL_WARDEN.get(), CrystalWardenRenderer::new);
+        sink.register(ModEntities.DIVE_MARK.get(), DiveMarkRenderer::new);
     }
 
     private ModRenderers() {}

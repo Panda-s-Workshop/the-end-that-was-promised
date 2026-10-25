@@ -2,6 +2,7 @@ package com.panda.promisedend.logic;
 
 import com.panda.promisedend.EndConfig;
 import com.panda.promisedend.entity.CrystalWarden;
+import com.panda.promisedend.entity.DiveMark;
 import com.panda.promisedend.registry.ModEntities;
 import com.panda.promisedend.registry.ModSounds;
 import com.panda.promisedend.registry.ModTags;
@@ -226,6 +227,8 @@ public final class DragonPhase3 {
         int cooldown = DIVE_INTERVAL;
         int ticks;
         Vec3 mark = Vec3.ZERO;
+        /** What clients draw the ring from, null outside a dive. */
+        @Nullable DiveMark shown;
         /** Why the last breath landed: "arrived", "turned away" or "timed out" (for the harness). */
         String landed = "";
     }
@@ -255,6 +258,7 @@ public final class DragonPhase3 {
                         return;
                     }
                     dive.stage = Stage.CHARGE;
+                    if (dive.shown != null) dive.shown.setStage(DiveMark.Stage.CHARGE);
                     dragon.getPhaseManager().setPhase(EnderDragonPhase.CHARGING_PLAYER);
                     dragon.getPhaseManager().getPhase(EnderDragonPhase.CHARGING_PLAYER).setTarget(dive.mark);
                 }
@@ -284,6 +288,8 @@ public final class DragonPhase3 {
             if (i % 3 == 0) level.sendParticles(ParticleTypes.REVERSE_PORTAL, true, true, at.x, at.y, at.z, 1, 0.1, 0.1, 0.1, 0.0);
         }
         breathe(level, dragon, dive.mark);
+        if (dive.shown != null) dive.shown.setStage(DiveMark.Stage.BREATH);
+        dive.shown = null;
         dive.stage = Stage.WAIT;
         dive.cooldown = DIVE_INTERVAL;
     }
@@ -331,22 +337,21 @@ public final class DragonPhase3 {
         dive.stage = Stage.TELEGRAPH;
         dive.ticks = 0;
         dive.mark = mark;
+        if (dive.shown != null) dive.shown.discard();
+        dive.shown = ModEntities.DIVE_MARK.get().create(level, EntitySpawnReason.EVENT);
+        if (dive.shown != null) {
+            dive.shown.setPos(mark);
+            level.addFreshEntity(dive.shown);
+        }
         level.playSound(null, mark.x, mark.y, mark.z, ModSounds.DRAGON_VOID_BREATH_GATHER.get(), SoundSource.HOSTILE, 2.0F, 1.0F);
     }
 
     /**
-     * The ring is the cloud's own edge, drawn on the ground: what is inside it when the breath lands is caught. A dense
-     * edge of breath that turns as it is drawn, and portal motes rising inside, more of them as the landing nears, so
-     * the player standing in it sees it at their feet as well as from outside.
+     * The ring itself is the {@link DiveMark}'s, drawn by clients as the cloud's own edge: what is inside it when the
+     * breath lands is caught. Over it, portal motes rise inside, more of them as the landing nears, so the player
+     * standing in it sees it at their feet as well as from outside.
      */
     private static void ring(ServerLevel level, Vec3 at, int tick) {
-        PowerParticleOption breath = PowerParticleOption.create(ParticleTypes.DRAGON_BREATH, 1.0F);
-        double turn = tick * 0.05;
-        for (int i = 0; i < 40; i++) {
-            double angle = Math.PI * 2 * i / 40 + turn;
-            double x = at.x + Math.cos(angle) * BREATH_RADIUS, z = at.z + Math.sin(angle) * BREATH_RADIUS;
-            level.sendParticles(breath, true, true, x, at.y + 0.1, z, 1, 0, 0, 0, 0);
-        }
         int motes = 4 + tick / 3;
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, true, true, at.x, at.y + 0.2, at.z, motes, BREATH_RADIUS * 0.5, 0.05, BREATH_RADIUS * 0.5, 0.02);
     }

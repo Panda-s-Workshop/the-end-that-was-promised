@@ -53,6 +53,7 @@
   "death.attack.promisedend.void_breath": "%1$s was swallowed by the dragon's void breath",
   "death.attack.promisedend.void_breath.player": "%1$s was swallowed by void breath while fighting %2$s",
   "entity.promisedend.crystal_warden": "Crystal Warden",
+  "entity.promisedend.dive_mark": "Void Breath Mark",
   "entity.promisedend.ender_dragon.wrath": "%s · Wrath %s",
   "item.promisedend.cracked_void_anchor": "Cracked Void Anchor",
   "item.promisedend.crystal_fragment": "Crystal Fragment",

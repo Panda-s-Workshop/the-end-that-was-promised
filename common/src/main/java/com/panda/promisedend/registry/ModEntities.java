@@ -2,6 +2,7 @@ package com.panda.promisedend.registry;
 
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.entity.CrystalWarden;
+import com.panda.promisedend.entity.DiveMark;
 import com.panda.promisedend.platform.registry.DeferredRegister;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -19,6 +20,9 @@ public final class ModEntities {
     public static final Supplier<EntityType<CrystalWarden>> CRYSTAL_WARDEN = ENTITIES.registerEntityType("crystal_warden",
             CrystalWarden::new, MobCategory.MONSTER, b -> b.sized(1.3F, 1.9F).eyeHeight(CrystalWarden.LENS_HEIGHT)
                     .clientTrackingRange(10).fireImmune());
+    /** The dragon's dive mark: no body, never saved, seen from as far as the fight. */
+    public static final Supplier<EntityType<DiveMark>> DIVE_MARK = ENTITIES.registerEntityType("dive_mark",
+            DiveMark::new, MobCategory.MISC, b -> b.sized(0.5F, 0.1F).clientTrackingRange(10).updateInterval(10).noSave().noSummon().fireImmune());
 
     /** Every construct's attributes, for the loader's attribute registration. */
     public static void attributes(BiConsumer<EntityType<? extends LivingEntity>, AttributeSupplier.Builder> sink) {
