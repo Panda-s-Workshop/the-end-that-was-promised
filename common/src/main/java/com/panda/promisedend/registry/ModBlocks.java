@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.StairBlock;
@@ -42,11 +43,27 @@ public final class ModBlocks {
     public static final StoneSet VOIDSTONE_BRICK_SET = stoneSet("voidstone_brick", "voidstone_bricks", VOIDSTONE_BRICKS);
     public static final DeferredBlock<Block> CHISELED_VOIDSTONE = simple("chiseled_voidstone", VOIDSTONE_BRICKS);
 
+    // ---- the Chorus Thicket: chorus timber, the End's only wood, and the moss under its groves. Like the Nether's
+    // stems it doesn't burn
+    private static final UnaryOperator<BlockBehaviour.Properties> CHORUS_TIMBER =
+            p -> p.mapColor(MapColor.COLOR_PURPLE).strength(2.0F).sound(SoundType.STEM);
+    public static final DeferredBlock<RotatedPillarBlock> CHORUS_LOG = withItem(BLOCKS.registerBlock("chorus_log", RotatedPillarBlock::new, CHORUS_TIMBER));
+    public static final DeferredBlock<Block> CHORUS_PLANKS = simple("chorus_planks",
+            p -> p.mapColor(MapColor.COLOR_PURPLE).strength(2.0F, 3.0F).sound(SoundType.NETHER_WOOD));
+    /** End stone grown over, as nylium is netherrack: it drops end stone unless taken with Silk Touch. */
+    public static final DeferredBlock<Block> CHORUS_MOSS = simple("chorus_moss",
+            p -> p.mapColor(MapColor.COLOR_PURPLE).strength(3.0F, 9.0F).sound(SoundType.NYLIUM).requiresCorrectToolForDrops());
+
     private ModBlocks() {}
 
     /** Every block item, in registration order: the creative tab lists them. */
     public static List<DeferredItem<BlockItem>> items() {
         return Collections.unmodifiableList(ITEMS);
+    }
+
+    private static <B extends Block> DeferredBlock<B> withItem(DeferredBlock<B> block) {
+        ITEMS.add(ModItems.ITEMS.registerSimpleBlockItem(block));
+        return block;
     }
 
     private static DeferredBlock<Block> simple(String name, UnaryOperator<BlockBehaviour.Properties> properties) {

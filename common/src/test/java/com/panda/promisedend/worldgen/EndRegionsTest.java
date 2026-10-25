@@ -30,6 +30,18 @@ class EndRegionsTest {
     }
 
     @Test
+    void eachOuterBiomeStandsForOneTerrainClass() {
+        for (EndRegions.Theme theme : EndRegions.Theme.values()) {
+            for (Terrain terrain : new Terrain[] {Terrain.HIGHLANDS, Terrain.MIDLANDS, Terrain.BARRENS, Terrain.ISLANDS}) {
+                assertEquals(terrain, EndRegions.terrainOf(theme.biome(terrain)), theme + " " + terrain);
+            }
+        }
+        assertNull(EndRegions.terrainOf(Biome.THE_END));
+        assertNull(EndRegions.terrainOf(Biome.SHATTERED_RIM));
+        assertNull(EndRegions.terrainOf(Biome.UNFINISHED_EDGE));
+    }
+
+    @Test
     void mainIslandStaysVanillaAndTheRimIsARing() {
         assertEquals(Biome.THE_END, EndRegions.pick(SEED, 0, 0, Terrain.MAIN, EDGE));
         assertEquals(Biome.THE_END, EndRegions.pick(SEED, chunk(100), 0, Terrain.MAIN, EDGE), "the arrival platform at x=100");
@@ -99,36 +111,46 @@ class EndRegionsTest {
         Set<Biome> outerBiomes = EnumSet.of(Biome.CHORUS_THICKET, Biome.RESONANT_SPIRES, Biome.HOLLOW_HIGHLANDS, Biome.LUMEN_MIRE,
                 Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO);
         for (Biome b : outerBiomes) assertTrue(count.getOrDefault(b, 0) > 0, b + " never appears");
-        // within its own terrain class, every biome takes a real share and vanilla keeps at least about a quarter
+        // within its own terrain class, every biome takes a real share and vanilla's own theme still shows (a tenth of
+        // the regions; most of vanilla's quarter of the outer End is the small islands of the Crystal theme)
         for (Terrain t : outer) {
             Map<Biome, Integer> m = perTerrain.get(t);
             int total = m.values().stream().mapToInt(Integer::intValue).sum();
             int vanilla = m.entrySet().stream().filter(e -> e.getKey().vanilla()).mapToInt(Map.Entry::getValue).sum();
-            assertTrue(vanilla >= total * 0.15, t + ": vanilla share " + vanilla + "/" + total);
+            assertTrue(vanilla >= total * 0.05, t + ": vanilla share " + vanilla + "/" + total);
             for (var e : m.entrySet()) {
+                if (e.getKey().vanilla()) continue;
                 assertTrue(e.getValue() >= total * 0.10, t + ": " + e.getKey() + " only " + e.getValue() + "/" + total);
             }
         }
         assertTrue(samples > 5000);
     }
 
-    /** Over a 20,000-sample grid each outer biome is 5–25 % of the outer End. */
+    /**
+     * Over a 20,000-sample grid, with vanilla's terrain classes in the real End's mix (GameTest {@code outer_end_shares}:
+     * highlands 17.9 %, midlands 25.9 %, barrens 11.0 %, small islands 45.2 %), each outer biome of ours is 5-30 % of the
+     * outer End and vanilla's own keep 20-30 %. Over five seeds: one seed's 600 or so regions leave each theme's share
+     * a couple of points either way.
+     */
     @Test
     void outerSharesMatchTheDesign() {
         Map<Biome, Integer> count = new EnumMap<>(Biome.class);
         int samples = 0;
-        Terrain[] outer = {Terrain.HIGHLANDS, Terrain.MIDLANDS, Terrain.BARRENS, Terrain.ISLANDS};
-        for (int gx = 0; gx < 200; gx++) {
-            for (int gz = 0; gz < 200; gz++) {
-                int bx = (gx - 100) * 80, bz = (gz - 100) * 80;
-                double d = Math.sqrt((double) bx * bx + (double) bz * bz);
-                if (d < 1100 || d > 7300) continue;
-                Biome b = EndRegions.pick(SEED, chunk(bx), chunk(bz), outer[(gx * 7 + gz * 13) % 4], EDGE);
-                count.merge(b, 1, Integer::sum);
-                samples++;
+        for (long seed : new long[] {SEED, 42L, -7L, 987654321L, 20261025L}) {
+            for (int gx = 0; gx < 200; gx++) {
+                for (int gz = 0; gz < 200; gz++) {
+                    int bx = (gx - 100) * 80, bz = (gz - 100) * 80;
+                    double d = Math.sqrt((double) bx * bx + (double) bz * bz);
+                    if (d < 1100 || d > 7300) continue;
+                    // hashed, not a stripe pattern: stripes of one class are thousands of blocks apart and alias with the regions
+                    int roll = (int) Math.floorMod(EndRegions.hash(77L, gx, gz), 1000L);
+                    Terrain terrain = roll < 179 ? Terrain.HIGHLANDS : roll < 438 ? Terrain.MIDLANDS : roll < 548 ? Terrain.BARRENS : Terrain.ISLANDS;
+                    count.merge(EndRegions.pick(seed, chunk(bx), chunk(bz), terrain, EDGE), 1, Integer::sum);
+                    samples++;
+                }
             }
         }
-        assertTrue(samples >= 20_000, "only " + samples + " samples");
+        assertTrue(samples >= 100_000, "only " + samples + " samples");
         int vanilla = 0;
         for (var e : count.entrySet()) {
             double share = (double) e.getValue() / samples;
@@ -136,13 +158,10 @@ class EndRegionsTest {
                 vanilla += e.getValue();
                 continue;
             }
-            assertTrue(share >= 0.05 && share <= 0.25, e.getKey() + " is " + Math.round(share * 1000) / 10.0 + " % of the outer End");
+            assertTrue(share >= 0.05 && share <= 0.30, e.getKey() + " is " + Math.round(share * 1000) / 10.0 + " % of the outer End");
         }
-        // Vanilla's share is meant to be about 25 %; with equal terrain classes it comes out near 37 %. The real share
-        // depends on vanilla's class mix, so it's tuned against the real End generator; this only keeps it from
-        // collapsing.
         double v = (double) vanilla / samples;
-        assertTrue(v >= 0.15, "vanilla keeps only " + Math.round(v * 1000) / 10.0 + " %");
+        assertTrue(v >= 0.20 && v <= 0.30, "vanilla keeps " + Math.round(v * 1000) / 10.0 + " %");
     }
 
     @Test

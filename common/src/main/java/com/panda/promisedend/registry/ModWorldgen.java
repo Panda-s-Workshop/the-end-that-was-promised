@@ -3,6 +3,7 @@ package com.panda.promisedend.registry;
 import com.mojang.serialization.MapCodec;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.platform.registry.DeferredRegister;
+import com.panda.promisedend.worldgen.ChorusGroveFeature;
 import com.panda.promisedend.worldgen.RimDebrisFeature;
 import com.panda.promisedend.worldgen.RingSpreadPlacement;
 import java.util.function.Supplier;
@@ -17,6 +18,7 @@ public final class ModWorldgen {
     private static final DeferredRegister<MapCodec<? extends StructurePlacement>> PLACEMENTS = DeferredRegister.create(Registries.STRUCTURE_PLACEMENT, PromisedEnd.MODID);
 
     public static final Supplier<MapCodec<RimDebrisFeature>> RIM_DEBRIS = FEATURE_TYPES.register("rim_debris", () -> RimDebrisFeature.CODEC);
+    public static final Supplier<MapCodec<ChorusGroveFeature>> CHORUS_GROVE = FEATURE_TYPES.register("chorus_grove", () -> ChorusGroveFeature.CODEC);
     public static final Supplier<MapCodec<RingSpreadPlacement>> RING_SPREAD = PLACEMENTS.register("ring_spread", () -> RingSpreadPlacement.CODEC);
 
     private ModWorldgen() {}

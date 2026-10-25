@@ -45,6 +45,9 @@ public final class EndFabric implements ModInitializer {
         // the feature keeps to the ring; NeoForge reads the same from data/promisedend/neoforge/biome_modifier/
         BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("rim_fallback"))),
                 GenerationStep.Decoration.RAW_GENERATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rim_debris_fallback")));
+        // and a sparser chorus grove on #promisedend:grove_fallback (vanilla's highlands), so the End still has its wood
+        BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("grove_fallback"))),
+                GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("chorus_grove_fallback")));
 
         ServerLifecycleEvents.SERVER_STARTING.register(PromisedEnd::onServerStarting);
         ServerLifecycleEvents.SERVER_STARTED.register(com.panda.promisedend.ServerCheck::onServerStarted);

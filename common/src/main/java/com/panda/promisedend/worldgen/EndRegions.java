@@ -40,12 +40,17 @@ public final class EndRegions {
         }
     }
 
-    /** A region's theme: the biome each terrain class becomes inside it. Weights sum to 100. */
+    /**
+     * A region's theme: the biome each terrain class becomes inside it. Weights sum to 100. The real End is about 18 %
+     * highlands, 26 % midlands, 11 % barrens and 45 % small islands (GameTest {@code outer_end_shares}), so each
+     * highland biome of ours needs a theme weight of 28 or more to reach 5 %, and vanilla's own theme stays small: its
+     * small islands in the Crystal theme already give vanilla most of its quarter.
+     */
     enum Theme {
-        GROVE(27, Biome.CHORUS_THICKET, Biome.LUMEN_MIRE, Biome.END_BARRENS, Biome.SKYFALL_ARCHIPELAGO),
-        CRYSTAL(24, Biome.RESONANT_SPIRES, Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SMALL_END_ISLANDS),
-        ANCIENT(24, Biome.HOLLOW_HIGHLANDS, Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO),
-        VANILLA(25, Biome.END_HIGHLANDS, Biome.END_MIDLANDS, Biome.END_BARRENS, Biome.SMALL_END_ISLANDS);
+        GROVE(30, Biome.CHORUS_THICKET, Biome.LUMEN_MIRE, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO),
+        CRYSTAL(30, Biome.RESONANT_SPIRES, Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SMALL_END_ISLANDS),
+        ANCIENT(30, Biome.HOLLOW_HIGHLANDS, Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO),
+        VANILLA(10, Biome.END_HIGHLANDS, Biome.END_MIDLANDS, Biome.END_BARRENS, Biome.SMALL_END_ISLANDS);
 
         final int weight;
         final Biome highlands, midlands, barrens, islands;
@@ -77,6 +82,20 @@ public final class EndRegions {
     public static final int EDGE_JITTER = 600;
 
     private EndRegions() {}
+
+    /**
+     * The terrain class a biome takes the place of: each outer biome, vanilla's four included, stands for one class in
+     * every theme, so a biome sampled from the world gives back the class vanilla chose there. Null for the main
+     * island's, the Rim's and the Edge's.
+     */
+    public static Terrain terrainOf(Biome biome) {
+        for (Theme theme : Theme.values()) {
+            for (Terrain terrain : Terrain.values()) {
+                if (terrain != Terrain.MAIN && theme.biome(terrain) == biome) return terrain;
+            }
+        }
+        return null;
+    }
 
     /** The vanilla terrain class for an erosion value, with vanilla's thresholds. */
     public static Terrain classify(double erosion) {

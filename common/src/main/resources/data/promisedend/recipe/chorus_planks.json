@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "group": "planks",
+  "ingredients": [
+    "promisedend:chorus_log"
+  ],
+  "result": {
+    "id": "promisedend:chorus_planks",
+    "count": 4
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:vegetation_patch",
+  "depth": 1,
+  "extra_bottom_block_chance": 0.0,
+  "extra_edge_column_chance": 0.3,
+  "ground_state": {
+    "id": "promisedend:chorus_moss"
+  },
+  "replaceable": "#promisedend:chorus_moss_replaceable",
+  "surface": "floor",
+  "vegetation_chance": 0.004,
+  "vegetation_feature": {
+    "feature": "minecraft:chorus_plant",
+    "placement": []
+  },
+  "vertical_range": 5,
+  "xz_radius": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 3,
+    "max_inclusive": 7
+  }
+}

@@ -14,7 +14,7 @@ import net.minecraft.world.level.Level;
  * (the Shattered Rim, or with {@code terrain.enabled} off the End's own) and the Voidstone the Rim yields, and logs
  * {@code [promisedend servercheck] PASS} or {@code FAIL}. Booting to "Done" alone never generates an End chunk, so it
  * can't show that the worldgen runs without a client. For the same reason it also makes and ticks a Crystal Warden
- * there.
+ * there, and generates the nearest Chorus Thicket.
  */
 public final class ServerCheck {
     public static final String PROPERTY = "promisedend.servercheck";
@@ -62,7 +62,26 @@ public final class ServerCheck {
         PromisedEnd.LOGGER.info("[promisedend servercheck] voidstone within {} of {}: {}", RADIUS, centre, voidstone);
         if (voidstone < 200) return "too little Voidstone around x=300: " + voidstone;
         String failure = construct(end, centre.above(26));
+        if (failure == null && terrain) failure = thicket(end);
         return failure != null ? failure : wrath(server);
+    }
+
+    /** The nearest Chorus Thicket, generated: its groves are built without a client. */
+    private static String thicket(net.minecraft.server.level.ServerLevel end) {
+        var key = net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("chorus_thicket"));
+        var found = end.findClosestBiome3d(h -> h.is(key), new BlockPos(0, 64, 0), 6400, 32, 64);
+        if (found == null) return "no Chorus Thicket within 6400 blocks";
+        BlockPos at = found.getFirst();
+        for (int cx = (at.getX() - 40) >> 4; cx <= (at.getX() + 40) >> 4; cx++) {
+            for (int cz = (at.getZ() - 40) >> 4; cz <= (at.getZ() + 40) >> 4; cz++) end.getChunk(cx, cz);
+        }
+        int logs = 0;
+        var log = ModBlocks.CHORUS_LOG.get();
+        for (BlockPos p : BlockPos.betweenClosed(at.offset(-32, -40, -32), at.offset(32, 40, 32))) {
+            if (end.getBlockState(p).is(log)) logs++;
+        }
+        PromisedEnd.LOGGER.info("[promisedend servercheck] Chorus Thicket at {}: {} chorus logs within 32 blocks", at, logs);
+        return logs >= 30 ? null : "only " + logs + " chorus logs in the Chorus Thicket at " + at;
     }
 
     /**

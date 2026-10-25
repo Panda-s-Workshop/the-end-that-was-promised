@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import com.panda.promisedend.worldgen.EndBiomes;
+import com.panda.promisedend.worldgen.EndRegions;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -78,6 +79,11 @@ public final class EndGameTests {
         FUNCTIONS.register("dragon_phase3_wardens_by_wrath", () -> EndGameTests::dragonPhase3WardensByWrath);
         FUNCTIONS.register("void_breath_dodged", () -> EndGameTests::voidBreathDodged);
         FUNCTIONS.register("called_wardens_take_turns", () -> EndGameTests::calledWardensTakeTurns);
+        FUNCTIONS.register("outer_end_shares", () -> EndGameTests::outerEndShares);
+        FUNCTIONS.register("end_cities_in_our_biomes", () -> EndGameTests::endCitiesInOurBiomes);
+        FUNCTIONS.register("chorus_timber_and_moss", () -> EndGameTests::chorusTimberAndMoss);
+        FUNCTIONS.register("chorus_grove_grows", () -> EndGameTests::chorusGroveGrows);
+        FUNCTIONS.register("chorus_grove_keeps_out", () -> EndGameTests::chorusGroveKeepsOut);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -89,6 +95,14 @@ public final class EndGameTests {
      */
     private static final java.util.Map<String, String> OWN_BATCH = java.util.Map.of("wrath_increments_on_kill", "wrath_kill",
             "dragon_drops_scales", "wrath_hoard");
+    /**
+     * Tests with a live dragon, each in a batch alone: a dragon's box is 16 blocks across, wider than the arena, and a
+     * test that succeeds removes every entity in and round its own bounds, so a neighbour finishing first took the
+     * dragon with it (seen as a Warden whose heals never landed).
+     */
+    private static final java.util.Set<String> ALONE = java.util.Set.of("dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
+            "warden_heals_dragon", "dragon_void_breath_dive", "void_breath_dodged", "called_wardens_take_turns",
+            "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops");
 
     private EndGameTests() {}
 
@@ -105,7 +119,8 @@ public final class EndGameTests {
             ResourceKey<Consumer<GameTestHelper>> key = ResourceKey.create(Registries.TEST_FUNCTION, entry.getId());
             String path = entry.getId().getPath();
             int timeout = TIMEOUTS.getOrDefault(path, 100);
-            var testEnv = OWN_BATCH.containsKey(path) ? own.get(OWN_BATCH.get(path)) : env;
+            var testEnv = OWN_BATCH.containsKey(path) ? own.get(OWN_BATCH.get(path))
+                    : ALONE.contains(path) ? event.registerEnvironment(PromisedEnd.id("alone_" + path)) : env;
             event.registerTest(key.identifier(), new FunctionGameTestInstance(key, new TestData<>(testEnv, ARENA, timeout, 0, true)));
         }
     }
@@ -180,10 +195,253 @@ public final class EndGameTests {
             }
             if (generator.getBiomeSource().possibleBiomes().stream().noneMatch(h -> h.is(PromisedEnd.id("shattered_rim"))))
                 wrong.add("the Shattered Rim isn't among the End's possible biomes");
+            // a biome file the picker has no entry for (a typo, or one not added to EndRegions) would never generate
+            for (var ref : access.lookupOrThrow(Registries.BIOME).listElements().toList()) {
+                String id = ref.key().identifier().toString();
+                if (!ref.key().identifier().getNamespace().equals(PromisedEnd.MODID)) continue;
+                if (java.util.Arrays.stream(EndRegions.Biome.values()).noneMatch(b -> b.id.equals(id))) wrong.add(id + " has no place in the region picker");
+                if (generator.getBiomeSource().possibleBiomes().stream().noneMatch(h -> h.is(ref.key()))) wrong.add(id + " isn't among the End's possible biomes");
+            }
             if (!wrong.isEmpty()) helper.fail("End biomes: " + wrong);
         } finally {
             EndBiomes.setSeed(previous);
         }
+        helper.succeed();
+    }
+
+    /**
+     * The outer End's shares with the real End generator: on three seeds, 20,000 samples 80 blocks apart between 1,100
+     * and 7,300 blocks out, each read back as vanilla's terrain class there and given the biome the region picker means
+     * for it. That holds before all our biomes exist (one not yet registered leaves vanilla's). Vanilla's own biomes
+     * keep 20-30 %, and each of ours 5-30 % (the small islands are 45 % of the outer End, most of it open void, and the
+     * Skyfall Archipelago takes over half of them).
+     */
+    private static void outerEndShares(GameTestHelper helper) {
+        var access = helper.getLevel().registryAccess();
+        ChunkGenerator generator = access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.NORMAL).value()
+                .createWorldDimensions().get(LevelStem.END).orElseThrow().generator();
+        if (!(generator instanceof NoiseBasedChunkGenerator noise)) {
+            helper.fail("the End's generator isn't a noise generator: " + generator);
+            return;
+        }
+        var count = new java.util.EnumMap<EndRegions.Biome, Integer>(EndRegions.Biome.class);
+        var terrains = new java.util.EnumMap<EndRegions.Terrain, Integer>(EndRegions.Terrain.class);
+        int samples = 0;
+        List<String> unknown = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        long previous = EndBiomes.seed();
+        try {
+            for (long seed : new long[] {424242L, 1234567L, -98765431L}) {
+                EndBiomes.setSeed(seed);
+                RandomState random = RandomState.create(access.lookupOrThrow(Registries.NOISE), seed, noise.generatorSettings().value());
+                BiomeResolver biomes = generator.getBiomeSource().createUncachedResolver(random);
+                for (int gx = 0; gx < 200; gx++) {
+                    for (int gz = 0; gz < 200; gz++) {
+                        int x = (gx - 100) * 80, z = (gz - 100) * 80;
+                        double d = Math.sqrt((double) x * x + (double) z * z);
+                        if (d < 1100 || d > 7300) continue;
+                        String id = biomes.getNoiseBiome(x >> 2, 64 >> 2, z >> 2).unwrapKey().map(k -> k.identifier().toString()).orElse("?");
+                        seen.add(id);
+                        EndRegions.Terrain terrain = null;
+                        for (EndRegions.Biome b : EndRegions.Biome.values()) {
+                            if (b.id.equals(id)) terrain = EndRegions.terrainOf(b);
+                        }
+                        if (terrain == null) {
+                            if (unknown.size() < 5) unknown.add(id + " at (" + x + ", " + z + ")");
+                            continue;
+                        }
+                        terrains.merge(terrain, 1, Integer::sum);
+                        count.merge(EndRegions.pick(seed, x >> 4, z >> 4, terrain, 8000), 1, Integer::sum);
+                        samples++;
+                    }
+                }
+            }
+        } finally {
+            EndBiomes.setSeed(previous);
+        }
+        if (!unknown.isEmpty()) {
+            helper.fail("samples with no outer terrain class: " + unknown);
+            return;
+        }
+        int vanilla = 0;
+        StringBuilder mix = new StringBuilder(), shares = new StringBuilder();
+        for (var e : terrains.entrySet()) mix.append(String.format(java.util.Locale.ROOT, " %s %.1f %%", e.getKey(), 100.0 * e.getValue() / samples));
+        List<String> wrong = new ArrayList<>();
+        for (var e : count.entrySet()) {
+            double share = (double) e.getValue() / samples;
+            shares.append(String.format(java.util.Locale.ROOT, " %s %.1f %%", e.getKey().id, 100 * share));
+            if (e.getKey().vanilla()) vanilla += e.getValue();
+            else if (share < 0.05 || share > 0.30) wrong.add(String.format(java.util.Locale.ROOT, "%s %.1f %%", e.getKey().id, 100 * share));
+        }
+        double v = (double) vanilla / samples;
+        PromisedEnd.LOGGER.info("[outer_end_shares] {} samples; terrain:{}; biomes:{}; vanilla {}", samples, mix, shares,
+                String.format(java.util.Locale.ROOT, "%.1f %%", 100 * v));
+        if (v < 0.20 || v > 0.30) wrong.add(String.format(java.util.Locale.ROOT, "vanilla keeps %.1f %%", 100 * v));
+        if (samples < 60_000) wrong.add("only " + samples + " samples");
+        // every outer biome of ours that is registered comes back from the real generator, not only from the picker
+        var registry = access.lookupOrThrow(Registries.BIOME);
+        for (EndRegions.Biome b : EndRegions.Biome.values()) {
+            if (b.vanilla() || EndRegions.terrainOf(b) == null) continue;
+            if (registry.get(ResourceKey.create(Registries.BIOME, Identifier.parse(b.id))).isPresent() && !seen.contains(b.id))
+                wrong.add(b.id + " is registered but the End never generates it");
+        }
+        if (!wrong.isEmpty()) helper.fail("outer End shares: " + wrong);
+        helper.succeed();
+    }
+
+    /**
+     * End Cities spawn in our outer biomes too: every biome of ours that the region picker puts in place of vanilla's
+     * highlands or midlands (End Cities' own biomes) is in {@code #minecraft:has_structure/end_city}. Without it they'd
+     * be left to the vanilla regions, about a quarter of the End.
+     */
+    private static void endCitiesInOurBiomes(GameTestHelper helper) {
+        var biomes = helper.getLevel().registryAccess().lookupOrThrow(Registries.BIOME);
+        var cities = biomes.getOrThrow(net.minecraft.tags.TagKey.create(Registries.BIOME, Identifier.parse("minecraft:has_structure/end_city")));
+        List<String> missing = new ArrayList<>();
+        int checked = 0;
+        for (EndRegions.Biome b : EndRegions.Biome.values()) {
+            var terrain = EndRegions.terrainOf(b);
+            if (b.vanilla() || (terrain != EndRegions.Terrain.HIGHLANDS && terrain != EndRegions.Terrain.MIDLANDS)) continue;
+            var ref = biomes.get(ResourceKey.create(Registries.BIOME, Identifier.parse(b.id)));
+            if (ref.isEmpty()) continue; // not made yet
+            checked++;
+            if (!cities.contains(ref.get())) missing.add(b.id);
+        }
+        if (checked == 0) helper.fail("no biome of ours takes highlands or midlands yet");
+        if (!missing.isEmpty()) helper.fail("End Cities can't spawn in: " + missing);
+        helper.succeed();
+    }
+
+    /**
+     * Chorus timber and Chorus Moss: the timber is no furnace fuel (oak planks are, as a control), chorus plants hold on
+     * the log and the moss, a chorus flower only on the moss (not up a player's build), and the moss drops end stone
+     * unless taken with Silk Touch.
+     */
+    private static void chorusTimberAndMoss(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var fuel = net.minecraft.core.component.DataComponents.COOKING_FUEL;
+        if (!new ItemStack(net.minecraft.world.item.Items.OAK_PLANKS).has(fuel)) bad.add("oak planks aren't fuel, so this check can't tell");
+        for (var item : List.of(ModBlocks.CHORUS_LOG.get().asItem(), ModBlocks.CHORUS_PLANKS.get().asItem())) {
+            if (new ItemStack(item).has(fuel)) bad.add(item + " burns in a furnace");
+        }
+        BlockPos log = helper.absolutePos(new BlockPos(1, 2, 1)), moss = helper.absolutePos(new BlockPos(3, 2, 1));
+        level.setBlock(log, ModBlocks.CHORUS_LOG.get().defaultBlockState(), 3);
+        level.setBlock(moss, ModBlocks.CHORUS_MOSS.get().defaultBlockState(), 3);
+        var plant = net.minecraft.world.level.block.Blocks.CHORUS_PLANT.defaultBlockState();
+        var flower = net.minecraft.world.level.block.Blocks.CHORUS_FLOWER.defaultBlockState();
+        if (!plant.canSurvive(level, log.above())) bad.add("a chorus plant won't hold on the log");
+        if (!plant.canSurvive(level, moss.above())) bad.add("a chorus plant won't hold on the moss");
+        if (!flower.canSurvive(level, moss.above())) bad.add("a chorus flower won't grow on the moss");
+        if (flower.canSurvive(level, log.above())) bad.add("a chorus flower grows on the log");
+        var table = level.getServer().reloadableRegistries().getLootTable(ModBlocks.CHORUS_MOSS.get().getLootTable().orElseThrow());
+        var silk = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        silk.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
+        for (var tool : List.of(new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE), silk)) {
+            var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.atCenterOf(moss))
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, tool)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, ModBlocks.CHORUS_MOSS.get().defaultBlockState())
+                    .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
+            var drops = table.getRandomItems(params);
+            var want = tool == silk ? ModBlocks.CHORUS_MOSS.get().asItem() : net.minecraft.world.item.Items.END_STONE;
+            if (drops.size() != 1 || !drops.get(0).is(want)) bad.add((tool == silk ? "with" : "without") + " Silk Touch the moss drops " + drops);
+        }
+        if (!bad.isEmpty()) helper.fail("chorus timber and moss: " + bad);
+        helper.succeed();
+    }
+
+    /** The Thicket's grove feature, run as it is configured, on a floor high in the test level's sky. */
+    private static net.minecraft.world.level.levelgen.feature.Feature grove(net.minecraft.server.level.ServerLevel level, String name) {
+        return level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE)
+                .getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name))).value().feature().value();
+    }
+
+    private static void floor(net.minecraft.server.level.ServerLevel level, BlockPos centre, int r, net.minecraft.world.level.block.state.BlockState state) {
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-r, -1, -r), centre.offset(r, -1, r))) level.setBlock(p, state, 2);
+    }
+
+    private static void clear(net.minecraft.server.level.ServerLevel level, BlockPos centre) {
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -2, -16), centre.offset(16, 40, 16))) {
+            if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+    }
+
+    /**
+     * A grove on open end stone: 3-6 trunks 6-11 tall, each standing on end stone, at least two of them with limbs
+     * (lying timber above their foot), and chorus plants grown from the timber well above the ground (the canopy).
+     * Over ten seeds.
+     */
+    private static void chorusGroveGrows(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var feature = grove(level, "chorus_grove");
+        var log = ModBlocks.CHORUS_LOG.get();
+        List<String> bad = new ArrayList<>();
+        int y = level.getMaxY() - 60;
+        for (int n = 0; n < 10; n++) {
+            BlockPos centre = new BlockPos(2000 + n * 64, y, 2000);
+            floor(level, centre, 12, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            if (!feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(300 + n), centre)) {
+                bad.add("nothing grew at " + centre);
+                clear(level, centre);
+                continue;
+            }
+            int trunks = 0, limbs = 0, canopy = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, 0, -16), centre.offset(16, 40, 16))) {
+                var state = level.getBlockState(p);
+                var axis = state.is(log) ? state.getValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS) : null;
+                if (axis == net.minecraft.core.Direction.Axis.Y && p.getY() == y) {
+                    trunks++;
+                    if (!level.getBlockState(p.below()).is(net.minecraft.world.level.block.Blocks.END_STONE)) bad.add("a trunk off the ground at " + p);
+                    int h = 0;
+                    while (level.getBlockState(p.above(h)).is(log)) h++;
+                    if (h < 6 || h > 11) bad.add("a trunk " + h + " tall at " + p);
+                } else if (axis != null && axis != net.minecraft.core.Direction.Axis.Y && p.getY() > y + 1) {
+                    limbs++;
+                } else if ((state.is(net.minecraft.world.level.block.Blocks.CHORUS_PLANT) || state.is(net.minecraft.world.level.block.Blocks.CHORUS_FLOWER)) && p.getY() >= y + 6) {
+                    canopy++;
+                }
+            }
+            // upright timber at the foot is a trunk (a lying log there is a root)
+            if (trunks < 3 || trunks > 6) bad.add(trunks + " trunks at " + centre);
+            if (limbs < 2) bad.add("only " + limbs + " limb blocks at " + centre);
+            if (canopy < 12) bad.add("only " + canopy + " canopy chorus at " + centre);
+            PromisedEnd.LOGGER.info("[chorus_grove_grows] {}: {} trunks, {} limb blocks, {} canopy chorus", centre, trunks, limbs, canopy);
+            clear(level, centre);
+        }
+        if (!bad.isEmpty()) helper.fail("groves: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Where a grove doesn't belong it builds nothing: on ground outside {@code #promisedend:chorus_grove_ground}
+     * (obsidian here; chorus timber too, so no tree stands on a root), under a roof 4 blocks up, and the terrain-off
+     * copy while our terrain is on.
+     */
+    private static void chorusGroveKeepsOut(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var feature = grove(level, "chorus_grove");
+        var log = ModBlocks.CHORUS_LOG.get();
+        var generator = level.getChunkSource().getGenerator();
+        List<String> bad = new ArrayList<>();
+        int y = level.getMaxY() - 60;
+        BlockPos obsidian = new BlockPos(3000, y, 2000), timber = new BlockPos(3064, y, 2000), roofed = new BlockPos(3128, y, 2000), off = new BlockPos(3192, y, 2000);
+        floor(level, obsidian, 12, net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState());
+        floor(level, timber, 12, log.defaultBlockState());
+        floor(level, roofed, 12, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+        // a glass roof 4 up over the whole floor: the surface is the roof, which isn't grove ground, and nothing goes under it
+        floor(level, roofed.above(5), 12, net.minecraft.world.level.block.Blocks.GLASS.defaultBlockState());
+        floor(level, off, 12, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+        for (BlockPos at : List.of(obsidian, timber, roofed)) {
+            if (feature.place(level, generator, net.minecraft.util.RandomSource.create(9), at)) bad.add("grew at " + at);
+        }
+        for (BlockPos p : BlockPos.betweenClosed(roofed.offset(-12, 0, -12), roofed.offset(12, 3, 12))) {
+            if (level.getBlockState(p).is(log)) bad.add("timber under the roof at " + p);
+        }
+        if (com.panda.promisedend.EndConfig.terrainEnabled() && grove(level, "chorus_grove_fallback").place(level, generator, net.minecraft.util.RandomSource.create(9), off))
+            bad.add("the terrain-off copy grew with terrain on");
+        for (BlockPos at : List.of(obsidian, timber, roofed, off)) clear(level, at);
+        if (!bad.isEmpty()) helper.fail("groves where they don't belong: " + bad);
         helper.succeed();
     }
 
@@ -1110,9 +1368,11 @@ public final class EndGameTests {
         helper.runAtTickTime(66, () -> {
             // beam ticks 0, 20 and 40 have landed: 3 health in a little over 2 s
             float healed = dragon.getHealth() - 100.0F;
+            String state = "dragon removed " + dragon.getRemovalReason() + ", max " + dragon.getMaxHealth() + ", beams " + warden.beams()
+                    + ", warden's dragon " + warden.dragonId() + " (this one " + dragon.getUUID() + ")";
             dragon.discard();
-            if (!warden.isBeaming(target)) helper.fail("it should still be beaming, is " + warden.phase());
-            if (healed != 3.0F) helper.fail("after about 2 s of beam the dragon healed " + healed + ", wanted 3 (1 a second)");
+            if (!warden.isBeaming(target)) helper.fail("it should still be beaming, is " + warden.phase() + "; " + state);
+            if (healed != 3.0F) helper.fail("after about 2 s of beam the dragon healed " + healed + ", wanted 3 (1 a second); " + state);
             helper.succeed();
         });
     }
