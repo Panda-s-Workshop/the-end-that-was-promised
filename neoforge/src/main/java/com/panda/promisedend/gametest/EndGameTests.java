@@ -366,20 +366,25 @@ public final class EndGameTests {
         var x = net.minecraft.core.Direction.Axis.X;
         var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
         var player = helper.makeMockServerPlayerInLevel();
+        // the in-level mock is creative, where tools don't wear: the axe goes in a survival player's hand
+        var survivor = helper.makeMockServerPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         BlockPos at = helper.absolutePos(new BlockPos(1, 2, 1));
-        // crimson's stem first, as the control: ours must strip as it does and cost the axe what it costs
+        // crimson's stem first, as the control: it must cost the axe 1, and ours what it costs
         int controlDamage = -1;
         for (var pair : List.of(List.of(net.minecraft.world.level.block.Blocks.CRIMSON_STEM, net.minecraft.world.level.block.Blocks.STRIPPED_CRIMSON_STEM),
                 List.of(ModBlocks.CHORUS_LOG.get(), ModBlocks.STRIPPED_CHORUS_LOG.get()),
                 List.of(ModBlocks.CHORUS_WOOD.get(), ModBlocks.STRIPPED_CHORUS_WOOD.get()))) {
             level.setBlock(at, pair.get(0).defaultBlockState().setValue(axis, x), 3);
-            player.setItemInHand(hand, new ItemStack(net.minecraft.world.item.Items.IRON_AXE));
+            survivor.setItemInHand(hand, new ItemStack(net.minecraft.world.item.Items.IRON_AXE));
             var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(at), net.minecraft.core.Direction.UP, at, false);
-            player.getMainHandItem().useOn(new net.minecraft.world.item.context.UseOnContext(player, hand, hit));
+            survivor.getMainHandItem().useOn(new net.minecraft.world.item.context.UseOnContext(survivor, hand, hit));
             var now = level.getBlockState(at);
             if (!now.is(pair.get(1)) || now.getValue(axis) != x) bad.add("an axe on " + pair.get(0) + " left " + now);
-            int damage = player.getMainHandItem().getDamageValue();
-            if (controlDamage < 0) controlDamage = damage;
+            int damage = survivor.getMainHandItem().getDamageValue();
+            if (controlDamage < 0) {
+                controlDamage = damage;
+                if (damage != 1) bad.add("stripping crimson's stem cost the axe " + damage + ", not 1, so this check can't tell");
+            }
             else if (damage != controlDamage) bad.add("stripping " + pair.get(0) + " cost the axe " + damage + ", crimson's stem " + controlDamage);
         }
         BlockPos sign = helper.absolutePos(new BlockPos(3, 2, 3));
@@ -1376,22 +1381,22 @@ public final class EndGameTests {
         // keep ticking: there it would never see its dragon die, as it would in a real fight with a player at it
         Runnable release = forceAround(helper, dragon.blockPosition(), com.panda.promisedend.logic.DragonPhase3.RING_RADIUS + (int) com.panda.promisedend.entity.CrystalWarden.HOVER_RADIUS + 4);
         helper.runAtTickTime(5, () -> {
-            if (com.panda.promisedend.logic.DragonPhase3.entered(dragon)) helper.fail("in phase 3 at full health");
-            if (!wardensOf(helper, dragon).isEmpty()) helper.fail("wardens at full health");
+            if (com.panda.promisedend.logic.DragonPhase3.entered(dragon)) fail(helper, release, "in phase 3 at full health");
+            if (!wardensOf(helper, dragon).isEmpty()) fail(helper, release, "wardens at full health");
             dragon.setHealth(dragon.getMaxHealth() * 0.2F);
         });
         helper.runAtTickTime(10, () -> {
-            if (!com.panda.promisedend.logic.DragonPhase3.entered(dragon)) helper.fail("at a fifth of its health it isn't in phase 3");
+            if (!com.panda.promisedend.logic.DragonPhase3.entered(dragon)) fail(helper, release, "at a fifth of its health it isn't in phase 3");
             var wardens = wardensOf(helper, dragon);
-            if (wardens.size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) helper.fail("phase 3 called " + wardens.size() + " wardens, wanted 3");
+            if (wardens.size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) fail(helper, release, "phase 3 called " + wardens.size() + " wardens, wanted 3");
             for (var w : wardens) {
-                if (!w.isPersistenceRequired()) helper.fail("a called warden can despawn");
+                if (!w.isPersistenceRequired()) fail(helper, release, "a called warden can despawn");
                 if (w.home() == null || Math.abs(Math.sqrt(w.home().distToCenterSqr(dragon.getX(), w.home().getY() + 0.5, dragon.getZ()))
-                        - com.panda.promisedend.logic.DragonPhase3.RING_RADIUS) > 1.5) helper.fail("a warden's home is off the ring: " + w.home());
+                        - com.panda.promisedend.logic.DragonPhase3.RING_RADIUS) > 1.5) fail(helper, release, "a warden's home is off the ring: " + w.home());
             }
         });
         helper.runAtTickTime(30, () -> {
-            if (wardensOf(helper, dragon).size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) helper.fail("it called wardens again");
+            if (wardensOf(helper, dragon).size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) fail(helper, release, "it called wardens again");
             dragon.kill(helper.getLevel());
         });
         helper.runAtTickTime(36, () -> {
@@ -1406,6 +1411,12 @@ public final class EndGameTests {
     }
 
     /** Keeps the chunks within {@code reach} of a spot loaded and ticking until the returned clean-up runs. */
+    /** Fails the test after letting go of the chunks it forced, which would otherwise stay forced for the run. */
+    private static void fail(GameTestHelper helper, Runnable release, String message) {
+        release.run();
+        helper.fail(message);
+    }
+
     private static Runnable forceAround(GameTestHelper helper, BlockPos at, int reach) {
         var level = helper.getLevel();
         List<net.minecraft.world.level.ChunkPos> forced = new ArrayList<>();
