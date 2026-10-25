@@ -60,7 +60,7 @@ import org.jspecify.annotations.Nullable;
  * the target. It never works on the dragon or another construct ({@code #promisedend:constructs}). Every step is synced
  * ({@link #phase()}, {@link #beamTargetId()}) so clients play the clips and draw the thread and the beam.
  *
- * <p>The dragon's phase 3 ({@link com.panda.promisedend.logic.DragonPhase3}) calls four to its pillars, each linked to it
+ * <p>The dragon's phase 3 ({@link com.panda.promisedend.logic.DragonPhase3}) calls 3 to 5 (by the world's Wrath) to its pillars, each linked to it
  * ({@link #setDragon}): a linked warden heals the dragon 1 a second while it beams (drawn as a tether to the dragon),
  * never despawns, and shatters when the dragon dies.
  */

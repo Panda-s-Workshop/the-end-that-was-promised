@@ -22,7 +22,7 @@ class DragonPhase3Test {
     }
 
     @Test
-    void theMddsNumbers() {
+    void theDesignNumbers() {
         assertEquals(400, DragonPhase3.DIVE_INTERVAL, "a dive every 20 s");
         assertEquals(30, DragonPhase3.TELEGRAPH_TICKS, "a 1.5 s telegraph");
         assertEquals(120, DragonPhase3.BREATH_TICKS, "the breath lasts 6 s");
@@ -39,5 +39,28 @@ class DragonPhase3Test {
         for (int w = 0; w < 5; w++) assertTrue(DragonPhase3.wardenCount(w) <= DragonPhase3.wardenCount(w + 1), "never fewer with more Wrath");
         assertEquals(3, DragonPhase3.wardenCount(-1), "clamped below");
         assertEquals(5, DragonPhase3.wardenCount(9), "clamped above");
+    }
+
+    @Test
+    void homesBesideTheTallestPillarsInReachOfTheIsland() {
+        var pillars = java.util.List.of(
+                new DragonPhase3.Pillar(42, 0, 3, 103),
+                new DragonPhase3.Pillar(0, 42, 4, 76),
+                new DragonPhase3.Pillar(-42, 0, 2, 94),
+                new DragonPhase3.Pillar(0, -42, 3, 85));
+        // the island's ground at y 64, except over the void beyond x = -45
+        var homes = DragonPhase3.pillarHomes(pillars, 3, (x, z) -> x < -45 ? Integer.MIN_VALUE : 64);
+        assertEquals(3, homes.size());
+        // the tallest first: 103, 94, 85; each HOME_OUT from its side, towards the origin, HOME_HOVER over the ground
+        assertEquals(new net.minecraft.core.BlockPos(42 - 3 - DragonPhase3.HOME_OUT, 64 + DragonPhase3.HOME_HOVER, 0), homes.get(0));
+        assertEquals(new net.minecraft.core.BlockPos(-42 + 2 + DragonPhase3.HOME_OUT, 64 + DragonPhase3.HOME_HOVER, 0), homes.get(1));
+        assertEquals(new net.minecraft.core.BlockPos(0, 64 + DragonPhase3.HOME_HOVER, -42 + 3 + DragonPhase3.HOME_OUT), homes.get(2));
+        for (var home : homes) assertTrue(home.getY() - 64 <= 8, "within a Warden's beam of a player on the ground: " + home);
+        // a pillar whose foot is over the void keeps its Warden under its top
+        var overVoid = DragonPhase3.pillarHomes(pillars, 3, (x, z) -> Integer.MIN_VALUE);
+        assertEquals(103 - DragonPhase3.HOME_DOWN, overVoid.get(0).getY());
+        // never higher than under the top, even on high ground
+        var lowPillar = DragonPhase3.pillarHomes(java.util.List.of(new DragonPhase3.Pillar(42, 0, 3, 70)), 1, (x, z) -> 66);
+        assertEquals(70 - DragonPhase3.HOME_DOWN, lowPillar.get(0).getY());
     }
 }

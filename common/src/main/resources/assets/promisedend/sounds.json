@@ -73,9 +73,9 @@
     "subtitle": "subtitles.promisedend.ender_dragon.call_wardens",
     "sounds": [
       {
-        "name": "minecraft:entity.ender_dragon.growl",
+        "name": "minecraft:block.end_portal.spawn",
         "type": "event",
-        "pitch": 0.8
+        "pitch": 1.2
       }
     ]
   },
@@ -96,6 +96,16 @@
         "name": "minecraft:entity.dragon_fireball.explode",
         "type": "event",
         "pitch": 0.8
+      }
+    ]
+  },
+  "block.dragon_hoard.appear": {
+    "subtitle": "subtitles.promisedend.dragon_hoard.appear",
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.activate",
+        "type": "event",
+        "pitch": 1.4
       }
     ]
   }

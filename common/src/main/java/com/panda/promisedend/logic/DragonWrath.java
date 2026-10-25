@@ -7,7 +7,20 @@ import com.panda.promisedend.PromisedEnd;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import com.panda.promisedend.registry.ModSounds;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.Containers;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -24,7 +37,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -58,6 +70,11 @@ public final class DragonWrath {
 
     /** Dying dragons and the Wrath each was fought at, until it vanishes and its hoard is laid out. */
     private static final Map<EnderDragon, Integer> DYING = new HashMap<>();
+    /** How far from the hoard players hear that Wrath rose. */
+    private static final double ANNOUNCE_RANGE = 192.0;
+    /** How many blocks out from the portal's centre the hoard looks for a free spot, in rings of 8. */
+    private static final int HOARD_RINGS = 4;
+
     /** Where the last hoard was put, for the tests and the harness. */
     private static @Nullable BlockPos lastHoard;
 
@@ -131,7 +148,16 @@ public final class DragonWrath {
             if (dragon.getRemovalReason() != Entity.RemovalReason.KILLED || !(dragon.level() instanceof ServerLevel level)) continue;
             int wrath = e.getValue();
             lastHoard = layHoard(level, dragon, wrath);
-            if (EndConfig.dragonWrath()) setStored(server, next(stored(server), EndConfig.maxWrath()));
+            if (!EndConfig.dragonWrath()) continue;
+            int was = stored(server), now = next(was, EndConfig.maxWrath());
+            setStored(server, now);
+            // the players at the fight are told, so a rematch is a choice they know about
+            Component line = now > was ? Component.translatable("message.promisedend.wrath.rises", now, EndConfig.maxWrath())
+                    : Component.translatable("message.promisedend.wrath.height", now);
+            for (var player : level.players()) {
+                if (player.distanceToSqr(Vec3.atCenterOf(lastHoard == null ? dragon.blockPosition() : lastHoard)) < ANNOUNCE_RANGE * ANNOUNCE_RANGE)
+                    player.sendSystemMessage(line.copy().withStyle(ChatFormatting.LIGHT_PURPLE));
+            }
         }
     }
 
@@ -147,7 +173,7 @@ public final class DragonWrath {
     }
 
     /** The Wrath the dragon's health was scaled by, or the world's now for one that never was (a test's). */
-    private static int foughtAt(EnderDragon dragon, MinecraftServer server) {
+    public static int foughtAt(EnderDragon dragon, MinecraftServer server) {
         for (String tag : dragon.entityTags()) {
             if (!tag.startsWith(FOUGHT_AT_TAG)) continue;
             try {
@@ -162,43 +188,57 @@ public final class DragonWrath {
     // ---- the hoard ---------------------------------------------------------------------------------
 
     /**
-     * A chest with the Wrath's hoard: on the island beside the exit portal, at the first of 8 spots round it with
-     * ground under it; with no fight, on the ground under where the dragon vanished.
+     * The Wrath's hoard in a chest named "Dragon Hoard": on the island beside the exit portal, at the first spot round it
+     * that is empty and on solid ground (rings of 8, from just off the podium's rim outwards); with no fight, on the
+     * ground under where the dragon vanished. Where there is no such spot, nothing is replaced: the hoard drops as items
+     * (returns null).
      */
-    private static BlockPos layHoard(ServerLevel level, EnderDragon dragon, int wrath) {
+    private static @Nullable BlockPos layHoard(ServerLevel level, EnderDragon dragon, int wrath) {
         BlockPos at = dragon.getDragonFight() != null ? byPortal(level, dragon.getFightOrigin()) : under(level, dragon.blockPosition());
+        if (at == null) {
+            Vec3 drop = dragon.getDragonFight() != null ? Vec3.atCenterOf(level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dragon.getFightOrigin())) : dragon.position();
+            LootParams params = new LootParams.Builder(level).withParameter(LootContextParams.ORIGIN, drop).create(LootContextParamSets.CHEST);
+            level.getServer().reloadableRegistries().getLootTable(hoard(wrath)).getRandomItems(params, stack -> Containers.dropItemStack(level, drop.x, drop.y, drop.z, stack));
+            return null;
+        }
         level.setBlock(at, Blocks.CHEST.defaultBlockState(), 3);
-        if (level.getBlockEntity(at) instanceof ChestBlockEntity chest) chest.setLootTable(hoard(wrath), level.getRandom().nextLong());
+        if (level.getBlockEntity(at) instanceof ChestBlockEntity chest) {
+            chest.setLootTable(hoard(wrath), level.getRandom().nextLong());
+            chest.applyComponents(DataComponentMap.builder().set(DataComponents.CUSTOM_NAME, Component.translatable("container.promisedend.dragon_hoard")).build(), DataComponentPatch.EMPTY);
+            chest.setChanged();
+        }
+        level.playSound(null, at, ModSounds.DRAGON_HOARD_APPEARS.get(), SoundSource.BLOCKS, 2.0F, 1.0F);
+        level.sendParticles(ParticleTypes.END_ROD, at.getX() + 0.5, at.getY() + 0.8, at.getZ() + 0.5, 30, 0.4, 0.5, 0.4, 0.05);
         return at;
     }
 
-    private static BlockPos byPortal(ServerLevel level, BlockPos origin) {
-        BlockPos fallback = null;
-        for (int i = 0; i < 8; i++) {
-            double angle = Math.PI * 2 * i / 8;
-            BlockPos column = origin.offset(Mth.floor(Math.cos(angle) * HOARD_DISTANCE + 0.5), 0, Mth.floor(Math.sin(angle) * HOARD_DISTANCE + 0.5));
-            BlockPos top = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
-            if (top.getY() <= level.getMinY()) continue;
-            if (fallback == null) fallback = top;
-            if (free(level, top)) return top;
+    private static @Nullable BlockPos byPortal(ServerLevel level, BlockPos origin) {
+        for (int ring = 0; ring < HOARD_RINGS; ring++) {
+            int distance = HOARD_DISTANCE + ring;
+            for (int i = 0; i < 8; i++) {
+                double angle = Math.PI * 2 * (i + ring * 0.5) / 8;
+                BlockPos column = origin.offset(Mth.floor(Math.cos(angle) * distance + 0.5), 0, Mth.floor(Math.sin(angle) * distance + 0.5));
+                BlockPos top = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
+                if (top.getY() > level.getMinY() && free(level, top)) return top;
+            }
         }
-        return fallback != null ? fallback : level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, origin);
+        return null;
     }
 
-    private static BlockPos under(ServerLevel level, BlockPos from) {
+    private static @Nullable BlockPos under(ServerLevel level, BlockPos from) {
         for (int dy = 0; dy < HOARD_DROP && from.getY() - dy > level.getMinY(); dy++) {
             BlockPos at = from.below(dy);
             if (free(level, at)) return at;
         }
-        return from;
+        return null;
     }
 
+    /** Air (nothing to replace, not even a torch or a flower), on a solid face. */
     private static boolean free(ServerLevel level, BlockPos at) {
-        BlockState here = level.getBlockState(at);
-        return here.canBeReplaced() && here.getFluidState().isEmpty() && level.getBlockState(at.below()).isFaceSturdy(level, at.below(), Direction.UP);
+        return level.getBlockState(at).isAir() && level.getBlockState(at.below()).isFaceSturdy(level, at.below(), Direction.UP);
     }
 
-    /** Where the last hoard chest was set, or null before the first. */
+    /** Where the last hoard chest was set, or null before the first (and after a hoard that dropped as items). */
     public static @Nullable BlockPos lastHoard() {
         return lastHoard;
     }

@@ -114,7 +114,7 @@ class EndRegionsTest {
 
     /** Over a 20,000-sample grid each outer biome is 5–25 % of the outer End. */
     @Test
-    void outerSharesMatchTheMdd() {
+    void outerSharesMatchTheDesign() {
         Map<Biome, Integer> count = new EnumMap<>(Biome.class);
         int samples = 0;
         Terrain[] outer = {Terrain.HIGHLANDS, Terrain.MIDLANDS, Terrain.BARRENS, Terrain.ISLANDS};

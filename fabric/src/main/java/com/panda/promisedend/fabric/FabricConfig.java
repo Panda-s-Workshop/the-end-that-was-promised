@@ -12,7 +12,7 @@ import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * The mod's settings on Fabric: config/promisedend.properties ({@code terrain.enabled}, {@code terrain.edge_distance},
- * {@code anchor.trigger_depth}, {@code dragon.phase3}, {@code dragon.wrath}, {@code dragon.max_wrath}), written with the defaults on first start. Unlike NeoForge's synced config it is read
+ * {@code anchor.trigger_depth}, {@code dragon.phase3}, {@code dragon.wrath}, {@code dragon.max_wrath}), written with the defaults on first start; settings added in a later version are added to an existing file. Unlike NeoForge's synced config it is read
  * once at startup, on each side from its own file.
  */
 final class FabricConfig implements EndConfig.Source {
@@ -36,35 +36,53 @@ final class FabricConfig implements EndConfig.Source {
     static FabricConfig load() {
         Path file = FabricLoader.getInstance().getConfigDir().resolve("promisedend.properties");
         Properties p = new Properties();
+        boolean read = false;
         if (Files.exists(file)) {
             try (Reader in = Files.newBufferedReader(file)) {
                 p.load(in);
+                read = true;
             } catch (IOException e) {
                 PromisedEnd.LOGGER.warn("Couldn't read {}, using the defaults", file, e);
             }
-        } else {
-            EndConfig.Source d = EndConfig.DEFAULTS;
-            p.setProperty("terrain.enabled", String.valueOf(d.terrainEnabled()));
-            p.setProperty("terrain.edge_distance", String.valueOf(d.edgeDistance()));
-            p.setProperty("anchor.trigger_depth", String.valueOf(d.anchorTriggerDepth()));
-            p.setProperty("dragon.phase3", String.valueOf(d.dragonPhase3()));
-            p.setProperty("dragon.wrath", String.valueOf(d.dragonWrath()));
-            p.setProperty("dragon.max_wrath", String.valueOf(d.maxWrath()));
+        }
+        // a file from an older version gains the settings added since, at their defaults, so a pack maker can find them
+        boolean added = false;
+        for (var entry : defaults().entrySet()) {
+            if (!p.containsKey(entry.getKey())) {
+                p.setProperty((String) entry.getKey(), (String) entry.getValue());
+                added = true;
+            }
+        }
+        if (added && (read || !Files.exists(file))) {
             try (Writer out = Files.newBufferedWriter(file)) {
-                p.store(out, """
-                         The End That Was Promised
-                         terrain.enabled: our End biomes replace the vanilla outer-End biomes; false for packs with another End biome overhaul (true/false)
-                         terrain.edge_distance: where the Unfinished Edge begins, in blocks from the End's origin (2000-1000000)
-                         anchor.trigger_depth: how far below the dimension's lowest block a falling player with a Void Anchor is pulled back (0-52)
-                         dragon.phase3: below a quarter of its health the dragon calls Crystal Wardens to its pillars (3 to 5 by Wrath) and dives with void breath (true/false)
-                         dragon.wrath: each dragon killed raises the world's Wrath by 1 for a stronger dragon, more Wardens and a bigger hoard; false: every fight is the first (true/false)
-                         dragon.max_wrath: the highest Wrath a world reaches (0-5)""");
+                p.store(out, COMMENT);
             } catch (IOException e) {
                 PromisedEnd.LOGGER.warn("Couldn't write {}", file, e);
             }
         }
         return new FabricConfig(p);
     }
+
+    private static Properties defaults() {
+        EndConfig.Source d = EndConfig.DEFAULTS;
+        Properties p = new Properties();
+        p.setProperty("terrain.enabled", String.valueOf(d.terrainEnabled()));
+        p.setProperty("terrain.edge_distance", String.valueOf(d.edgeDistance()));
+        p.setProperty("anchor.trigger_depth", String.valueOf(d.anchorTriggerDepth()));
+        p.setProperty("dragon.phase3", String.valueOf(d.dragonPhase3()));
+        p.setProperty("dragon.wrath", String.valueOf(d.dragonWrath()));
+        p.setProperty("dragon.max_wrath", String.valueOf(d.maxWrath()));
+        return p;
+    }
+
+    private static final String COMMENT = """
+             The End That Was Promised
+             terrain.enabled: our End biomes replace the vanilla outer-End biomes; false for packs with another End biome overhaul (true/false)
+             terrain.edge_distance: where the Unfinished Edge begins, in blocks from the End's origin (2000-1000000)
+             anchor.trigger_depth: how far below the dimension's lowest block a falling player with a Void Anchor is pulled back (0-52)
+             dragon.phase3: below a quarter of its health the dragon calls Crystal Wardens to its pillars (3 to 5 by Wrath) and dives with void breath (true/false)
+             dragon.wrath: each dragon killed raises the world's Wrath by 1 for a stronger dragon, more Wardens and a bigger hoard; false: every fight is the first (true/false)
+             dragon.max_wrath: the highest Wrath a world reaches (0-5)""";
 
     private static int clamp(String value, int fallback, int min, int max) {
         if (value == null) return fallback;

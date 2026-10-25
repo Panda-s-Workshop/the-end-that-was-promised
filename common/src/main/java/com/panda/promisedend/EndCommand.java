@@ -47,6 +47,7 @@ public final class EndCommand {
         int wrath = Math.min(IntegerArgumentType.getInteger(c, "wrath"), EndConfig.maxWrath());
         DragonWrath.setStored(c.getSource().getServer(), wrath);
         c.getSource().sendSuccess(() -> Component.translatable("commands.promisedend.wrath.set", wrath), true);
+        if (!EndConfig.dragonWrath()) c.getSource().sendSuccess(() -> Component.translatable("commands.promisedend.wrath.off"), false);
         return wrath;
     }
 

@@ -75,6 +75,8 @@ public final class EndGameTests {
         FUNCTIONS.register("wrath_increments_on_kill", () -> EndGameTests::wrathIncrementsOnKill);
         FUNCTIONS.register("dragon_drops_scales", () -> EndGameTests::dragonDropsScales);
         FUNCTIONS.register("dragon_scale_repairs_elytra", () -> EndGameTests::dragonScaleRepairsElytra);
+        FUNCTIONS.register("dragon_phase3_wardens_by_wrath", () -> EndGameTests::dragonPhase3WardensByWrath);
+        FUNCTIONS.register("void_breath_dodged", () -> EndGameTests::voidBreathDodged);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -1024,6 +1026,54 @@ public final class EndGameTests {
         });
     }
 
+    /**
+     * Phase 3 calls as many Wardens as the Wrath the dragon is fought at (saved on it): 4 at Wrath 3, 5 at Wrath 5, read
+     * from each dragon, not from the world's Wrath.
+     */
+    private static void dragonPhase3WardensByWrath(GameTestHelper helper) {
+        var three = dragon(helper, 3, 2, 3);
+        var five = dragon(helper, 9, 2, 9);
+        three.addTag(com.panda.promisedend.logic.DragonWrath.FOUGHT_AT_TAG + 3);
+        five.addTag(com.panda.promisedend.logic.DragonWrath.FOUGHT_AT_TAG + 5);
+        helper.runAtTickTime(2, () -> {
+            three.setHealth(three.getMaxHealth() * 0.2F);
+            five.setHealth(five.getMaxHealth() * 0.2F);
+        });
+        helper.runAtTickTime(8, () -> {
+            int a = wardensOf(helper, three).size(), b = wardensOf(helper, five).size();
+            three.kill(helper.getLevel());
+            five.kill(helper.getLevel());
+            if (a != 4 || b != 5) helper.fail("Wrath 3 called " + a + " Wardens (wanted 4), Wrath 5 called " + b + " (wanted 5)");
+        });
+        helper.runAtTickTime(14, helper::succeed);
+    }
+
+    /**
+     * Stepping out of the ring before the breath lands is the counter: no damage and no slowness. The dragon here
+     * hovers (as if perched) when the telegraph ends, so the breath lands without the charge and it is left perched.
+     */
+    private static void voidBreathDodged(GameTestHelper helper) {
+        var dragon = dragon(helper, 6, 7, 6);
+        dragon.addTag(com.panda.promisedend.logic.DragonPhase3.TAG);
+        var victim = dummy(helper, 4, 1, 6);
+        float full = victim.getHealth();
+        com.panda.promisedend.logic.DragonPhase3.startDive(helper.getLevel(), dragon, victim.position());
+        // during the telegraph it steps 5 blocks away, out of the 3-block ring
+        helper.runAtTickTime(15, () -> victim.teleportTo(victim.getX() + 5, victim.getY(), victim.getZ() + 0.0));
+        helper.runAtTickTime(80, () -> {
+            float dealt = full - victim.getHealth();
+            var slowness = victim.getEffect(net.minecraft.world.effect.MobEffects.SLOWNESS);
+            dragon.discard();
+            if (dealt != 0.0F) helper.fail("a victim out of the ring took " + dealt);
+            if (slowness != null) helper.fail("a victim out of the ring was slowed");
+            if (!com.panda.promisedend.logic.DragonPhase3.lastLanding(dragon).equals("without a charge")
+                    || dragon.getPhaseManager().getCurrentPhase().getPhase() != net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhase.HOVERING)
+                helper.fail("a perched dragon was charged off its perch: " + com.panda.promisedend.logic.DragonPhase3.lastLanding(dragon) + ", "
+                        + dragon.getPhaseManager().getCurrentPhase().getPhase());
+            helper.succeed();
+        });
+    }
+
     /** A linked warden heals its dragon 1 a second while it beams, and not while it locks on. */
     private static void wardenHealsDragon(GameTestHelper helper) {
         var dragon = dragon(helper, 6, 7, 10);
@@ -1053,6 +1103,8 @@ public final class EndGameTests {
     private static void dragonVoidBreathDive(GameTestHelper helper) {
         var dragon = dragon(helper, 6, 7, 6);
         dragon.addTag(com.panda.promisedend.logic.DragonPhase3.TAG);
+        // in flight (a fresh dragon starts hovering, which counts as perched)
+        dragon.getPhaseManager().setPhase(net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhase.HOLDING_PATTERN);
         var victim = dummy(helper, 6, 1, 6);
         var construct = warden(helper, 7, 2, 6);
         construct.setNoAi(true);

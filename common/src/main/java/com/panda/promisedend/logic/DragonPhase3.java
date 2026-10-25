@@ -35,7 +35,14 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.end.EnderDragonFight;
 import net.minecraft.world.level.levelgen.feature.EndSpikeFeature;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -57,9 +64,16 @@ public final class DragonPhase3 {
     public static final String BREATH_TAG = "promisedend.void_breath";
     /** Wardens called at Wrath 0 to 5: 3 at 0 and 1, 4 at 3, 5 at 5; Wrath 2 and 4 take the row below. */
     private static final int[] WARDENS_BY_WRATH = {3, 3, 3, 4, 4, 5};
-    /** How far out from its pillar's side a warden's home is, and how far under the pillar's top. */
+    /**
+     * How far out from its pillar's side a warden's home is, towards the island's centre; how far over the ground there
+     * it hovers, in reach of a player on the island (it sees 24 blocks and beams 16); and how far under the pillar's
+     * top it stays at most, for a pillar standing over the void.
+     */
     public static final int HOME_OUT = 4;
+    public static final int HOME_HOVER = 6;
     public static final int HOME_DOWN = 3;
+    /** How far under a player the dive's mark looks for ground; with none there, no dive at that player. */
+    public static final int MARK_DROP = 8;
     /** Off the End (a dragon summoned anywhere else has no pillars) the wardens come to a ring this wide round it. */
     public static final int RING_RADIUS = 6;
 
@@ -121,11 +135,17 @@ public final class DragonPhase3 {
     private static void enter(ServerLevel level, EnderDragon dragon) {
         dragon.addTag(TAG);
         dragon.playSound(ModSounds.DRAGON_CALL_WARDENS.get(), 16.0F, 1.0F);
-        for (BlockPos home : wardenHomes(level, dragon, wardenCount(DragonWrath.effective(level.getServer())))) {
+        // its own call: vanilla's growl an octave under its usual range, and the portal's boom, with a burst at its head
+        dragon.playSound(SoundEvents.ENDER_DRAGON_GROWL, 6.0F, 0.5F);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, true, true, dragon.head.getX(), dragon.head.getY(), dragon.head.getZ(), 120, 1.5, 1.5, 1.5, 0.3);
+        tell(level, dragon, Component.translatable("message.promisedend.dragon.call_wardens"));
+        for (BlockPos home : wardenHomes(level, dragon, wardenCount(DragonWrath.foughtAt(dragon, level.getServer())))) {
             CrystalWarden warden = ModEntities.CRYSTAL_WARDEN.get().create(level, EntitySpawnReason.EVENT);
             if (warden == null) continue;
             warden.snapTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5, level.getRandom().nextFloat() * 360.0F, 0.0F);
-            warden.setHome(home);
+            // a pillar moved by another mod's island could leave the home in terrain: up out of it, a few blocks at most
+            for (int up = 0; up < 6 && !level.noCollision(warden, warden.getBoundingBox()); up++) warden.snapTo(warden.getX(), warden.getY() + 1, warden.getZ());
+            warden.setHome(warden.blockPosition());
             warden.setDragon(dragon);
             warden.setPersistenceRequired();
             level.addFreshEntity(warden);
@@ -136,20 +156,18 @@ public final class DragonPhase3 {
     }
 
     /**
-     * Where the wardens hover: beside the tallest pillars, on the side facing the island's centre and a little under
-     * the top, so a player climbing to a crystal meets one. Off the End, a ring round the dragon.
+     * Where the wardens hover: beside the tallest pillars, on the side facing the island's centre, a few blocks over
+     * the ground there, where they see and beam a player fighting on the island. Off the End, a ring round the dragon.
      */
     public static List<BlockPos> wardenHomes(ServerLevel level, EnderDragon dragon, int count) {
         List<BlockPos> homes = new ArrayList<>();
         if (level.dimension() == Level.END) {
-            List<EndSpikeFeature.EndSpike> spikes = new ArrayList<>(EndSpikeFeature.getSpikesForLevel(level));
-            spikes.sort(Comparator.comparingInt(EndSpikeFeature.EndSpike::getHeight).reversed());
-            for (EndSpikeFeature.EndSpike spike : spikes.subList(0, Math.min(count, spikes.size()))) {
-                double length = Math.sqrt((double) spike.getCenterX() * spike.getCenterX() + (double) spike.getCenterZ() * spike.getCenterZ());
-                double ux = length < 1 ? 1 : -spike.getCenterX() / length, uz = length < 1 ? 0 : -spike.getCenterZ() / length;
-                int out = spike.getRadius() + HOME_OUT;
-                homes.add(new BlockPos(Mth.floor(spike.getCenterX() + ux * out), spike.getHeight() - HOME_DOWN, Mth.floor(spike.getCenterZ() + uz * out)));
-            }
+            List<Pillar> pillars = EndSpikeFeature.getSpikesForLevel(level).stream()
+                    .map(s -> new Pillar(s.getCenterX(), s.getCenterZ(), s.getRadius(), s.getHeight())).toList();
+            homes.addAll(pillarHomes(pillars, count, (x, z) -> {
+                int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                return top <= level.getMinY() ? Integer.MIN_VALUE : top;
+            }));
         } else {
             for (int i = 0; i < count; i++) {
                 double angle = Math.PI * 2 * i / count;
@@ -157,6 +175,37 @@ public final class DragonPhase3 {
             }
         }
         return homes;
+    }
+
+    /**
+     * Homes by the {@code count} tallest pillars: {@link #HOME_OUT} out from the side facing the origin, {@link #HOME_HOVER}
+     * over the first free block there ({@code groundAt}, or {@code Integer.MIN_VALUE} for the void), never higher than
+     * {@link #HOME_DOWN} under the pillar's top.
+     */
+    public static List<BlockPos> pillarHomes(List<Pillar> pillars, int count, java.util.function.IntBinaryOperator groundAt) {
+        List<Pillar> spikes = new ArrayList<>(pillars);
+        spikes.sort(Comparator.comparingInt(Pillar::height).reversed());
+        List<BlockPos> homes = new ArrayList<>();
+        for (Pillar spike : spikes.subList(0, Math.min(count, spikes.size()))) {
+            double length = Math.sqrt((double) spike.x() * spike.x() + (double) spike.z() * spike.z());
+            double ux = length < 1 ? 1 : -spike.x() / length, uz = length < 1 ? 0 : -spike.z() / length;
+            int out = spike.radius() + HOME_OUT;
+            int x = Mth.floor(spike.x() + ux * out), z = Mth.floor(spike.z() + uz * out);
+            int top = spike.height() - HOME_DOWN;
+            int ground = groundAt.applyAsInt(x, z);
+            homes.add(new BlockPos(x, ground == Integer.MIN_VALUE ? top : Math.min(ground + HOME_HOVER, top), z));
+        }
+        return homes;
+    }
+
+    /** An End pillar: its centre, radius and height (vanilla's spikes, as {@code EndSpikeFeature} lays them out). */
+    public record Pillar(int x, int z, int radius, int height) {}
+
+    /** A line on the action bar of each player within the dive's range of the dragon. */
+    private static void tell(ServerLevel level, EnderDragon dragon, Component line) {
+        for (var player : level.players()) {
+            if (player.distanceToSqr(dragon) < DIVE_RANGE * DIVE_RANGE) player.sendSystemMessage(line, true);
+        }
     }
 
     /** The fight's bar is purple while its dragon is in phase 3, and back to vanilla's pink for the next dragon. */
@@ -189,31 +238,59 @@ public final class DragonPhase3 {
                 } else if (canDive(dragon)) {
                     Player target = level.getNearestPlayer(dragon.getX(), dragon.getY(), dragon.getZ(), DIVE_RANGE,
                             e -> e instanceof Player p && e.isAlive() && !p.isSpectator() && !p.isCreative());
-                    if (target != null) startDive(level, dragon, target.position());
+                    Vec3 mark = target == null ? null : groundUnder(level, target.position());
+                    if (mark != null) startDive(level, dragon, mark);
+                    else if (target != null) dive.cooldown = 20; // over the void or high up: try again in a second
                 }
             }
             case TELEGRAPH -> {
                 if (dive.ticks % 3 == 0) ring(level, dive.mark, dive.ticks);
                 if (++dive.ticks >= TELEGRAPH_TICKS) {
+                    if (!canDive(dragon)) {
+                        // it began to perch or land during the telegraph: the breath lands without the charge, and the
+                        // player's melee window stays as vanilla made it
+                        dive.landed = "without a charge";
+                        land(level, dragon, dive);
+                        return;
+                    }
                     dive.stage = Stage.CHARGE;
-                    dive.ticks = 0;
                     dragon.getPhaseManager().setPhase(EnderDragonPhase.CHARGING_PLAYER);
                     dragon.getPhaseManager().getPhase(EnderDragonPhase.CHARGING_PLAYER).setTarget(dive.mark);
                 }
             }
             case CHARGE -> {
+                // the ring stays until the breath lands, so the danger is never invisible
+                if (dive.ticks % 3 == 0) ring(level, dive.mark, dive.ticks);
                 // it breathes down as it passes over the mark: vanilla's charge swoops low but seldom touches the ground
                 double dx = dragon.getX() - dive.mark.x, dz = dragon.getZ() - dive.mark.z;
                 boolean arrived = dx * dx + dz * dz < CHARGE_ARRIVAL * CHARGE_ARRIVAL && dragon.getY() - dive.mark.y < CHARGE_HEIGHT;
                 boolean turnedAway = dragon.getPhaseManager().getCurrentPhase().getPhase() != EnderDragonPhase.CHARGING_PLAYER;
-                if (arrived || turnedAway || ++dive.ticks >= CHARGE_TIMEOUT) {
+                if (arrived || turnedAway || ++dive.ticks >= TELEGRAPH_TICKS + CHARGE_TIMEOUT) {
                     dive.landed = arrived ? "arrived" : turnedAway ? "turned away" : "timed out";
-                    breathe(level, dragon, dive.mark);
-                    dive.stage = Stage.WAIT;
-                    dive.cooldown = DIVE_INTERVAL;
+                    land(level, dragon, dive);
                 }
             }
         }
+    }
+
+    /** The breath on the mark, a stream of it from the dragon's head down to it, and the clock set for the next dive. */
+    private static void land(ServerLevel level, EnderDragon dragon, Dive dive) {
+        Vec3 from = dragon.head.position();
+        PowerParticleOption breath = PowerParticleOption.create(ParticleTypes.DRAGON_BREATH, 1.0F);
+        for (int i = 0; i <= 24; i++) {
+            Vec3 at = from.lerp(dive.mark, i / 24.0);
+            level.sendParticles(breath, true, true, at.x, at.y, at.z, 2, 0.2, 0.2, 0.2, 0.01);
+            if (i % 3 == 0) level.sendParticles(ParticleTypes.REVERSE_PORTAL, true, true, at.x, at.y, at.z, 1, 0.1, 0.1, 0.1, 0.0);
+        }
+        breathe(level, dragon, dive.mark);
+        dive.stage = Stage.WAIT;
+        dive.cooldown = DIVE_INTERVAL;
+    }
+
+    /** The top of the ground under a spot (up to {@link #MARK_DROP} below it), or null where there is none. */
+    public static @Nullable Vec3 groundUnder(ServerLevel level, Vec3 at) {
+        BlockHitResult hit = level.clip(new ClipContext(at.add(0, 0.1, 0), at.subtract(0, MARK_DROP, 0), ClipContext.Block.COLLIDER, ClipContext.Fluid.ANY, CollisionContext.empty()));
+        return hit.getType() == HitResult.Type.MISS ? null : hit.getLocation();
     }
 
     /** Not while it perches, lands, takes off or dies, nor in the middle of a charge of its own. */
@@ -292,12 +369,17 @@ public final class DragonPhase3 {
     /** Each cloud of void breath hurts what stands in it once a second, the dragon and its constructs aside. */
     private static void tickBreath(ServerLevel level) {
         for (AreaEffectCloud cloud : level.getEntities(EntityTypes.AREA_EFFECT_CLOUD, c -> c.entityTags().contains(BREATH_TAG))) {
+            // its own look beside vanilla's breath: void motes rising out of it
+            if (cloud.tickCount % 4 == 0) level.sendParticles(ParticleTypes.REVERSE_PORTAL, cloud.getX(), cloud.getY() + 0.2, cloud.getZ(), 6,
+                    cloud.getRadius() * 0.5, 0.05, cloud.getRadius() * 0.5, 0.02);
             if (cloud.tickCount % 20 != 1) continue;
             DamageSource source = new DamageSource(level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(BREATH_DAMAGE_TYPE),
                     cloud, cloud.getOwner());
             double r2 = cloud.getRadius() * cloud.getRadius();
             for (LivingEntity victim : level.getEntitiesOfClass(LivingEntity.class, cloud.getBoundingBox().expandTowards(0, 2, 0),
-                    e -> e.isAlive() && !(e instanceof EnderDragon) && !e.is(ModTags.CONSTRUCTS))) {
+                    e -> e.isAlive() && !(e instanceof EnderDragon) && !e.is(ModTags.CONSTRUCTS)
+                            // on Peaceful the dragon's own breath and the Wardens don't hurt players, so neither does this
+                            && !(e instanceof Player && level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL))) {
                 double dx = victim.getX() - cloud.getX(), dz = victim.getZ() - cloud.getZ();
                 if (dx * dx + dz * dz <= r2) victim.hurtServer(level, source, BREATH_DAMAGE);
             }
