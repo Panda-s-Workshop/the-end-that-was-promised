@@ -8,6 +8,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -27,7 +28,7 @@ import net.minecraft.world.phys.Vec3;
  * coming down onto a vent, or beside it in its column, is safe from any height. Sneaking in the column sinks slowly
  * instead, the way down. Left alone: spectators, players flying in creative, anything without gravity (fireballs,
  * markers, displays), projectiles (an arrow or a pearl shot up a column would bob over it for ever), passengers,
- * things hung on blocks, and {@code #promisedend:updraft_ignores} (the dragon, end crystals). The column stops at the
+ * things hung on blocks, and {@code #promisedend:updraft_ignores} (the dragon, the wither, shulkers). The column stops at the
  * first block with a full collision box, looked for every second.
  */
 public class UpdraftVentBlockEntity extends BlockEntity {
@@ -39,6 +40,8 @@ public class UpdraftVentBlockEntity extends BlockEntity {
     /** The client's camera, and whether its particles are set to Minimal: set by the client's setup, null on a server. */
     public static Supplier<Vec3> camera = () -> null;
     public static BooleanSupplier minimalParticles = () -> false;
+    /** Whether this client has told its player, the first time a column took them this session, how to get down. */
+    private static boolean toldToSink;
 
     public UpdraftVentBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.UPDRAFT_VENT.get(), pos, state);
@@ -67,6 +70,10 @@ public class UpdraftVentBlockEntity extends BlockEntity {
                 // a player, or what one drives: their client moves it
                 if (level.isClientSide()) {
                     if (player.isLocalPlayer()) {
+                        if (!toldToSink) {
+                            player.sendOverlayMessage(Component.translatable("hint.promisedend.updraft_vent.sink"));
+                            toldToSink = true;
+                        }
                         if (player.isShiftKeyDown()) sinkOrLift(e, true, false);
                         else sinkOrLift(e, false, e == player && player.isFallFlying());
                     }
@@ -115,16 +122,20 @@ public class UpdraftVentBlockEntity extends BlockEntity {
         if (ancient && (far > Updraft.SEEN_ANCIENT * Updraft.SEEN_ANCIENT || minimalParticles.getAsBoolean())) return;
         var random = level.getRandom();
         double clear = Updraft.CLEAR_OF_CAMERA * Updraft.CLEAR_OF_CAMERA;
+        // a rider is on the column's axis, moving through the puffs: none within a few blocks over or under them
+        boolean riding = (cx - eye.x) * (cx - eye.x) + (cz - eye.z) * (cz - eye.z) < (Updraft.RADIUS + 0.5) * (Updraft.RADIUS + 0.5);
+        // forced only past the game's own 32, so up close the Decreased setting thins them as it does any particle
+        boolean force = ancient && far > Updraft.SEEN * Updraft.SEEN;
         int puffs = far > Updraft.SEEN * Updraft.SEEN ? 1 : Updraft.puffs(h);
         for (int i = 0; i < puffs; i++) {
             double a = random.nextDouble() * Math.PI * 2, r = Math.sqrt(random.nextDouble()) * Updraft.RADIUS * 0.8;
             double x = cx + Math.cos(a) * r, y = base + random.nextDouble() * h, z = cz + Math.sin(a) * r;
-            if (eye.distanceToSqr(x, y, z) < clear) continue;
-            level.addParticle(ParticleTypes.POOF, ancient, false, x, y, z, 0, 0.12 + random.nextDouble() * 0.1, 0);
+            if (eye.distanceToSqr(x, y, z) < clear || riding && Math.abs(y - eye.y) < Updraft.CLEAR_OF_RIDER) continue;
+            level.addParticle(ParticleTypes.POOF, force, false, x, y, z, 0, 0.12 + random.nextDouble() * 0.1, 0);
         }
         if (ancient) {
             double a = random.nextDouble() * Math.PI * 2, r = Math.sqrt(random.nextDouble()) * Updraft.RADIUS * 0.6;
-            level.addParticle(ParticleTypes.END_ROD, true, false, cx + Math.cos(a) * r, base + random.nextDouble() * h, cz + Math.sin(a) * r, 0, 0.2, 0);
+            level.addParticle(ParticleTypes.END_ROD, force, false, cx + Math.cos(a) * r, base + random.nextDouble() * h, cz + Math.sin(a) * r, 0, 0.2, 0);
         }
     }
 

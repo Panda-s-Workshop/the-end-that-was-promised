@@ -146,10 +146,12 @@ public final class ModBlocks {
             com.panda.promisedend.block.ResoniteClusterBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).forceSolidOn().noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(s -> 5).pushReaction(PushReaction.POPPED)), 1);
 
-    // ---- the Updraft Vent: the item places a crafted one (16 tall); the ancient ones (32) are found on the islands
+    // ---- the Updraft Vent: the item places a crafted one (16 tall); the ancient ones (32) are found on the islands.
+    // Landing on it is never a fall: the column clears the fall distance each tick, but a landing's last step comes in
+    // the player's move before the vent's tick
     public static final DeferredBlock<com.panda.promisedend.block.UpdraftVentBlock> UPDRAFT_VENT = withHint(BLOCKS.registerBlock("updraft_vent",
             com.panda.promisedend.block.UpdraftVentBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).strength(3.0F, 9.0F)
-                    .sound(SoundType.POLISHED_DEEPSLATE).requiresCorrectToolForDrops().lightLevel(s -> 4)), 3);
+                    .sound(SoundType.POLISHED_DEEPSLATE).requiresCorrectToolForDrops().lightLevel(s -> 4).fallDistanceReduction(1.0F)), 3);
 
     private ModBlocks() {}
 
