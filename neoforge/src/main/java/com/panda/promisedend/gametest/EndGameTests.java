@@ -100,13 +100,14 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_lifts_entity", () -> EndGameTests::updraftLiftsEntity);
         FUNCTIONS.register("updraft_vent_on_edges", () -> EndGameTests::updraftVentOnEdges);
         FUNCTIONS.register("updraft_keeps_player_aloft", () -> EndGameTests::updraftKeepsPlayerAloft);
+        FUNCTIONS.register("updraft_column_bounds", () -> EndGameTests::updraftColumnBounds);
         FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
             "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460,
-            "updraft_lifts_entity", 200);
+            "updraft_lifts_entity", 360, "updraft_column_bounds", 310);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -1208,8 +1209,9 @@ public final class EndGameTests {
 
     /**
      * The Updraft Vent, high in the test level's sky where nothing else stands, in chunks kept ticking: an armour stand
-     * on a crafted vent rises above its start within 40 ticks, never faster than 0.8 a tick, and an item there rises
-     * too; a stand on a platform 17 over a crafted vent (its column is 16) stays put; a roof 7 over a vent stops the
+     * on a crafted vent rises above its start within 40 ticks, its rise reaching the cap (0.7 a tick once its own
+     * gravity is off the vent's 0.8) within 9 ticks, never faster than 0.8 a tick, and an item there rises too; a stand
+     * on a platform 18 over a crafted vent's face (its column is 16) stays put; a roof 7 over a vent stops the
      * column at 6, and the stand under it never gets its head past the roof; a stand 20 over an ancient vent (32) rises.
      * The entities go in once every column is entity-ticking: a chunk just forced can take a few ticks to get there,
      * and an entity added before then doesn't move at all.
@@ -1232,14 +1234,15 @@ public final class EndGameTests {
         double[] fastest = {0};
         double[] highestHead = {0};
         int[] began = {-1};
-        for (int t = 1; t <= 190; t++) {
+        int[] capped = {-1};
+        for (int t = 1; t <= 340; t++) {
             int tick = t;
             helper.runAtTickTime(t, () -> {
                 if (began[0] < 0) {
                     if (!columns.stream().allMatch(level::isPositionEntityTicking)) {
-                        if (tick == 150) {
+                        if (tick == 300) {
                             release.run();
-                            helper.fail("the vents' chunks weren't entity-ticking by tick 150");
+                            helper.fail("the vents' chunks weren't entity-ticking by tick 300");
                         }
                         return;
                     }
@@ -1265,14 +1268,16 @@ public final class EndGameTests {
                 var d = made.get(3);
                 var e = made.get(4);
                 fastest[0] = Math.max(fastest[0], a.getDeltaMovement().y);
+                if (capped[0] < 0 && a.getDeltaMovement().y >= 0.7) capped[0] = tick - began[0];
                 highestHead[0] = Math.max(highestHead[0], c.getY() + c.getBbHeight());
                 if (tick != began[0] + 40) return;
-                PromisedEnd.LOGGER.info("[updraft_lifts_entity] from tick {}: rose {} (stand), {} (item), {} (20 over an ancient vent); the fastest {}; on the platform {}; under the roof the head reached {} (roof at {})",
-                        began[0], a.getY() - start[0], e.getY() - start[4], d.getY() - start[3], fastest[0], b.getY() - start[1], highestHead[0], roofed.getY() + 7);
+                PromisedEnd.LOGGER.info("[updraft_lifts_entity] from tick {}: rose {} (stand), {} (item), {} (20 over an ancient vent); at the cap after {} ticks, the fastest {}; on the platform {}; under the roof the head reached {} (roof at {})",
+                        began[0], a.getY() - start[0], e.getY() - start[4], d.getY() - start[3], capped[0], fastest[0], b.getY() - start[1], highestHead[0], roofed.getY() + 7);
                 if (a.getY() <= start[0] + 1) bad.add("a stand on a crafted vent rose only " + (a.getY() - start[0]) + " in 40 ticks");
                 if (fastest[0] > com.panda.promisedend.logic.Updraft.CAP + 1e-6) bad.add("a stand rose at " + fastest[0] + " a tick, over 0.8");
+                if (capped[0] < 0 || capped[0] > 9) bad.add("a stand on a crafted vent reached the cap after " + capped[0] + " ticks, not 9 or fewer");
                 if (e.getY() <= start[4] + 1) bad.add("an item on a crafted vent rose only " + (e.getY() - start[4]));
-                if (Math.abs(b.getY() - start[1]) > 0.01) bad.add("a stand 17 over a crafted vent moved " + (b.getY() - start[1]));
+                if (Math.abs(b.getY() - start[1]) > 0.01) bad.add("a stand 18 over a crafted vent moved " + (b.getY() - start[1]));
                 if (highestHead[0] > roofed.getY() + 7 + 1e-6) bad.add("under a roof 7 over the vent the stand's head reached " + highestHead[0]);
                 if (!(level.getBlockEntity(roofed) instanceof com.panda.promisedend.block.UpdraftVentBlockEntity vent) || vent.height() != 6)
                     bad.add("the roofed vent's column isn't 6: " + level.getBlockEntity(roofed));
@@ -1320,6 +1325,81 @@ public final class EndGameTests {
             if (!bad.isEmpty()) helper.fail("Lumen Lamp: " + bad);
             helper.succeed();
         });
+    }
+
+    /**
+     * The column's edges, one vent tick each on still armour stands: over a crafted vent's face 15.5 up is lifted and
+     * 16 isn't, 1.4 off the centre is and 1.6 isn't; over an ancient one 31.5 is and 32 isn't. A stand moving sideways
+     * keeps its sideways speed. An end crystal (no gravity) and a shulker (`#promisedend:updraft_ignores`) aren't moved.
+     */
+    private static void updraftColumnBounds(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        BlockPos crafted = new BlockPos(5200, level.getMaxY() - 100, 2800), ancient = crafted.offset(8, 0, 0);
+        Runnable release = forceAround(helper, crafted.offset(4, 0, 0), 12);
+        var craftedState = ModBlocks.UPDRAFT_VENT.get().defaultBlockState();
+        var ancientState = craftedState.setValue(com.panda.promisedend.block.UpdraftVentBlock.ANCIENT, true);
+        level.setBlock(crafted, craftedState, 3);
+        level.setBlock(ancient, ancientState, 3);
+        // where each one stands, over the vent's face, and whether the column should take it
+        record Spot(String name, BlockPos vent, double dx, double dy, boolean lifted) {}
+        List<Spot> spots = List.of(new Spot("15.5 over a crafted vent", crafted, 0, 15.5, true), new Spot("16 over a crafted vent", crafted, 0, 16, false),
+                new Spot("1.4 off a crafted vent", crafted, 1.4, 2, true), new Spot("1.6 off a crafted vent", crafted, 1.6, 2, false),
+                new Spot("31.5 over an ancient vent", ancient, 0, 31.5, true), new Spot("32 over an ancient vent", ancient, 0, 32, false));
+        boolean[] done = {false};
+        for (int t = 1; t <= 300; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (done[0]) return;
+                if (!level.isPositionEntityTicking(crafted.above()) || !level.isPositionEntityTicking(ancient.above())) {
+                    if (tick == 290) {
+                        release.run();
+                        helper.fail("the vents' chunks weren't entity-ticking by tick 290");
+                    }
+                    return;
+                }
+                done[0] = true;
+                List<net.minecraft.world.entity.Entity> made = new ArrayList<>();
+                List<net.minecraft.world.entity.decoration.ArmorStand> stands = new ArrayList<>();
+                for (Spot spot : spots) {
+                    var stand = new net.minecraft.world.entity.decoration.ArmorStand(level, spot.vent().getX() + 0.5 + spot.dx(), spot.vent().getY() + 1 + spot.dy(), spot.vent().getZ() + 0.5);
+                    level.addFreshEntity(stand);
+                    stands.add(stand);
+                    made.add(stand);
+                }
+                var sideways = new net.minecraft.world.entity.decoration.ArmorStand(level, crafted.getX() + 0.5, crafted.getY() + 5, crafted.getZ() + 0.5);
+                level.addFreshEntity(sideways);
+                made.add(sideways);
+                var crystal = new net.minecraft.world.entity.boss.enderdragon.EndCrystal(level, crafted.getX() + 0.5, crafted.getY() + 8, crafted.getZ() + 0.5);
+                level.addFreshEntity(crystal);
+                made.add(crystal);
+                var shulker = net.minecraft.world.entity.EntityTypes.SHULKER.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                shulker.snapTo(crafted.getX() + 0.5, crafted.getY() + 11, crafted.getZ() + 0.5, 0, 0);
+                level.addFreshEntity(shulker);
+                made.add(shulker);
+                for (var e : made) e.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+                sideways.setDeltaMovement(0.3, 0, 0.2);
+                for (BlockPos vent : List.of(crafted, ancient)) {
+                    com.panda.promisedend.block.UpdraftVentBlockEntity.tick(level, vent, level.getBlockState(vent), (com.panda.promisedend.block.UpdraftVentBlockEntity) level.getBlockEntity(vent));
+                }
+                for (int i = 0; i < spots.size(); i++) {
+                    double vy = stands.get(i).getDeltaMovement().y;
+                    if ((vy > 0.1) != spots.get(i).lifted()) bad.add(spots.get(i).name() + ": " + (spots.get(i).lifted() ? "not lifted" : "lifted") + " (vy " + vy + ")");
+                }
+                var v = sideways.getDeltaMovement();
+                if (v.y < 0.1 || Math.abs(v.x - 0.3) > 1e-9 || Math.abs(v.z - 0.2) > 1e-9) bad.add("a stand moving sideways came out at " + v);
+                if (crystal.getDeltaMovement().lengthSqr() > 0) bad.add("an end crystal was moved: " + crystal.getDeltaMovement());
+                if (shulker.getDeltaMovement().lengthSqr() > 0) bad.add("a shulker was moved: " + shulker.getDeltaMovement());
+                PromisedEnd.LOGGER.info("[updraft_column_bounds] stands {}; sideways {}; crystal {}; shulker {}",
+                        stands.stream().map(st -> String.format(java.util.Locale.ROOT, "%.3f", st.getDeltaMovement().y)).toList(), v, crystal.getDeltaMovement(), shulker.getDeltaMovement());
+                made.forEach(net.minecraft.world.entity.Entity::discard);
+                level.setBlock(crafted, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                level.setBlock(ancient, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                release.run();
+                if (!bad.isEmpty()) helper.fail("updraft bounds: " + bad);
+                helper.succeed();
+            });
+        }
     }
 
     /**
@@ -1380,19 +1460,22 @@ public final class EndGameTests {
         // r: the island's half width; ground: what it is made of; then what the feature should do
         record Island(String name, int r, net.minecraft.world.level.block.state.BlockState ground, boolean vent) {}
         List<Island> islands = List.of(new Island("an island 11 across", 5, endStone, true), new Island("a wide island", 14, endStone, false),
-                new Island("a lone pillar", 0, endStone, false), new Island("an obsidian island", 5, net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState(), false));
+                new Island("a lone pillar", 0, endStone, false), new Island("an obsidian island", 5, net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState(), false),
+                new Island("a domed island", 6, endStone, true));
         for (int n = 0; n < islands.size(); n++) {
             Island island = islands.get(n);
             BlockPos centre = new BlockPos(5200 + n * 64, y, 3600);
             floor(level, centre, island.r(), island.ground());
             floor(level, centre.below(), island.r(), island.ground());
+            // the dome: the middle 7 across a block higher, so the top slopes down a step to the rim
+            if (island.name().startsWith("a domed")) floor(level, centre.above(), 3, island.ground());
             boolean placed = feature.place(level, generator, net.minecraft.util.RandomSource.create(1300 + n), centre);
             var found = vents.apply(centre);
             PromisedEnd.LOGGER.info("[updraft_vent_on_edges] {}: placed {}, vents {}", island.name(), placed, found);
             if (placed != island.vent() || found.size() != (island.vent() ? 1 : 0)) bad.add(island.name() + ": placed " + placed + ", vents " + found);
             for (BlockPos p : found) {
                 if (!level.getBlockState(p).getValue(com.panda.promisedend.block.UpdraftVentBlock.ANCIENT)) bad.add("a crafted vent placed at " + p);
-                if (p.getY() != y - 1) bad.add("the vent isn't sunk into the top at " + p);
+                if (p.getY() != y - 1 && p.getY() != y) bad.add("the vent isn't sunk into the top at " + p);
                 if (Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())) < island.r() - 1) bad.add("the vent is more than 2 in from the edge at " + p);
                 for (int dy = 1; dy <= com.panda.promisedend.logic.Updraft.HEIGHT_ANCIENT; dy++) if (!level.getBlockState(p.above(dy)).isAir()) bad.add("the air over the vent is shut at " + p.above(dy));
                 if (!(level.getBlockEntity(p) instanceof com.panda.promisedend.block.UpdraftVentBlockEntity)) bad.add("the placed vent has no block entity at " + p);

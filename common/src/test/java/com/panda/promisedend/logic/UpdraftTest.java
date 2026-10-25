@@ -6,48 +6,77 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-/** The column lifts 0.12 a tick to 0.8, a glider 0.25 to 1.2, within 1.5 of the centre and under the column's top. */
+/**
+ * The column lifts 0.12 a tick to 0.8, a glider 0.25 to 1.2, within 1.5 of the centre and under the column's top. The
+ * game's order is simulated: an entity moves, takes its gravity and its drag (a mob's 0.08 and 0.98), and then the
+ * vent sets its speed for the next tick.
+ */
 class UpdraftTest {
+    private static final double GRAVITY = 0.08, DRAG = 0.98;
+
+    /** One tick for a mob in the column: its own tick, then the vent's. */
+    private static double tick(double vy, boolean gliding) {
+        return Updraft.lift((vy - GRAVITY) * DRAG, gliding, GRAVITY);
+    }
+
     @Test
     void anEntityRisesToTheCap() {
         double vy = 0;
         int ticks = 0;
         while (vy < Updraft.CAP) {
-            double next = Updraft.lift(vy, false);
-            assertTrue(next > vy, "tick " + ticks + " rose");
-            assertTrue(next - vy <= Updraft.LIFT + 1e-9, "tick " + ticks + " rose by at most 0.12");
+            double next = tick(vy, false);
+            assertTrue(next - vy > Updraft.LIFT - 0.02, "tick " + ticks + " rose by about 0.12, its gravity given back: " + (next - vy));
+            assertTrue(next - vy <= Updraft.LIFT + 0.002, "tick " + ticks + " rose by at most 0.12 (and the drag on the gravity given back)");
             vy = next;
             ticks++;
         }
         assertEquals(0.8, vy, 1e-9);
-        assertEquals(7, ticks, "from rest, the cap in 7 ticks (0.12 a tick, the last step short)");
-        assertEquals(0.8, Updraft.lift(vy, false), 1e-9, "held at the cap");
+        assertEquals(7, ticks, "from rest, the cap in 7 ticks (0.12 a tick less the drag, the last step short)");
+        assertEquals(0.8, tick(vy, false), 1e-9, "held at the cap");
+    }
+
+    @Test
+    void withoutGravityGivenBackItWouldTakeFarLonger() {
+        double vy = 0;
+        int ticks = 0;
+        while (vy < Updraft.CAP - 1e-9 && ticks < 100) {
+            vy = Updraft.lift((vy - GRAVITY) * DRAG, false, 0);
+            ticks++;
+        }
+        assertTrue(ticks > 15, "0.12 less gravity a tick reaches 0.8 only in " + ticks);
     }
 
     @Test
     void aFallIsTurnedRound() {
-        assertEquals(-0.88, Updraft.lift(-1.0, false), 1e-9);
         double vy = -1.0;
         int ticks = 0;
         while (vy <= 0) {
-            vy = Updraft.lift(vy, false);
+            vy = tick(vy, false);
             ticks++;
         }
-        assertEquals(9, ticks, "a fall at 1 a tick turns upward in 9 ticks");
+        assertEquals(8, ticks, "a fall at 1 a tick turns upward in 8 ticks");
     }
 
     @Test
     void aGliderRisesFasterToAHigherCap() {
-        assertEquals(0.25, Updraft.lift(0, true), 1e-9);
-        assertEquals(1.2, Updraft.lift(1.1, true), 1e-9);
-        assertEquals(1.2, Updraft.lift(1.2, true), 1e-9);
-        assertEquals(0.8, Updraft.lift(0.75, false), 1e-9, "not gliding: 0.8");
+        assertEquals(0.25, Updraft.lift(0, true, 0), 1e-9);
+        assertEquals(0.33, Updraft.lift(0, true, 0.08), 1e-9);
+        assertEquals(1.2, Updraft.lift(1.1, true, 0.08), 1e-9);
+        assertEquals(1.2, Updraft.lift(1.2, true, 0.08), 1e-9);
+        assertEquals(0.8, Updraft.lift(0.75, false, 0.08), 1e-9, "not gliding: 0.8");
     }
 
     @Test
     void aFasterRiseIsntSlowed() {
-        assertEquals(1.5, Updraft.lift(1.5, false), 1e-9);
-        assertEquals(2.0, Updraft.lift(2.0, true), 1e-9);
+        assertEquals(1.5, Updraft.lift(1.5, false, 0.08), 1e-9);
+        assertEquals(2.0, Updraft.lift(2.0, true, 0.08), 1e-9);
+    }
+
+    @Test
+    void particlesGrowWithTheColumn() {
+        assertEquals(2, Updraft.puffs(6));
+        assertEquals(2, Updraft.puffs(Updraft.HEIGHT_CRAFTED));
+        assertEquals(5, Updraft.puffs(Updraft.HEIGHT_ANCIENT));
     }
 
     @Test

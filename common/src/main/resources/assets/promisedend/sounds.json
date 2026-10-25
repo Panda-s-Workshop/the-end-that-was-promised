@@ -173,9 +173,9 @@
     "subtitle": "subtitles.promisedend.updraft_vent.wind",
     "sounds": [
       {
-        "name": "minecraft:item.elytra.flying",
+        "name": "minecraft:entity.breeze.idle_air",
         "type": "event",
-        "pitch": 0.7
+        "pitch": 0.8
       }
     ]
   }

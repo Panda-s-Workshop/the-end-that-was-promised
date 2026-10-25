@@ -34,6 +34,8 @@ public final class ModTags {
     public static final TagKey<Block> GATEWAY_FRAME_KEEP_OUT = TagKey.create(Registries.BLOCK, PromisedEnd.id("gateway_frame_keep_out"));
 
     /** The Ancients' constructs: they never turn on each other or on the dragon they guard. */
+    /** Entities an Updraft Vent's column leaves alone (the dragon, the wither, shulkers): UpdraftVentBlockEntity. */
+    public static final TagKey<EntityType<?>> UPDRAFT_IGNORES = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("updraft_ignores"));
     public static final TagKey<EntityType<?>> CONSTRUCTS = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("constructs"));
 
     private ModTags() {}

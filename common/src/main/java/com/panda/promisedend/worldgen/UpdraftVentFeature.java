@@ -6,7 +6,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.panda.promisedend.block.UpdraftVentBlock;
 import com.panda.promisedend.registry.ModBlocks;
 import com.panda.promisedend.registry.ModTags;
+import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -17,9 +19,11 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 
 /**
  * An ancient Updraft Vent on an island's edge, where it can carry a player off towards the next island. From the origin
- * it looks over the tops within {@code search} blocks, nearest first, for ground ({@code #promisedend:updraft_vent_ground})
- * with the void beside it within {@code edge} blocks and ground on at least two of its four sides (an edge, not a
- * lone spike), and sinks the vent into the top there. The void beside it means nothing within {@link #DROP} blocks
+ * it looks over the tops within {@code search} blocks, nearest first (in a random order within each ring), for ground
+ * ({@code #promisedend:updraft_vent_ground}) with the void beside it within {@code edge} blocks and ground on at least
+ * two of its four sides within a block of its height (an edge, sloped or not, but not a lone spike), and sinks the vent
+ * into the top there. {@code search} and {@code edge} together stay within 16, so it never reads past the chunks next
+ * to its own (worldgen can't). The void beside it means nothing within {@link #DROP} blocks
  * below the top. Nothing is built in a chunk a structure has claimed.
  */
 public record UpdraftVentFeature(int search, int edge) implements Feature {
@@ -27,7 +31,7 @@ public record UpdraftVentFeature(int search, int edge) implements Feature {
     public static final int DROP = 16;
 
     public static final MapCodec<UpdraftVentFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
-            Codec.intRange(0, 15).fieldOf("search").forGetter(UpdraftVentFeature::search),
+            Codec.intRange(0, 12).fieldOf("search").forGetter(UpdraftVentFeature::search),
             Codec.intRange(1, 4).fieldOf("edge").forGetter(UpdraftVentFeature::edge)
     ).apply(i, UpdraftVentFeature::new));
 
@@ -39,14 +43,16 @@ public record UpdraftVentFeature(int search, int edge) implements Feature {
     @Override
     public boolean place(WorldGenLevel level, ChunkGenerator generator, RandomSource random, BlockPos origin) {
         for (int r = 0; r <= search; r++) {
+            List<int[]> ring = new ArrayList<>();
             for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
-                    BlockPos top = top(level, origin.getX() + dx, origin.getZ() + dz);
-                    if (top == null || !edge(level, top) || StructureClaims.claimed(level, List.of(top))) continue;
-                    level.setBlock(top, ModBlocks.UPDRAFT_VENT.get().defaultBlockState().setValue(UpdraftVentBlock.ANCIENT, true), 2);
-                    return true;
-                }
+                for (int dz = -r; dz <= r; dz++) if (Math.max(Math.abs(dx), Math.abs(dz)) == r) ring.add(new int[] {dx, dz});
+            }
+            Util.shuffle(ring, random);
+            for (int[] d : ring) {
+                BlockPos top = top(level, origin.getX() + d[0], origin.getZ() + d[1]);
+                if (top == null || !edge(level, top) || StructureClaims.claimed(level, List.of(top))) continue;
+                level.setBlock(top, ModBlocks.UPDRAFT_VENT.get().defaultBlockState().setValue(UpdraftVentBlock.ANCIENT, true), 2);
+                return true;
             }
         }
         return false;
@@ -60,12 +66,12 @@ public record UpdraftVentFeature(int search, int edge) implements Feature {
         return level.getBlockState(at).is(ModTags.UPDRAFT_VENT_GROUND) ? at : null;
     }
 
-    /** Ground level with the top on two of its four sides at least, and the void within {@code edge} of it. */
+    /** Ground within a block of the top's height on two of its four sides at least, and the void within {@code edge} of it. */
     private boolean edge(WorldGenLevel level, BlockPos top) {
         int ground = 0;
         for (Direction d : Direction.Plane.HORIZONTAL) {
             BlockPos side = top.relative(d);
-            if (level.getHeight(Heightmap.Types.MOTION_BLOCKING, side.getX(), side.getZ()) - 1 == top.getY()) ground++;
+            if (Math.abs(level.getHeight(Heightmap.Types.MOTION_BLOCKING, side.getX(), side.getZ()) - 1 - top.getY()) <= 1) ground++;
         }
         if (ground < 2) return false;
         for (int dx = -edge; dx <= edge; dx++) {
