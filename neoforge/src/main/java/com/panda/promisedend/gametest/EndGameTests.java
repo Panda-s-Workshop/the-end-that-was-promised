@@ -1217,6 +1217,17 @@ public final class EndGameTests {
             if (stack.getMaxDamage() != tier.durability()) bad.add(h.getId() + " lasts " + stack.getMaxDamage() + ", not " + tier.durability());
             if (!stack.isValidRepairItem(ingot)) bad.add("the ingot doesn't repair " + h.getId());
         }
+        var stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+        var pick = new ItemStack(ModItems.RESONITE_PICKAXE.get());
+        if (Math.abs(pick.getDestroySpeed(stone) - tier.speed()) > 1e-4) bad.add("the pickaxe mines stone at " + pick.getDestroySpeed(stone) + ", not " + tier.speed());
+        java.util.function.BiConsumer<net.minecraft.world.item.Item, Integer> enchantable = (item, want) -> {
+            var ench = new ItemStack(item).get(net.minecraft.core.component.DataComponents.ENCHANTABLE);
+            if (ench == null || ench.value() != want) bad.add(item + " has enchantability " + ench + ", not " + want);
+        };
+        for (var h : List.of(ModItems.RESONITE_SWORD, ModItems.RESONITE_SHOVEL, ModItems.RESONITE_PICKAXE, ModItems.RESONITE_AXE, ModItems.RESONITE_HOE))
+            enchantable.accept(h.get(), tier.enchantability());
+        for (var h : List.of(ModItems.RESONITE_HELMET, ModItems.RESONITE_CHESTPLATE, ModItems.RESONITE_LEGGINGS, ModItems.RESONITE_BOOTS))
+            enchantable.accept(h.get(), com.panda.promisedend.logic.GearTiers.RESONITE_ARMOUR.enchantability());
         var sword = new ItemStack(ModItems.RESONITE_SWORD.get());
         double[] damage = {1.0};   // the player's fist
         sword.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (attribute, modifier) -> {
@@ -1271,7 +1282,7 @@ public final class EndGameTests {
 
     /**
      * Stripping chorus timber sheds Chorus Resin half the time: a survival player's axe strips 400 chorus logs and wood
-     * (in turn), and 160-240 resin come out (4 standard deviations round 200: a chance run fails about 1 in 16000), each popped onto the stripped block.
+     * (in turn), and 160-240 resin come out (4 standard deviations round 200: by chance about 1 in 20000), each popped onto the stripped block.
      * Stripped timber set any other way sheds none: over air, over stripped timber, over end stone (a command or a
      * player's placing). In a standing trunk (a log over the stripped one) the resin comes out of the open side
      * towards the player, never inside a block.
@@ -1331,7 +1342,8 @@ public final class EndGameTests {
         watcher.discard();
         // set any other way: nothing
         int other = 0;
-        for (var under : List.of(net.minecraft.world.level.block.Blocks.AIR, ModBlocks.STRIPPED_CHORUS_LOG.get(), net.minecraft.world.level.block.Blocks.END_STONE)) {
+        // over stripped wood, not the stripped log itself: setting a block over its own state is no change, and no onPlace
+        for (var under : List.of(net.minecraft.world.level.block.Blocks.AIR, ModBlocks.STRIPPED_CHORUS_WOOD.get(), net.minecraft.world.level.block.Blocks.END_STONE)) {
             for (int i = 0; i < 40; i++) {
                 level.setBlock(at, under.defaultBlockState(), 3);
                 level.setBlock(at, ModBlocks.STRIPPED_CHORUS_LOG.get().defaultBlockState(), 3);

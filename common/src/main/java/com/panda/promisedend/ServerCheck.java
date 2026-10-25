@@ -94,7 +94,7 @@ public final class ServerCheck {
             end.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
             if (!now.is(pair.get(1)) || now.getValue(axis) != net.minecraft.core.Direction.Axis.Z) return "an axe on " + pair.get(0) + " left " + now;
         }
-        // 40 strips shed resin (one in two: 8 or fewer by chance about 1 run in 20000)
+        // 40 strips shed resin (one in two: 8 or fewer by chance about 1 run in 11000)
         var box = new net.minecraft.world.phys.AABB(at).inflate(3);
         for (var e : end.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box)) e.discard();
         for (int i = 0; i < 40; i++) {
