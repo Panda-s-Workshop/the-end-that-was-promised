@@ -149,7 +149,7 @@ public final class ModBlocks {
     // ---- the Updraft Vent: the item places a crafted one (16 tall); the ancient ones (32) are found on the islands
     public static final DeferredBlock<com.panda.promisedend.block.UpdraftVentBlock> UPDRAFT_VENT = withHint(BLOCKS.registerBlock("updraft_vent",
             com.panda.promisedend.block.UpdraftVentBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).strength(3.0F, 9.0F)
-                    .sound(SoundType.POLISHED_DEEPSLATE).requiresCorrectToolForDrops().lightLevel(s -> 4)), 2);
+                    .sound(SoundType.POLISHED_DEEPSLATE).requiresCorrectToolForDrops().lightLevel(s -> 4)), 3);
 
     private ModBlocks() {}
 

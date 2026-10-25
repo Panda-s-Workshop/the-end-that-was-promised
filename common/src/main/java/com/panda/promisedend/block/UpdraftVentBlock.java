@@ -58,6 +58,8 @@ public class UpdraftVentBlock extends Block implements EntityBlock {
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         if (random.nextInt(WIND_ONE_IN) != 0) return;
+        // a full block on the vent shuts its column: no air, no wind
+        if (!(level.getBlockEntity(pos) instanceof UpdraftVentBlockEntity vent) || vent.height() == 0) return;
         level.playLocalSound(pos, ModSounds.UPDRAFT_WIND.get(), SoundSource.BLOCKS, 0.35F, 0.8F + random.nextFloat() * 0.3F, false);
     }
 }

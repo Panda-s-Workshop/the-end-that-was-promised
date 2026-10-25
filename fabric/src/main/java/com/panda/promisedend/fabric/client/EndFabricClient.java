@@ -17,5 +17,6 @@ public final class EndFabricClient implements ClientModInitializer {
             }
         });
         com.panda.promisedend.PromisedEnd.openCodex = () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen());
+        com.panda.promisedend.client.UpdraftView.install();
     }
 }

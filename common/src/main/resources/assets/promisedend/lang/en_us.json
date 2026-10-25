@@ -172,6 +172,7 @@
   "tooltip.promisedend.resonite_shard.1": "A cluster that breaks rings out, and Endermen come",
   "tooltip.promisedend.updraft_vent.0": "Air rises over it, 16 blocks up",
   "tooltip.promisedend.updraft_vent.1": "and lifts whatever is in the column",
+  "tooltip.promisedend.updraft_vent.2": "Sneak in it to sink",
   "tooltip.promisedend.void_anchor.0": "Catches you if you fall into the void",
   "tooltip.promisedend.void_anchor.1": "Once, then it cracks"
 }

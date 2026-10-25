@@ -1208,26 +1208,28 @@ public final class EndGameTests {
     }
 
     /**
-     * The Updraft Vent, high in the test level's sky where nothing else stands, in chunks kept ticking: an armour stand
-     * on a crafted vent rises above its start within 40 ticks, its rise reaching the cap (0.7 a tick once its own
+     * The Updraft Vent, in the arena, whose chunks already tick, with its barrier roof opened over each vent but the
+     * roofed one (put back after): an armour stand on a crafted vent rises above its start within 40 ticks, its rise reaching the cap (0.7 a tick once its own
      * gravity is off the vent's 0.8) within 9 ticks, never faster than 0.8 a tick, and an item there rises too; a stand
      * on a platform 18 over a crafted vent's face (its column is 16) stays put; a roof 7 over a vent stops the
      * column at 6, and the stand under it never gets its head past the roof; a stand 20 over an ancient vent (32) rises.
-     * The entities go in once every column is entity-ticking: a chunk just forced can take a few ticks to get there,
-     * and an entity added before then doesn't move at all.
+     * (In the test level's far sky the forced chunks took from 3 to over 300 ticks to tick entities, and an entity added
+     * before then doesn't move at all.)
      */
     private static void updraftLiftsEntity(GameTestHelper helper) {
         var level = helper.getLevel();
         List<String> bad = new ArrayList<>();
-        BlockPos origin = new BlockPos(5200, level.getMaxY() - 100, 3200);
-        Runnable release = forceAround(helper, origin.offset(16, 0, 0), 24);
         var crafted = ModBlocks.UPDRAFT_VENT.get().defaultBlockState();
         var ancient = crafted.setValue(com.panda.promisedend.block.UpdraftVentBlock.ANCIENT, true);
-        BlockPos onVent = origin, platformed = origin.offset(8, 0, 0), roofed = origin.offset(16, 0, 0), deep = origin.offset(24, 0, 0), item = origin.offset(32, 0, 0);
+        // columns 4 apart (each reaches 1.5 out); the arena's roof is 7 over the floor, so it is the roofed vent's roof
+        BlockPos onVent = helper.absolutePos(new BlockPos(2, 1, 2)), platformed = helper.absolutePos(new BlockPos(6, 1, 2)),
+                roofed = helper.absolutePos(new BlockPos(10, 1, 2)), deep = helper.absolutePos(new BlockPos(2, 1, 8)), item = helper.absolutePos(new BlockPos(6, 1, 8));
+        java.util.Map<BlockPos, net.minecraft.world.level.block.state.BlockState> roof = new java.util.HashMap<>();
+        for (BlockPos vent : List.of(onVent, platformed, deep, item)) openSky(level, vent, 40, roof, bad);
+        if (!level.getBlockState(roofed.above(7)).isCollisionShapeFullBlock(level, roofed.above(7))) bad.add("no roof 7 over the roofed vent: " + level.getBlockState(roofed.above(7)));
         for (BlockPos p : List.of(onVent, platformed, roofed, item)) level.setBlock(p, crafted, 3);
         level.setBlock(deep, ancient, 3);
         level.setBlock(platformed.above(18), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
-        level.setBlock(roofed.above(7), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
         List<BlockPos> columns = List.of(onVent.above(), platformed.above(19), roofed.above(), deep.above(21), item.above());
         List<net.minecraft.world.entity.Entity> made = new ArrayList<>();
         double[] start = new double[5];
@@ -1240,10 +1242,7 @@ public final class EndGameTests {
             helper.runAtTickTime(t, () -> {
                 if (began[0] < 0) {
                     if (!columns.stream().allMatch(level::isPositionEntityTicking)) {
-                        if (tick == 300) {
-                            release.run();
-                            helper.fail("the vents' chunks weren't entity-ticking by tick 300");
-                        }
+                        if (tick == 300) helper.fail("the vents' chunks weren't entity-ticking by tick 300");
                         return;
                     }
                     began[0] = tick;
@@ -1283,9 +1282,9 @@ public final class EndGameTests {
                     bad.add("the roofed vent's column isn't 6: " + level.getBlockEntity(roofed));
                 if (d.getY() <= start[3] + 1) bad.add("a stand 20 over an ancient vent rose only " + (d.getY() - start[3]));
                 made.forEach(net.minecraft.world.entity.Entity::discard);
-                for (BlockPos p : List.of(onVent, platformed, roofed, deep, item, platformed.above(18), roofed.above(7)))
+                for (BlockPos p : List.of(onVent, platformed, roofed, deep, item, platformed.above(18)))
                     level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
-                release.run();
+                roof.forEach((pos, state) -> level.setBlock(pos, state, 3));
                 if (!bad.isEmpty()) helper.fail("updraft: " + bad);
                 helper.succeed();
             });
@@ -1339,15 +1338,7 @@ public final class EndGameTests {
         // ceiling over each (put back after) so the sky over them is open
         BlockPos crafted = helper.absolutePos(new BlockPos(2, 1, 2)), ancient = helper.absolutePos(new BlockPos(9, 1, 9));
         java.util.Map<BlockPos, net.minecraft.world.level.block.state.BlockState> roof = new java.util.HashMap<>();
-        for (BlockPos vent : List.of(crafted, ancient)) {
-            for (int dy = 1; dy <= 40; dy++) {
-                var over = level.getBlockState(vent.above(dy));
-                if (over.isAir()) continue;
-                if (!over.is(net.minecraft.world.level.block.Blocks.BARRIER)) bad.add("over a vent at " + dy + ": " + over);
-                roof.put(vent.above(dy), over);
-                level.setBlock(vent.above(dy), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
-            }
-        }
+        for (BlockPos vent : List.of(crafted, ancient)) openSky(level, vent, 40, roof, bad);
         var craftedState = ModBlocks.UPDRAFT_VENT.get().defaultBlockState();
         var ancientState = craftedState.setValue(com.panda.promisedend.block.UpdraftVentBlock.ANCIENT, true);
         level.setBlock(crafted, craftedState, 3);
@@ -1375,6 +1366,15 @@ public final class EndGameTests {
         shulker.snapTo(crafted.getX() + 0.5, crafted.getY() + 11, crafted.getZ() + 0.5, 0, 0);
         level.addFreshEntity(shulker);
         made.add(shulker);
+        // projectiles: one shot up a column would bob over it for ever (an arrow never lands, a pearl keeps its chunk loaded)
+        List<net.minecraft.world.entity.Entity> shot = new ArrayList<>();
+        for (var type : List.<net.minecraft.world.entity.EntityType<?>>of(net.minecraft.world.entity.EntityTypes.ARROW, net.minecraft.world.entity.EntityTypes.ENDER_PEARL)) {
+            var p = type.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+            p.snapTo(crafted.getX() + 0.5, crafted.getY() + 3 + shot.size() * 10, crafted.getZ() + 0.5, 0, 0);
+            level.addFreshEntity(p);
+            shot.add(p);
+            made.add(p);
+        }
         for (var e : made) e.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         sideways.setDeltaMovement(0.3, 0, 0.2);
         for (BlockPos vent : List.of(crafted, ancient)) {
@@ -1388,6 +1388,7 @@ public final class EndGameTests {
         if (v.y < 0.1 || Math.abs(v.x - 0.3) > 1e-9 || Math.abs(v.z - 0.2) > 1e-9) bad.add("a stand moving sideways came out at " + v);
         if (crystal.getDeltaMovement().lengthSqr() > 0) bad.add("an end crystal was moved: " + crystal.getDeltaMovement());
         if (shulker.getDeltaMovement().lengthSqr() > 0) bad.add("a shulker was moved: " + shulker.getDeltaMovement());
+        for (var p : shot) if (p.getDeltaMovement().lengthSqr() > 0) bad.add(p.getType() + " was moved: " + p.getDeltaMovement());
         PromisedEnd.LOGGER.info("[updraft_column_bounds] columns {} and {}; stands {}; sideways {}; crystal {}; shulker {}",
                 ((com.panda.promisedend.block.UpdraftVentBlockEntity) level.getBlockEntity(crafted)).height(), ((com.panda.promisedend.block.UpdraftVentBlockEntity) level.getBlockEntity(ancient)).height(),
                 stands.stream().map(st -> String.format(java.util.Locale.ROOT, "%.3f", st.getDeltaMovement().y)).toList(), v, crystal.getDeltaMovement(), shulker.getDeltaMovement());
@@ -1437,7 +1438,9 @@ public final class EndGameTests {
 
     /**
      * The vent feature, high in the test level's sky: on an island 11 across it sinks one ancient vent into the top,
-     * within 2 of the edge, with the air open over it for the whole column; from the middle of one 29 across, with no
+     * within 2 of the edge, with the air open over it for the whole column; on a domed one whose top falls a block
+     * every ring out from its middle, so no spot near its edge has a side at its own height (sides within a block
+     * count), one too; from the middle of one 29 across, with no
      * edge in reach, nothing; on a lone pillar (no ground beside it), on obsidian (not vent ground) and in a chunk an
      * End City has claimed, nothing (the same island unclaimed gets one).
      */
@@ -1451,7 +1454,7 @@ public final class EndGameTests {
         int y = level.getMaxY() - 140;
         java.util.function.Function<BlockPos, List<BlockPos>> vents = centre -> {
             List<BlockPos> found = new ArrayList<>();
-            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -3, -16), centre.offset(16, 3, 16))) if (level.getBlockState(p).is(vent)) found.add(p.immutable());
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -12, -16), centre.offset(16, 3, 16))) if (level.getBlockState(p).is(vent)) found.add(p.immutable());
             return found;
         };
         // r: the island's half width; ground: what it is made of; then what the feature should do
@@ -1462,22 +1465,39 @@ public final class EndGameTests {
         for (int n = 0; n < islands.size(); n++) {
             Island island = islands.get(n);
             BlockPos centre = new BlockPos(5200 + n * 64, y, 3600);
-            floor(level, centre, island.r(), island.ground());
-            floor(level, centre.below(), island.r(), island.ground());
-            // the dome: the middle 7 across a block higher, so the top slopes down a step to the rim
-            if (island.name().startsWith("a domed")) floor(level, centre.above(), 3, island.ground());
+            boolean dome = island.name().startsWith("a domed");
+            if (dome) {
+                diamond(level, centre, island.r(), island.ground());
+            } else {
+                floor(level, centre, island.r(), island.ground());
+                floor(level, centre.below(), island.r(), island.ground());
+            }
             boolean placed = feature.place(level, generator, net.minecraft.util.RandomSource.create(1300 + n), centre);
             var found = vents.apply(centre);
             PromisedEnd.LOGGER.info("[updraft_vent_on_edges] {}: placed {}, vents {}", island.name(), placed, found);
             if (placed != island.vent() || found.size() != (island.vent() ? 1 : 0)) bad.add(island.name() + ": placed " + placed + ", vents " + found);
             for (BlockPos p : found) {
                 if (!level.getBlockState(p).getValue(com.panda.promisedend.block.UpdraftVentBlock.ANCIENT)) bad.add("a crafted vent placed at " + p);
-                if (p.getY() != y - 1 && p.getY() != y) bad.add("the vent isn't sunk into the top at " + p);
-                if (Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())) < island.r() - 1) bad.add("the vent is more than 2 in from the edge at " + p);
+                int ax = Math.abs(p.getX() - centre.getX()), az = Math.abs(p.getZ() - centre.getZ());
+                // the top under the spot: the flat islands' y - 1; on the dome, a block lower each ring past the middle's
+                int top = dome ? y - 1 - Math.max(0, ax + az - DOME_FLAT) : y - 1;
+                if (p.getY() != top && p.getY() != top + 1) bad.add("the vent isn't sunk into the top at " + p + " (the top is " + top + ")");
+                // in from the edge: a ring for the square islands; on the dome's diamond, a diagonal step crosses two rings
+                int inward = dome ? island.r() * 2 - (ax + az) : island.r() - Math.max(ax, az);
+                if (inward > (dome ? 3 : 1)) bad.add("the vent is more than 2 in from the edge at " + p);
+                if (dome) {
+                    int level0 = 0;
+                    for (var d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                        BlockPos side = p.relative(d);
+                        if (level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, side.getX(), side.getZ()) - 1 == top) level0++;
+                    }
+                    if (level0 >= 2) bad.add("the dome's spot at " + p + " has " + level0 + " sides at its own height, so it doesn't test the rule");
+                }
                 for (int dy = 1; dy <= com.panda.promisedend.logic.Updraft.HEIGHT_ANCIENT; dy++) if (!level.getBlockState(p.above(dy)).isAir()) bad.add("the air over the vent is shut at " + p.above(dy));
                 if (!(level.getBlockEntity(p) instanceof com.panda.promisedend.block.UpdraftVentBlockEntity)) bad.add("the placed vent has no block entity at " + p);
             }
             clear(level, centre);
+            if (dome) for (BlockPos q : BlockPos.betweenClosed(centre.offset(-12, -12, -12), centre.offset(12, -3, 12))) level.setBlock(q, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
         }
         // an End City's claim on the chunks under the island (it straddles two): nothing (the same island unclaimed gets a vent)
         {
@@ -1767,6 +1787,40 @@ public final class EndGameTests {
     private static net.minecraft.world.level.levelgen.feature.Feature grove(net.minecraft.server.level.ServerLevel level, String name) {
         return level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE)
                 .getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name))).value().feature().value();
+    }
+
+    /**
+     * Opens the arena's barrier roof over {@code vent}, {@code up} blocks, keeping what it took in {@code roof} to be put
+     * back; anything there but a barrier is a fault in the test.
+     */
+    private static void openSky(net.minecraft.server.level.ServerLevel level, BlockPos vent, int up, java.util.Map<BlockPos, net.minecraft.world.level.block.state.BlockState> roof, List<String> bad) {
+        for (int dy = 1; dy <= up; dy++) {
+            var over = level.getBlockState(vent.above(dy));
+            if (over.isAir()) continue;
+            if (!over.is(net.minecraft.world.level.block.Blocks.BARRIER)) bad.add("over a vent at " + dy + ": " + over);
+            roof.put(vent.above(dy), over);
+            level.setBlock(vent.above(dy), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        }
+    }
+
+    /** The dome's middle is flat out to this many rings. */
+    private static final int DOME_FLAT = 4;
+
+    /**
+     * A domed island: a diamond {@code r * 2} rings out, two blocks thick, its top at y - 1 out to ring 4 and a block
+     * lower each ring after, so near its edge every column has its neighbours a block over and under it.
+     */
+    private static void diamond(net.minecraft.server.level.ServerLevel level, BlockPos centre, int r, net.minecraft.world.level.block.state.BlockState state) {
+        int reach = r * 2;
+        for (int dx = -reach; dx <= reach; dx++) {
+            for (int dz = -reach; dz <= reach; dz++) {
+                int ring = Math.abs(dx) + Math.abs(dz);
+                if (ring > reach) continue;
+                int top = centre.getY() - 1 - Math.max(0, ring - DOME_FLAT);
+                level.setBlock(centre.offset(dx, top - centre.getY(), dz), state, 2);
+                level.setBlock(centre.offset(dx, top - centre.getY() - 1, dz), state, 2);
+            }
+        }
     }
 
     private static void floor(net.minecraft.server.level.ServerLevel level, BlockPos centre, int r, net.minecraft.world.level.block.state.BlockState state) {

@@ -73,10 +73,23 @@ class UpdraftTest {
     }
 
     @Test
+    void theGravityGivenBackIsWhatTheTickTook() {
+        assertEquals(0.08, Updraft.taken(0.08, false, false, false, false, 0), 1e-9, "a mob rising");
+        assertEquals(0.08, Updraft.taken(0.08, false, true, false, false, 0), 1e-9, "Slow Falling while rising takes the whole gravity");
+        assertEquals(0.01, Updraft.taken(0.08, true, true, false, false, 0), 1e-9, "Slow Falling while falling takes 0.01");
+        assertEquals(0, Updraft.taken(0.08, true, false, true, false, 0), 1e-9, "in water, none given back");
+        assertEquals(0.02, Updraft.taken(0.08, false, false, false, true, 0), 1e-9, "a level glider takes a quarter");
+        assertEquals(0.08, Updraft.taken(0.08, false, false, false, true, 90), 1e-9, "a glider diving straight down takes all of it");
+        // under Slow Falling, coming down into a column: each tick turns by 0.12, not 0.19
+        double vy = -0.2, next = Updraft.lift((vy - 0.01) * DRAG, false, Updraft.taken(GRAVITY, true, true, false, false, 0));
+        assertTrue(next - vy <= Updraft.LIFT + 0.01, "slow falling rose by " + (next - vy));
+    }
+
+    @Test
     void particlesGrowWithTheColumn() {
-        assertEquals(2, Updraft.puffs(6));
-        assertEquals(2, Updraft.puffs(Updraft.HEIGHT_CRAFTED));
-        assertEquals(5, Updraft.puffs(Updraft.HEIGHT_ANCIENT));
+        assertEquals(3, Updraft.puffs(6));
+        assertEquals(3, Updraft.puffs(Updraft.HEIGHT_CRAFTED));
+        assertEquals(6, Updraft.puffs(Updraft.HEIGHT_ANCIENT));
     }
 
     @Test

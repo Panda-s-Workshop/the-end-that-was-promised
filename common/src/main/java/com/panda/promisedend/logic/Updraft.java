@@ -19,8 +19,16 @@ public final class Updraft {
     public static final double SINK = -0.15;
     /** Particles go up every this many ticks. */
     public static final int PARTICLES_EVERY = 4;
-    /** One puff a burst for every this many blocks of column, at least two. */
-    public static final int BLOCKS_A_PUFF = 6;
+    /** One puff a burst for every this many blocks of column, at least three. */
+    public static final int BLOCKS_A_PUFF = 5;
+    /**
+     * How far off an ancient column's particles are drawn; a crafted one's, as most particles, to 32. Past 32 an
+     * ancient column sends up one puff a burst and its spark, which is enough to find it by and keeps a field of them
+     * light.
+     */
+    public static final double SEEN_ANCIENT = 96, SEEN = 32;
+    /** No puff goes up within this of the camera, so a rider sees the column round them, not a cloud in their face. */
+    public static final double CLEAR_OF_CAMERA = 2;
 
     private Updraft() {}
 
@@ -34,9 +42,22 @@ public final class Updraft {
         return Math.min(vy + gravity + (gliding ? GLIDE_LIFT : LIFT), cap);
     }
 
+    /**
+     * The gravity an entity's own tick took off its rise, which the lift gives back: its gravity, but at most 0.01
+     * falling under Slow Falling; none in water or lava, whose own pull differs (the lift there is 0.12 less it); and a
+     * glider's share at {@code pitch} degrees, 1 - 0.75 cos² of it, as an elytra takes.
+     */
+    public static double taken(double gravity, boolean falling, boolean slowFalling, boolean inFluid, boolean gliding, float pitch) {
+        if (inFluid) return 0;
+        double g = falling && slowFalling ? Math.min(gravity, 0.01) : gravity;
+        if (!gliding) return g;
+        double cos = Math.cos(Math.toRadians(pitch));
+        return g * (1 - 0.75 * cos * cos);
+    }
+
     /** Puffs a burst for a column {@code height} tall. */
     public static int puffs(int height) {
-        return Math.max(2, height / BLOCKS_A_PUFF);
+        return Math.max(3, height / BLOCKS_A_PUFF);
     }
 
     /**
