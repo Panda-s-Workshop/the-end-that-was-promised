@@ -101,6 +101,7 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_vent_on_edges", () -> EndGameTests::updraftVentOnEdges);
         FUNCTIONS.register("updraft_keeps_player_aloft", () -> EndGameTests::updraftKeepsPlayerAloft);
         FUNCTIONS.register("updraft_column_bounds", () -> EndGameTests::updraftColumnBounds);
+        FUNCTIONS.register("updraft_landing_safe", () -> EndGameTests::updraftLandingSafe);
         FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
     }
 
@@ -1790,6 +1791,34 @@ public final class EndGameTests {
     }
 
     /**
+     * Landing on a vent is never a fall: its block takes the whole fall distance (a landing's last step comes in the
+     * entity's move, before the column's tick clears it). A pig landing from 6.3 on end stone beside it is hurt.
+     */
+    private static void updraftLandingSafe(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        BlockPos vent = helper.absolutePos(new BlockPos(3, 1, 3)), stone = helper.absolutePos(new BlockPos(7, 1, 3));
+        level.setBlock(vent, ModBlocks.UPDRAFT_VENT.get().defaultBlockState(), 3);
+        level.setBlock(stone, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
+        for (BlockPos at : List.of(vent, stone)) {
+            var player = net.minecraft.world.entity.EntityTypes.PIG.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+            level.addFreshEntity(player);
+            player.snapTo(at.getX() + 0.5, at.getY() + 1, at.getZ() + 0.5, 0, 0);
+            float before = player.getHealth();
+            level.getBlockState(at).getBlock().fallOn(level, level.getBlockState(at), at, player, 6.3);
+            float lost = before - player.getHealth();
+            PromisedEnd.LOGGER.info("[updraft_landing_safe] a fall of 6.3 onto {}: lost {}", level.getBlockState(at).getBlock(), lost);
+            if (at.equals(vent) && lost > 0) bad.add("landing on a vent hurt " + lost);
+            if (at.equals(stone) && lost <= 0) bad.add("landing on end stone didn't hurt, so this can't tell");
+            player.discard();
+        }
+        level.setBlock(vent, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        level.setBlock(stone, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        if (!bad.isEmpty()) helper.fail("updraft landing: " + bad);
+        helper.succeed();
+    }
+
+    /**
      * Opens the arena's barrier roof over {@code vent}, {@code up} blocks, keeping what it took in {@code roof} to be put
      * back; anything there but a barrier is a fault in the test.
      */
@@ -3398,11 +3427,16 @@ public final class EndGameTests {
         var wantShapes = java.util.EnumSet.allOf(com.panda.promisedend.worldgen.RimDebrisFeature.Shape.class);
         var wantWrecks = java.util.EnumSet.allOf(com.panda.promisedend.worldgen.RimDebrisFeature.Wreck.class);
         int[] shapeCount = new int[4];
+        // what each shape's share should be: 4:3:2:2 of 11, or 4:3:0:2 of 9 on an island 8 across (none split)
+        double[] expected = new double[4];
         int wrecked = 0, wreckable = 0;
-        for (long k = 1000; k < 2100; k++) {
+        for (long k = 1000; k < 4000; k++) {
             var plan = rim.plan(net.minecraft.util.RandomSource.create(mix.applyAsLong(k)));
             radii.add(plan.radius());
             if (plan.radius() >= 4) {
+                double[] w = plan.radius() < 5 ? new double[] {4 / 9.0, 3 / 9.0, 0, 2 / 9.0} : new double[] {4 / 11.0, 3 / 11.0, 2 / 11.0, 2 / 11.0};
+                for (int i = 0; i < 4; i++) expected[i] += w[i];
+                if (plan.radius() < 5 && plan.shape() == com.panda.promisedend.worldgen.RimDebrisFeature.Shape.SPLIT) bad.add("an island 8 across was split");
                 shapeCount[plan.shape().ordinal()]++;
                 wreckable++;
                 if (plan.wreck() != com.panda.promisedend.worldgen.RimDebrisFeature.Wreck.NONE) wrecked++;
@@ -3410,11 +3444,10 @@ public final class EndGameTests {
             if (wantShapes.remove(plan.shape()) | wantWrecks.remove(plan.wreck())) seeds.add(mix.applyAsLong(k));
         }
         int planned = java.util.Arrays.stream(shapeCount).sum();
-        double[] weights = {4 / 11.0, 3 / 11.0, 2 / 11.0, 2 / 11.0};
         for (int i = 0; i < 4; i++) {
-            if (Math.abs(shapeCount[i] / (double) planned - weights[i]) > 0.04) bad.add("shape " + i + " came " + shapeCount[i] + " of " + planned);
+            if (Math.abs((shapeCount[i] - expected[i]) / planned) > 0.025) bad.add("shape " + i + " came " + shapeCount[i] + " of " + planned + ", against " + Math.round(expected[i]));
         }
-        if (Math.abs(wrecked / (double) wreckable - 1 / 6.0) > 0.04) bad.add("a wreck on " + wrecked + " of " + wreckable + " islands");
+        if (Math.abs(wrecked / (double) wreckable - 1 / 6.0) > 0.025) bad.add("a wreck on " + wrecked + " of " + wreckable + " islands");
         if (radii.size() < 4) bad.add("the plans' radii don't vary: " + radii);
         if (!wantShapes.isEmpty() || !wantWrecks.isEmpty()) bad.add("no seed planned " + wantShapes + " " + wantWrecks);
         List<String> traits = new ArrayList<>();
@@ -3426,6 +3459,7 @@ public final class EndGameTests {
             BlockPos centre = new BlockPos((int) Math.round(ring * Math.cos(a)), y, (int) Math.round(ring * Math.sin(a)));
             if (!feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(seed), centre)) bad.add("nothing placed at " + centre);
             int high = 0, pillars = 0, bricks = 0, chiseled = 0;
+            List<BlockPos> unsupported = new ArrayList<>(), raised = new ArrayList<>();
             java.util.Map<Long, Integer> tops = new java.util.HashMap<>();
             java.util.Set<BlockPos> stone = new java.util.HashSet<>();
             for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 10, 16))) {
@@ -3437,11 +3471,17 @@ public final class EndGameTests {
                 if (state.is(net.minecraft.world.level.block.Blocks.PURPUR_PILLAR)) pillars++;
                 if (state.is(ModBlocks.VOIDSTONE_BRICK_SET.base().get()) || state.is(ModBlocks.VOIDSTONE_BRICK_SET.stairs().get()) || state.is(ModBlocks.VOIDSTONE_BRICK_SET.slab().get())) bricks++;
                 if (state.is(ModBlocks.CHISELED_VOIDSTONE.get())) chiseled++;
+                // every wreck block rests on something
+                if (!isVoidstone && !isEndStone && level.getBlockState(pos.below()).isAir()) unsupported.add(pos.immutable());
                 if (n < 12 && pos.getY() < centre.getY() - 2) below++;
                 if (!isVoidstone && !isEndStone) continue;
-                // the pieces are counted within the island's own reach, so a cap's loose shards beside it don't count
+                // the pieces are counted within the island's own reach, so a cap's loose shards beside it don't count;
+                // past it, on an island that isn't tilted, nothing stands over the top's dome (a loose shard sank)
                 int ox = pos.getX() - centre.getX(), oz = pos.getZ() - centre.getZ();
-                if (ox * ox + oz * oz > (plan.radius() + 0.5) * (plan.radius() + 0.5)) continue;
+                if (ox * ox + oz * oz > (plan.radius() + 0.5) * (plan.radius() + 0.5)) {
+                    if (plan.shape() != com.panda.promisedend.worldgen.RimDebrisFeature.Shape.TILTED && pos.getY() > centre.getY() + 1) raised.add(pos.immutable());
+                    continue;
+                }
                 stone.add(pos.immutable());
                 tops.merge(net.minecraft.world.level.ChunkPos.pack(pos.getX(), pos.getZ()), pos.getY(), Math::max);
             }
@@ -3496,9 +3536,11 @@ public final class EndGameTests {
                 case CHISELED -> { if (chiseled != 1) bad.add(seed + " chiseled wreck: " + chiseled + " chiseled blocks"); }
                 case NONE -> { if (pillars + bricks + chiseled > 0) bad.add(seed + " no wreck, yet wreck blocks"); }
             }
+            if (!unsupported.isEmpty()) bad.add(seed + " " + plan.wreck() + ": wreck blocks over air at " + unsupported);
+            if (!raised.isEmpty()) bad.add(seed + " " + plan.shape() + ": stone beside the island over its top at " + raised);
             for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 10, 16))) level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
         }
-        PromisedEnd.LOGGER.info("rim island shapes over 1100 plans {} (of {}), wrecks {} of {}; built: {}", java.util.Arrays.toString(shapeCount), planned, wrecked, wreckable, traits);
+        PromisedEnd.LOGGER.info("rim island shapes over 3000 plans {} (of {}), wrecks {} of {}; built: {}", java.util.Arrays.toString(shapeCount), planned, wrecked, wreckable, traits);
         if (voidstone == 0) bad.add("no Voidstone in the islands");
         double share = voidstone / (double) Math.max(1, voidstone + endStone);
         if (share < 0.62 || share > 0.80) bad.add("islands should be about 70 % Voidstone: " + voidstone + " voidstone, " + endStone + " end stone");
