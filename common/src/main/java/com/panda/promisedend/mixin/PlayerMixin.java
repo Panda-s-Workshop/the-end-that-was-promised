@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.At;
  */
 @Mixin(Player.class)
 abstract class PlayerMixin {
-    @WrapOperation(method = {"attack", "stabAttack"},
+    @WrapOperation(method = {"attack", "stabAttack"}, require = 2,
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;hurtOrSimulate(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))
     private boolean promisedend$resonance(Entity target, DamageSource source, float amount, Operation<Boolean> original) {
         Player self = (Player) (Object) this;

@@ -1271,7 +1271,7 @@ public final class EndGameTests {
 
     /**
      * Stripping chorus timber sheds Chorus Resin half the time: a survival player's axe strips 400 chorus logs and wood
-     * (in turn), and 175-225 resin come out (2.5 standard deviations round 200), each popped onto the stripped block.
+     * (in turn), and 160-240 resin come out (4 standard deviations round 200: a chance run fails about 1 in 16000), each popped onto the stripped block.
      * Stripped timber set any other way sheds none: over air, over stripped timber, over end stone (a command or a
      * player's placing).
      */
@@ -1300,7 +1300,7 @@ public final class EndGameTests {
             }
         }
         PromisedEnd.LOGGER.info("[chorus_resin_from_stripping] {} resin from 400 strips", shed);
-        if (shed < 175 || shed > 225) bad.add(shed + " resin from 400 strips (175-225)");
+        if (shed < 160 || shed > 240) bad.add(shed + " resin from 400 strips (160-240)");
         // set any other way: nothing
         int other = 0;
         for (var under : List.of(net.minecraft.world.level.block.Blocks.AIR, ModBlocks.STRIPPED_CHORUS_LOG.get(), net.minecraft.world.level.block.Blocks.END_STONE)) {

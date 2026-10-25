@@ -26,24 +26,13 @@
         ]
       },
       "trigger": "minecraft:inventory_changed"
-    },
-    "has_iron_ingot": {
-      "conditions": {
-        "items": [
-          {
-            "items": "minecraft:iron_ingot"
-          }
-        ]
-      },
-      "trigger": "minecraft:inventory_changed"
     }
   },
   "requirements": [
     [
       "has_the_recipe",
       "has_resonite_shard",
-      "has_chorus_resin",
-      "has_iron_ingot"
+      "has_chorus_resin"
     ]
   ],
   "rewards": {

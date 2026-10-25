@@ -88,7 +88,7 @@ public final class ModItems {
 
     /** A Resonite armour piece: its tooltip tells the set bonus. */
     private static DeferredItem<HintItem> armour(String name, ArmorMaterial material, ArmorType type) {
-        return ITEMS.registerItem(name, p -> new HintItem(p, "resonite_armour", 3), p -> p.humanoidArmor(material, type));
+        return ITEMS.registerItem(name, p -> new HintItem(p, "resonite_armour", 4), p -> p.humanoidArmor(material, type));
     }
 
     /** Defence per slot; the body slot (a horse's or a wolf's) as diamond's 11, never worn by our armour. */
