@@ -75,6 +75,8 @@ if (project.hasProperty("endServerCheck")) {
         runs {
             server {
                 property "promisedend.servercheck", "true"
+                // and -PendRimGap measures the first crossing into the Rim (ServerCheck.rimGap)
+                if (project.hasProperty("endRimGap")) property "promisedend.rimgap", "true"
             }
         }
     }

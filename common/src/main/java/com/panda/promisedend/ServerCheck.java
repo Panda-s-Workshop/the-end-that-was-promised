@@ -15,10 +15,11 @@ import net.minecraft.world.level.Level;
  * {@code [promisedend servercheck] PASS} or {@code FAIL}. Booting to "Done" alone never generates an End chunk, so it
  * can't show that the worldgen runs without a client. For the same reason it also makes and ticks a Crystal Warden
  * there, strips chorus timber with an axe, lifts an item over an Updraft Vent, and generates the nearest of each outer
- * biome built so far.
+ * biome built so far. With {@code -Dpromisedend.rimgap=true} as well (Gradle {@code -PendRimGap}) it then measures the
+ * first crossing from the main island into the Rim ({@link #rimGap}), which only generated terrain can show.
  */
 public final class ServerCheck {
-    public static final String PROPERTY = "promisedend.servercheck";
+    public static final String PROPERTY = "promisedend.servercheck", RIM_GAP = "promisedend.rimgap";
     private static final int RADIUS = 64;
 
     private ServerCheck() {}
@@ -31,6 +32,14 @@ public final class ServerCheck {
         } catch (RuntimeException e) {
             PromisedEnd.LOGGER.error("[promisedend servercheck] threw", e);
             failure = e.toString();
+        }
+        if (failure == null && Boolean.getBoolean(RIM_GAP) && EndConfig.terrainEnabled()) {
+            try {
+                rimGap(server.getLevel(Level.END), server.getLevel(Level.END).getSeed());
+            } catch (RuntimeException e) {
+                PromisedEnd.LOGGER.error("[promisedend rimgap] threw", e);
+                failure = e.toString();
+            }
         }
         if (failure == null) PromisedEnd.LOGGER.info("[promisedend servercheck] PASS");
         else PromisedEnd.LOGGER.error("[promisedend servercheck] FAIL: {}", failure);
@@ -141,10 +150,10 @@ public final class ServerCheck {
     }
 
     /**
-     * A place in the biome to count at: the middle ({@link #interior}) of the biome nearest the centre, or, when the
-     * biome holds land on under a quarter of the box round that middle (vanilla's highlands can be a few chunks of
-     * island there, too few for a feature one in six chunks to be sure of), of the biome nearest a point 1500 out
-     * along each axis in turn; the first with land enough, else the one with the most. Null when there is no such
+     * A place in the biome to count at: the middle ({@link #interior}) of the biome nearest the centre and of the biome
+     * nearest a point 1500 out along each axis, whichever holds the most land in the biome in the box round it. The
+     * first with land on a quarter of the box was once taken, but on some seeds that was a sliver of the Lumen Mire, too
+     * little for its pools to be sure of (world seed 5: 27 of 81 samples, 21 Void-water). Null when there is no such
      * biome within 6400 blocks.
      */
     private static BlockPos spot(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, int radius) {
@@ -162,7 +171,6 @@ public final class ServerCheck {
                 }
             }
             PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: land in the biome at {} of {} samples", key.identifier(), at, land, samples);
-            if (land * 4 >= samples) return at;
             if (land > bestLand) {
                 best = at;
                 bestLand = land;
@@ -186,6 +194,133 @@ public final class ServerCheck {
      * a biome of the End runs on over the void, and a middle there has nothing to count); the result is the kept sample
      * nearest their centroid, at y 64, or {@code hit} if none is kept.
      */
+    /** How far out the crossing is measured, and the distance past which an island counts as the Rim proper. */
+    private static final int GAP_REACH = 240, GAP_OUT = 200;
+
+    /**
+     * The first crossing from the main island into the Rim, on this world's generated terrain: every column within 240
+     * blocks of the origin that has a block in it, seen from above, grouped into islands (columns touching at a side or
+     * a corner). Logged: how far the main island reaches; the shortest gap of open air from it to another island, and
+     * the shortest into each eighth of the ring; and the longest single gap on the easiest way out to an island 200 or
+     * more from the origin (islands reached one by one, each by its shortest gap from one already reached). Gaps are
+     * across, not up: islands sit at Y 50-80.
+     */
+    private static void rimGap(net.minecraft.server.level.ServerLevel end, long seed) {
+        int n = GAP_REACH * 2 + 1;
+        for (int cx = -GAP_REACH >> 4; cx <= GAP_REACH >> 4; cx++) {
+            for (int cz = -GAP_REACH >> 4; cz <= GAP_REACH >> 4; cz++) end.getChunk(cx, cz);
+        }
+        boolean[] solid = new boolean[n * n];
+        for (int x = -GAP_REACH; x <= GAP_REACH; x++) {
+            for (int z = -GAP_REACH; z <= GAP_REACH; z++) {
+                if (x * x + z * z > GAP_REACH * GAP_REACH) continue;
+                solid[(x + GAP_REACH) * n + z + GAP_REACH] = end.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, x, z) > end.getMinY();
+            }
+        }
+        // islands: flood fill; for each, its edge columns, its farthest reach from the origin and its middle
+        int[] island = new int[n * n];
+        java.util.Arrays.fill(island, -1);
+        java.util.List<int[]> edges = new java.util.ArrayList<>();
+        java.util.List<double[]> shape = new java.util.ArrayList<>();
+        for (int start = 0; start < n * n; start++) {
+            if (!solid[start] || island[start] >= 0) continue;
+            int id = edges.size();
+            it.unimi.dsi.fastutil.ints.IntArrayList cells = new it.unimi.dsi.fastutil.ints.IntArrayList(), edge = new it.unimi.dsi.fastutil.ints.IntArrayList();
+            java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>(java.util.List.of(start));
+            island[start] = id;
+            double far = 0, sx = 0, sz = 0;
+            while (!queue.isEmpty()) {
+                int c = queue.poll(), cx = c / n, cz = c % n;
+                cells.add(c);
+                double x = cx - GAP_REACH, z = cz - GAP_REACH;
+                far = Math.max(far, Math.sqrt(x * x + z * z));
+                sx += x;
+                sz += z;
+                boolean open = false;
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        int ax = cx + dx, az = cz + dz;
+                        if ((dx == 0 && dz == 0) || ax < 0 || az < 0 || ax >= n || az >= n) continue;
+                        int a = ax * n + az;
+                        if (!solid[a]) {
+                            if (dx == 0 || dz == 0) open = true;
+                        } else if (island[a] < 0) {
+                            island[a] = id;
+                            queue.add(a);
+                        }
+                    }
+                }
+                if (open) edge.add(c);
+            }
+            edges.add(edge.toIntArray());
+            shape.add(new double[] {far, sx / cells.size(), sz / cells.size(), cells.size()});
+        }
+        int main = island[GAP_REACH * n + GAP_REACH];
+        if (main < 0) {
+            PromisedEnd.LOGGER.info("[promisedend rimgap] seed {}: nothing at the origin", seed);
+            return;
+        }
+        int count = edges.size();
+        // reached one by one, each by its shortest gap from one already reached; worst: the longest gap on its way
+        double[] gap = new double[count], worst = new double[count];
+        boolean[] reached = new boolean[count];
+        java.util.Arrays.fill(gap, Double.MAX_VALUE);
+        gap[main] = 0;
+        double[] fromMain = new double[count];
+        double easiestOut = Double.MAX_VALUE;
+        for (int step = 0; step < count; step++) {
+            int next = -1;
+            for (int i = 0; i < count; i++) if (!reached[i] && (next < 0 || gap[i] < gap[next])) next = i;
+            if (next < 0 || gap[next] == Double.MAX_VALUE) break;
+            reached[next] = true;
+            if (shape.get(next)[0] >= GAP_OUT) easiestOut = Math.min(easiestOut, worst[next]);
+            for (int i = 0; i < count; i++) {
+                if (reached[i]) continue;
+                double g = between(edges.get(next), edges.get(i), n);
+                if (next == main) fromMain[i] = g;
+                if (g < gap[i]) {
+                    gap[i] = g;
+                    worst[i] = Math.max(worst[next], g);
+                }
+            }
+        }
+        double first = Double.MAX_VALUE;
+        int firstIsland = -1;
+        double[] byEighth = new double[8];
+        java.util.Arrays.fill(byEighth, Double.MAX_VALUE);
+        for (int i = 0; i < count; i++) {
+            if (i == main) continue;
+            if (fromMain[i] < first) {
+                first = fromMain[i];
+                firstIsland = i;
+            }
+            double angle = Math.toDegrees(Math.atan2(shape.get(i)[2], shape.get(i)[1]));
+            int eighth = Math.floorMod((int) Math.floor((angle + 360) / 45), 8);
+            byEighth[eighth] = Math.min(byEighth[eighth], fromMain[i]);
+        }
+        java.util.List<String> eighths = new java.util.ArrayList<>();
+        for (double g : byEighth) eighths.add(g == Double.MAX_VALUE ? "none" : String.format(java.util.Locale.ROOT, "%.0f", g));
+        double[] f = firstIsland < 0 ? new double[] {0, 0, 0, 0} : shape.get(firstIsland);
+        PromisedEnd.LOGGER.info(String.format(java.util.Locale.ROOT,
+                "[promisedend rimgap] seed %d: the main island reaches %.0f; %d islands within %d; the first crossing %.1f (to an island of %.0f columns, %.0f out); by eighth from east %s; the easiest way %d out jumps at most %s",
+                seed, shape.get(main)[0], count - 1, GAP_REACH, first, f[3], Math.hypot(f[1], f[2]), eighths, GAP_OUT,
+                easiestOut == Double.MAX_VALUE ? "(no way)" : String.format(java.util.Locale.ROOT, "%.1f", easiestOut)));
+    }
+
+    /** The open air between two islands' edges: the distance between the nearest columns' centres, less one. */
+    private static double between(int[] a, int[] b, int n) {
+        double best = Double.MAX_VALUE;
+        for (int p : a) {
+            int px = p / n, pz = p % n;
+            for (int q : b) {
+                int dx = px - q / n, dz = pz - q % n;
+                double d = dx * dx + dz * dz;
+                if (d < best) best = d;
+            }
+        }
+        return Math.sqrt(best) - 1;
+    }
+
     public static BlockPos interior(net.minecraft.server.level.ServerLevel level, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, BlockPos hit) {
         java.util.List<BlockPos> in = new java.util.ArrayList<>();
         for (int dx = -96; dx <= 96; dx += 8) {
