@@ -29,7 +29,10 @@ public final class Updraft {
     public static final double SEEN_ANCIENT = 96, SEEN = 32;
     /** No puff goes up within this of the camera, so a rider sees the column round them, not a cloud in their face. */
     public static final double CLEAR_OF_CAMERA = 2;
-    /** Nor within this over or under a camera in the column: the puffs rise slower than a rider, who would meet them. */
+    /**
+     * With the camera in the column, puffs go up only further than this under it: the puffs rise slower than a rider,
+     * so any over them would be overtaken, and those this far under rise a few blocks in their life and never reach them.
+     */
     public static final double CLEAR_OF_RIDER = 5;
 
     private Updraft() {}

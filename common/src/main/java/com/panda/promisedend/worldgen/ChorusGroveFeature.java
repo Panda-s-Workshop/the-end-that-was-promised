@@ -36,6 +36,8 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
  * write to. A trunk needs {@code #promisedend:chorus_grove_ground} under it (not timber, so no tree stands on another's
  * root) and clear air for its height and two more: never a trunk through an overhang. {@code fallback} marks the copy
  * on {@code #promisedend:grove_fallback} (vanilla's highlands), which builds only in the End with our terrain off.
+ * Where a structure has claimed a chunk the grove could reach (an End City in the Thicket), it builds nothing, so a
+ * city put down later never cuts through a tree.
  */
 public record ChorusGroveFeature(BlockStateProvider trunk, IntProvider trees, int radius, IntProvider height, IntProvider limbs,
                                  int canopySpread, boolean fallback) implements Feature {
@@ -59,6 +61,17 @@ public record ChorusGroveFeature(BlockStateProvider trunk, IntProvider trees, in
     public boolean place(WorldGenLevel level, ChunkGenerator generator, RandomSource random, BlockPos origin) {
         // the copy on vanilla's highlands is for packs with our terrain off, where the Thicket never generates
         if (fallback && (EndConfig.terrainEnabled() || level.getLevel().dimension() != Level.END)) return false;
+        // every chunk the grove can reach, sampled closer than a chunk apart
+        int reach = radius + 3 + canopySpread;
+        List<BlockPos> span = new ArrayList<>();
+        for (int dx = -reach; dx <= reach; dx += Math.max(1, Math.min(8, reach))) {
+            for (int dz = -reach; dz <= reach; dz += Math.max(1, Math.min(8, reach))) span.add(origin.offset(dx, 0, dz));
+        }
+        for (int d : new int[] {-reach, reach}) {
+            span.add(origin.offset(d, 0, reach));
+            span.add(origin.offset(reach, 0, d));
+        }
+        if (StructureClaims.claimed(level, span)) return false;
         List<BlockPos> trunks = new ArrayList<>();
         int wanted = trees.sample(random);
         for (int attempt = 0; attempt < wanted * 3 && trunks.size() < wanted; attempt++) {

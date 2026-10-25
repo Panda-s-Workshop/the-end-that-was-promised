@@ -122,7 +122,8 @@ public class UpdraftVentBlockEntity extends BlockEntity {
         if (ancient && (far > Updraft.SEEN_ANCIENT * Updraft.SEEN_ANCIENT || minimalParticles.getAsBoolean())) return;
         var random = level.getRandom();
         double clear = Updraft.CLEAR_OF_CAMERA * Updraft.CLEAR_OF_CAMERA;
-        // a rider is on the column's axis, moving through the puffs: none within a few blocks over or under them
+        // a rider is on the column's axis, rising faster than the puffs: none over them (they'd be overtaken in a few
+        // ticks), and none just under
         boolean riding = (cx - eye.x) * (cx - eye.x) + (cz - eye.z) * (cz - eye.z) < (Updraft.RADIUS + 0.5) * (Updraft.RADIUS + 0.5);
         // forced only past the game's own 32, so up close the Decreased setting thins them as it does any particle
         boolean force = ancient && far > Updraft.SEEN * Updraft.SEEN;
@@ -130,7 +131,7 @@ public class UpdraftVentBlockEntity extends BlockEntity {
         for (int i = 0; i < puffs; i++) {
             double a = random.nextDouble() * Math.PI * 2, r = Math.sqrt(random.nextDouble()) * Updraft.RADIUS * 0.8;
             double x = cx + Math.cos(a) * r, y = base + random.nextDouble() * h, z = cz + Math.sin(a) * r;
-            if (eye.distanceToSqr(x, y, z) < clear || riding && Math.abs(y - eye.y) < Updraft.CLEAR_OF_RIDER) continue;
+            if (eye.distanceToSqr(x, y, z) < clear || riding && y > eye.y - Updraft.CLEAR_OF_RIDER) continue;
             level.addParticle(ParticleTypes.POOF, force, false, x, y, z, 0, 0.12 + random.nextDouble() * 0.1, 0);
         }
         if (ancient) {

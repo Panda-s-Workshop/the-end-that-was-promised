@@ -1910,8 +1910,9 @@ public final class EndGameTests {
 
     /**
      * Where a grove doesn't belong it builds nothing: on ground outside {@code #promisedend:chorus_grove_ground}
-     * (obsidian here; chorus timber too, so no tree stands on a root), under a roof 4 blocks up, and the terrain-off
-     * copy while our terrain is on.
+     * (obsidian here; chorus timber too, so no tree stands on a root), under a roof 4 blocks up, the terrain-off copy
+     * while our terrain is on, and where an End City has claimed a chunk next door the grove could reach (the same
+     * floor and seed grow one unclaimed).
      */
     private static void chorusGroveKeepsOut(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1935,7 +1936,23 @@ public final class EndGameTests {
         }
         if (com.panda.promisedend.EndConfig.terrainEnabled() && grove(level, "chorus_grove_fallback").place(level, generator, net.minecraft.util.RandomSource.create(9), off))
             bad.add("the terrain-off copy grew with terrain on");
-        for (BlockPos at : List.of(obsidian, timber, roofed, off)) clear(level, at);
+        // an End City's claim on the chunk east of the floor's, which the canopy could reach: no tree at all
+        // 10 blocks from the chunk's east edge, inside the grove's reach of 12
+        BlockPos city = new BlockPos(3270, y, 2000);
+        floor(level, city, 12, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+        {
+            var structure = level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getValueOrThrow(net.minecraft.world.level.levelgen.structure.BuiltinStructures.END_CITY);
+            var chunk = level.getChunk(city.offset(16, 0, 0));
+            var before = new java.util.HashMap<>(chunk.getAllReferences());
+            chunk.addReferenceForStructure(structure, net.minecraft.world.level.ChunkPos.pack((city.getX() + 16) >> 4, city.getZ() >> 4));
+            boolean claimed = feature.place(level, generator, net.minecraft.util.RandomSource.create(9), city);
+            chunk.setAllReferences(before);
+            int timberThere = 0;
+            for (BlockPos p : BlockPos.betweenClosed(city.offset(-12, 0, -12), city.offset(12, 16, 12))) if (level.getBlockState(p).is(log)) timberThere++;
+            if (claimed || timberThere > 0) bad.add(timberThere + " timber beside an End City's chunk");
+            if (!feature.place(level, generator, net.minecraft.util.RandomSource.create(9), city)) bad.add("no grove on the unclaimed control floor, so the claim case can't tell");
+        }
+        for (BlockPos at : List.of(obsidian, timber, roofed, off, city)) clear(level, at);
         if (!bad.isEmpty()) helper.fail("groves where they don't belong: " + bad);
         helper.succeed();
     }
