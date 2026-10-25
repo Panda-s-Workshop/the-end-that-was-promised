@@ -3,6 +3,6 @@
   "minVersion": "0.8",
   "package": "com.panda.promisedend.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": ["AnvilMenuMixin", "TheEndBiomeSourceMixin"],
+  "mixins": ["AnvilMenuMixin", "TheEndBiomeSourceMixin", "TheEndGatewayBlockEntityMixin"],
   "injectors": { "defaultRequire": 1 }
 }

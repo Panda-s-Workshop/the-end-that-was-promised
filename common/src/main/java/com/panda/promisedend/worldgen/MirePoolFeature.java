@@ -80,8 +80,10 @@ public record MirePoolFeature(BlockStateProvider water, IntProvider radius, floa
                 if (!in) continue;
                 BlockPos column = new BlockPos(origin.getX() + dx, 0, origin.getZ() + dz);
                 inside.add(column);
-                // a column over the void has no surface, and doesn't vote
-                int surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, column).getY() - 1;
+                // a column over the void has no surface, and doesn't vote; a pool already there votes its water's own
+                // height (void-water doesn't block motion, so the heightmap stands on its floor), so a pool over one joins it
+                BlockPos top = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, column);
+                int surface = level.getBlockState(top).is(pool) ? top.getY() : top.getY() - 1;
                 if (surface >= level.getMinY()) heights.merge(surface, 1, Integer::sum);
             }
         }

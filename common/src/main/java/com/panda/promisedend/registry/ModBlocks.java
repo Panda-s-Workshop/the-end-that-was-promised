@@ -119,8 +119,8 @@ public final class ModBlocks {
 
     // ---- the Lumen Mire: void-water pools in Lumen Moss, Mire Lilies on the water
     /** End stone grown over, as Chorus Moss is; it pays Lumen when broken without Silk Touch (its loot table). */
-    public static final DeferredBlock<Block> LUMEN_MOSS = simple("lumen_moss",
-            p -> p.mapColor(MapColor.COLOR_YELLOW).strength(3.0F, 9.0F).sound(SoundType.NYLIUM).requiresCorrectToolForDrops());
+    public static final DeferredBlock<Block> LUMEN_MOSS = withHint(BLOCKS.registerSimpleBlock("lumen_moss",
+            p -> p.mapColor(MapColor.COLOR_YELLOW).strength(3.0F, 9.0F).sound(SoundType.NYLIUM).requiresCorrectToolForDrops()), 1);
     /**
      * A still pool, not a fluid: no item, nothing drops, a block placed into it replaces it; pistons, pickaxes and
      * explosions don't move or break it (a player holding a lily targets its surface, so it mustn't be minable).
@@ -128,9 +128,9 @@ public final class ModBlocks {
     public static final DeferredBlock<com.panda.promisedend.block.VoidWaterBlock> VOID_WATER = BLOCKS.registerBlock("void_water",
             com.panda.promisedend.block.VoidWaterBlock::new, p -> p.mapColor(MapColor.COLOR_BLACK).replaceable().noCollision().noOcclusion()
                     .strength(-1.0F, 3600000.0F).pushReaction(PushReaction.IMMOVEABLE).noLootTable().sound(SoundType.EMPTY));
-    public static final DeferredBlock<com.panda.promisedend.block.MireLilyBlock> MIRE_LILY = withItem(BLOCKS.registerBlock("mire_lily",
+    public static final DeferredBlock<com.panda.promisedend.block.MireLilyBlock> MIRE_LILY = withHint(BLOCKS.registerBlock("mire_lily",
             com.panda.promisedend.block.MireLilyBlock::new, p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY).noCollision().instabreak()
-                    .sound(SoundType.LILY_PAD).lightLevel(s -> 7).pushReaction(PushReaction.POPPED)));
+                    .sound(SoundType.LILY_PAD).lightLevel(s -> 7).pushReaction(PushReaction.POPPED)), 1);
 
     // ---- the Resonant Spires: Resonite, amethyst's cousin from the outer End
     public static final DeferredBlock<Block> RESONITE_BLOCK = simple("resonite_block",
@@ -139,9 +139,9 @@ public final class ModBlocks {
     public static final DeferredBlock<com.panda.promisedend.block.BuddingResoniteBlock> BUDDING_RESONITE = BLOCKS.registerBlock("budding_resonite",
             com.panda.promisedend.block.BuddingResoniteBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).randomTicks().strength(1.5F)
                     .sound(SoundType.AMETHYST).requiresCorrectToolForDrops().pushReaction(PushReaction.POPPED).noLootTable());
-    public static final DeferredBlock<com.panda.promisedend.block.ResoniteClusterBlock> RESONITE_CLUSTER = withItem(BLOCKS.registerBlock("resonite_cluster",
+    public static final DeferredBlock<com.panda.promisedend.block.ResoniteClusterBlock> RESONITE_CLUSTER = withHint(BLOCKS.registerBlock("resonite_cluster",
             com.panda.promisedend.block.ResoniteClusterBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).forceSolidOn().noOcclusion()
-                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(s -> 5).pushReaction(PushReaction.POPPED)));
+                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(s -> 5).pushReaction(PushReaction.POPPED)), 1);
 
     private ModBlocks() {}
 
@@ -165,6 +165,13 @@ public final class ModBlocks {
     private static <B extends Block> DeferredBlock<B> withItem(DeferredBlock<B> block, java.util.function.BiFunction<B, net.minecraft.world.item.Item.Properties, ? extends BlockItem> item,
             UnaryOperator<net.minecraft.world.item.Item.Properties> props) {
         ITEMS.add(ModItems.ITEMS.registerItem(block.getId().getPath(), p -> item.apply(block.get(), p), p -> props.apply(p.useBlockDescriptionPrefix())));
+        return block;
+    }
+
+    /** A block with an item whose tooltip has {@code lines} lines of hints ({@code tooltip.promisedend.<block>.<n>}). */
+    private static <B extends Block> DeferredBlock<B> withHint(DeferredBlock<B> block, int lines) {
+        String name = block.getId().getPath();
+        ITEMS.add(ModItems.ITEMS.registerItem(name, p -> new com.panda.promisedend.item.HintBlockItem(block.get(), p, name, lines), p -> p.useBlockDescriptionPrefix()));
         return block;
     }
 

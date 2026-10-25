@@ -33,8 +33,9 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
  *
  * <p>Each column's footing must be {@code #promisedend:resonite_spire_ground} at the surface, within a block of the
  * first's, so a formation never stands in the air, hangs off a slope or stands on another's crystal. A formation that
- * would meet anything but air, its ground, a plant or another formation's Resonite, or any block of it under a roof, isn't made: it keeps
- * out of End Cities, the return gateway and a grove across a border. Sideways it stays within {@link #REACH} blocks of
+ * would meet anything but air, its ground, a plant or another formation's Resonite, or any block of it under a roof, or
+ * touch a chunk that any structure reaches (End Cities' pieces go in later, chunk by chunk), isn't made: it keeps out of
+ * structures, the return gateway and a grove across a border. Sideways it stays within {@link #REACH} blocks of
  * the origin (2.5 off, then a lean of up to 0.45 a block over at most 0.75 of the codec's tallest 32, and a cluster),
  * inside the chunks a feature may write to.
  */
@@ -43,8 +44,8 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
     public static final TagKey<Block> GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("resonite_spire_ground"));
     /** The chance of a cluster on each open side of a budding block at generation. */
     public static final float BUDDING_CLUSTER_CHANCE = 0.25F;
-    /** The farthest a formation writes from its origin, sideways: the codec's tallest leaning column and a cluster. */
-    public static final int REACH = 13;
+    /** The farthest a formation writes from its origin, sideways: the codec's tallest (32) leaning column and a cluster. */
+    public static final int REACH = 14;
     public static final MapCodec<ResoniteSpireFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             BlockStateProvider.DIRECT_CODEC.fieldOf("crystal").forGetter(ResoniteSpireFeature::crystal),
             BlockStateProvider.DIRECT_CODEC.fieldOf("budding").forGetter(ResoniteSpireFeature::budding),
@@ -110,6 +111,14 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
         }
         // keep out: a formation that would meet anything but air, its ground, a plant or Resonite, or stand under a roof
         // (an End City, the return gateway, a grove across a border), isn't made at all
+        // a structure in any chunk the formation touches: its pieces may not be placed yet (each goes in when its own chunk
+        // is decorated), so the blocks can't tell; the chunk's references can
+        Set<Long> chunks = new java.util.HashSet<>();
+        for (BlockPos p : body) chunks.add(net.minecraft.world.level.ChunkPos.pack(p.getX() >> 4, p.getZ() >> 4));
+        for (long c : chunks) {
+            var references = level.getChunk(net.minecraft.world.level.ChunkPos.getX(c), net.minecraft.world.level.ChunkPos.getZ(c)).getAllReferences();
+            if (references.values().stream().anyMatch(r -> !r.isEmpty())) return false;
+        }
         // another formation's crystal, budding blocks and clusters are open too: neighbouring spires grow into one clump
         Set<Block> ours = Set.of(crystal.getState(level, random, foot).getBlock(), budding.getState(level, random, foot).getBlock(),
                 cluster.getState(level, random, foot).getBlock());

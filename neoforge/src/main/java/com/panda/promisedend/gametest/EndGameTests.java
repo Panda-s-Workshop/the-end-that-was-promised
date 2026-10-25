@@ -93,6 +93,7 @@ public final class EndGameTests {
         FUNCTIONS.register("resonite_cluster_chimes", () -> EndGameTests::resoniteClusterChimes);
         FUNCTIONS.register("budding_resonite_grows", () -> EndGameTests::buddingResoniteGrows);
         FUNCTIONS.register("resonite_drops", () -> EndGameTests::resoniteDrops);
+        FUNCTIONS.register("gateway_exits_beside_spires", () -> EndGameTests::gatewayExitsBesideSpires);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -534,6 +535,9 @@ public final class EndGameTests {
         player.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, lily.copy());
         if (shape.getShape(level, at, net.minecraft.world.phys.shapes.CollisionContext.of(player)).isEmpty()) bad.add("a lily in the off hand doesn't see the surface");
         if (shape.getPistonPushReaction() != net.minecraft.world.level.material.PushReaction.IMMOVEABLE) bad.add("pistons move void-water: " + shape.getPistonPushReaction());
+        // unbreakable and blast-proof, as bedrock: a player holding a lily targets the surface and mustn't mine it
+        if (shape.getDestroySpeed(level, at) != -1.0F) bad.add("void-water can be mined (hardness " + shape.getDestroySpeed(level, at) + ")");
+        if (shape.getBlock().getExplosionResistance() < 3600000.0F) bad.add("explosions break void-water (resistance " + shape.getBlock().getExplosionResistance() + ")");
         // 26.3's fluids wash away only what is in #minecraft:washed_away_by_fluids (FlowingFluid.canHoldAnyFluid); short
         // grass is, the control
         var washed = net.minecraft.tags.BlockTags.WASHED_AWAY_BY_FLUIDS;
@@ -671,7 +675,8 @@ public final class EndGameTests {
      * floors a second pool goes 4 blocks off the first, and the two join: no single block of ground left between water
      * on both sides. On obsidian, which isn't pool ground, nothing. On ten terraces (the east half a block higher) a pool
      * on the upper step and then one at the step: the second settles below and cuts into the upper step, every cell at
-     * both heights still walled in, and no rim moss with anything over it.
+     * both heights still walled in, and no rim moss with anything over it. On ten floors four layers deep two pools 4
+     * apart join at one level, with no ridge.
      */
     private static void mirePoolsWalled(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -748,6 +753,29 @@ public final class EndGameTests {
             clear(level, centre);
         }
         PromisedEnd.LOGGER.info("[mire_pools_walled] terraces: {} cells on the upper step, {} cut into it from below", upper, cuts);
+        // ten floors four layers deep, two pools 4 apart as on the wide floors: the second takes the first's level (the
+        // water's own surface, not a block below it), so the pools join at one level with no ridge between
+        int deep = 0, deepWalls = 0;
+        for (int n = 0; n < 10; n++) {
+            BlockPos centre = new BlockPos(4000 + n * 64, y, 2800);
+            for (int k = 0; k < 4; k++) floor(level, centre.below(k), 12, endStone);
+            feature.place(level, generator, net.minecraft.util.RandomSource.create(800 + n), centre);
+            feature.place(level, generator, net.minecraft.util.RandomSource.create(700 + n), centre.offset(4, 0, 1));
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -4, -16), centre.offset(16, 4, 16))) {
+                if (!level.getBlockState(p).is(water)) continue;
+                deep++;
+                if (p.getY() != y - 1) bad.add("deep-floor void-water a level down at " + p);
+                for (var d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                    BlockPos q = p.relative(d);
+                    if (!level.getBlockState(q).is(water) && level.getBlockState(q.relative(d)).is(water)) deepWalls++;
+                }
+            }
+            clear(level, centre);
+            for (int k = 2; k < 4; k++) floor(level, centre.below(k), 12, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+        }
+        PromisedEnd.LOGGER.info("[mire_pools_walled] deep floors: {} cells, {} one-block walls", deep, deepWalls / 2);
+        if (deep == 0) bad.add("no pools on the deep floors, so they can't tell");
+        if (deepWalls > 0) bad.add(deepWalls / 2 + " one-block walls between pools on the deep floors");
         if (upper == 0) bad.add("no pool on the upper steps, so the terraces can't tell");
         if (cuts == 0) bad.add("no pool cut into the upper step, so the terraces can't tell");
         if (wide < 9) bad.add("only " + wide + " of 10 pools on the wide floors");
@@ -766,7 +794,8 @@ public final class EndGameTests {
      * Resonite or budding block), and nothing written more than {@code ResoniteSpireFeature.REACH} blocks off on either
      * axis. On obsidian, which isn't spire ground, nothing; inside a purpur ring round the origin (an End City's wall),
      * nothing, and the ring whole; under a purpur overhang 34 up (above any spire) that starts a block east of
-     * the origin, over the first column's side, nothing.
+     * the origin, over the first column's side, nothing; in a chunk an End City has claimed but not yet built in,
+     * nothing.
      */
     private static void resoniteSpiresGrow(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -811,8 +840,11 @@ public final class EndGameTests {
             clear(level, centre);
         }
         // keep out: a purpur ring round the origin (the formation meets it), then a purpur overhang 34 up, over the
-        // tallest spire, from a block east of the origin (the formation is under it)
-        for (int n = 0; n < 2; n++) {
+        // tallest spire, from a block east of the origin (the formation is under it), then an End City's claim on the
+        // origin's chunk with nothing yet built (the chunk's structure reference, as a city's own chunks have before
+        // their pieces go down)
+        var city = level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getValueOrThrow(net.minecraft.world.level.levelgen.structure.BuiltinStructures.END_CITY);
+        for (int n = 0; n < 3; n++) {
             BlockPos centre = new BlockPos(6000 + (12 + n) * 64, y, 2000);
             floor(level, centre, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
             List<BlockPos> obstacle = new ArrayList<>();
@@ -820,16 +852,20 @@ public final class EndGameTests {
                 for (BlockPos p : BlockPos.betweenClosed(centre.offset(-1, 0, -1), centre.offset(1, 5, 1))) {
                     if (Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())) == 1) obstacle.add(p.immutable());
                 }
-            } else {
+            } else if (n == 1) {
                 for (BlockPos p : BlockPos.betweenClosed(centre.offset(1, 34, -14), centre.offset(14, 34, 14))) obstacle.add(p.immutable());
             }
             for (BlockPos p : obstacle) level.setBlock(p, net.minecraft.world.level.block.Blocks.PURPUR_BLOCK.defaultBlockState(), 2);
+            var chunk = level.getChunk(centre);
+            var before = new java.util.HashMap<>(chunk.getAllReferences());
+            if (n == 2) chunk.addReferenceForStructure(city, net.minecraft.world.level.ChunkPos.pack(centre.getX() >> 4, centre.getZ() >> 4));
             boolean placed = feature.place(level, generator, net.minecraft.util.RandomSource.create(950 + n), centre);
+            if (n == 2) chunk.setAllReferences(before);
             int crystals = 0;
             for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, 0, -16), centre.offset(16, 40, 16))) {
                 if (level.getBlockState(p).is(crystal) || level.getBlockState(p).is(budding) || level.getBlockState(p).is(cluster)) crystals++;
             }
-            String where = n == 0 ? "inside a purpur ring" : "under a purpur overhang";
+            String where = n == 0 ? "inside a purpur ring" : n == 1 ? "under a purpur overhang" : "in an End City's chunk";
             if (placed || crystals > 0) bad.add(crystals + " Resonite " + where);
             if (obstacle.stream().anyMatch(p -> !level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.PURPUR_BLOCK))) bad.add("the purpur " + where + " was broken");
             clear(level, centre);
@@ -840,9 +876,10 @@ public final class EndGameTests {
 
     /**
      * The chime draws the nearest three Endermen within 12 blocks (4, 6 and 8 off) onto the player, not a fourth 10 off
-     * (the cap), not one 15.6 off (the radius), and not a pig 3 off (not in #promisedend:hears_resonite). A creative
-     * player's real break (the server's own destroyBlock, which removes the cluster) finds no player in survival near, so
-     * it rings and draws none. A survival player's real break is the `biomes` scenario's `ring` step.
+     * (the cap), not one 15.6 off (the radius), and not a pig 3 off (not in #promisedend:hears_resonite). A break by a
+     * survival player draws onto that player (the break hook, then the removal, as the server does it), and a creative
+     * player's real break 2 blocks off (the server's own destroyBlock) rings and draws none. A survival player's real
+     * break in a world is the `biomes` scenario's `ring` step.
      */
     private static void resoniteClusterChimes(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -871,8 +908,20 @@ public final class EndGameTests {
         if (far.getTarget() != null) bad.add("the Enderman 15.6 blocks off targets " + far.getTarget());
         if (pig.getTarget() != null) bad.add("the pig targets " + pig.getTarget());
         within.forEach(e -> e.setTarget(null));
+        // a survival player's break, as the server makes it (the break hook, then the removal): it draws onto them though
+        // they aren't in the level for a nearest-player search to find
+        level.setBlock(also, cluster, 3);
+        ModBlocks.RESONITE_CLUSTER.get().playerWillDestroy(level, also, cluster, survivor);
+        level.removeBlock(also, false);
+        for (int k = 0; k < 4; k++) {
+            boolean on = within.get(k).getTarget() == survivor;
+            if (on != (k < 3)) bad.add("after the survival player's break the Enderman " + (4 + 2 * k) + " blocks off " + (on ? "was" : "wasn't") + " drawn");
+        }
+        within.forEach(e -> e.setTarget(null));
+        // a creative player 2 blocks off breaks one for real (the server's own destroyBlock)
         level.setBlock(also, cluster, 3);
         var creative = helper.makeMockServerPlayerInLevel();
+        creative.snapTo(also.getX() + 2.5, also.getY(), also.getZ() + 0.5);
         creative.gameMode.destroyBlock(also);
         if (!level.getBlockState(also).isAir()) bad.add("the creative break left " + level.getBlockState(also));
         for (var e : within) if (e.getTarget() != null) bad.add("a creative player's break drew an Enderman onto " + e.getTarget());
@@ -950,6 +999,35 @@ public final class EndGameTests {
         if (!ModBlocks.RESONITE_BLOCK.get().defaultBlockState().is(ringing) || !ModBlocks.BUDDING_RESONITE.get().defaultBlockState().is(ringing))
             bad.add("Resonite isn't in #minecraft:crystal_sound_blocks");
         if (!bad.isEmpty()) helper.fail("Resonite drops: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A gateway's exit search (vanilla's tallest full block within a radius) passes over a Resonite column 20 tall and
+     * finds an end-stone pillar 3 tall beside it; with the column made of end stone instead, it finds the column's top.
+     */
+    private static void gatewayExitsBesideSpires(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        BlockPos centre = new BlockPos(7000, level.getMaxY() - 60, 2400);
+        floor(level, centre, 6, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+        BlockPos pillar = centre.offset(-3, 2, 3), column = centre.offset(2, 19, 0);
+        for (int k = 0; k < 3; k++) level.setBlock(centre.offset(-3, k, 3), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+        try {
+            var search = net.minecraft.world.level.block.entity.TheEndGatewayBlockEntity.class.getDeclaredMethod("findTallestBlock",
+                    net.minecraft.world.level.BlockGetter.class, BlockPos.class, int.class, boolean.class);
+            search.setAccessible(true);
+            for (var block : List.of(ModBlocks.RESONITE_BLOCK.get(), net.minecraft.world.level.block.Blocks.END_STONE)) {
+                for (int k = 0; k < 20; k++) level.setBlock(centre.offset(2, k, 0), block.defaultBlockState(), 2);
+                BlockPos found = (BlockPos) search.invoke(null, level, centre, 5, false);
+                BlockPos want = block == net.minecraft.world.level.block.Blocks.END_STONE ? column : pillar;
+                if (!want.equals(found)) bad.add("beside a column of " + block + " the exit search found " + found + ", not " + want);
+            }
+        } catch (ReflectiveOperationException e) {
+            bad.add("no exit search: " + e);
+        }
+        clear(level, centre);
+        if (!bad.isEmpty()) helper.fail("gateway exits: " + bad);
         helper.succeed();
     }
 
