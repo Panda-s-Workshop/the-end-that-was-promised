@@ -3,7 +3,7 @@
   "category": "building",
   "group": "planks",
   "ingredients": [
-    "promisedend:chorus_log"
+    "#promisedend:chorus_logs"
   ],
   "result": {
     "id": "promisedend:chorus_planks",

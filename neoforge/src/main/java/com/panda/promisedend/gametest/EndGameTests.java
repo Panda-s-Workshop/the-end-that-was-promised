@@ -82,6 +82,7 @@ public final class EndGameTests {
         FUNCTIONS.register("outer_end_shares", () -> EndGameTests::outerEndShares);
         FUNCTIONS.register("end_cities_in_our_biomes", () -> EndGameTests::endCitiesInOurBiomes);
         FUNCTIONS.register("chorus_timber_and_moss", () -> EndGameTests::chorusTimberAndMoss);
+        FUNCTIONS.register("chorus_wood_set", () -> EndGameTests::chorusWoodSet);
         FUNCTIONS.register("chorus_grove_grows", () -> EndGameTests::chorusGroveGrows);
         FUNCTIONS.register("chorus_grove_keeps_out", () -> EndGameTests::chorusGroveKeepsOut);
     }
@@ -348,6 +349,114 @@ public final class EndGameTests {
             if (drops.size() != 1 || !drops.get(0).is(want)) bad.add((tool == silk ? "with" : "without") + " Silk Touch the moss drops " + drops);
         }
         if (!bad.isEmpty()) helper.fail("chorus timber and moss: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The rest of the chorus timber set: an iron axe in a player's hand strips the log and the wood, keeps the axis and
+     * wears as on crimson's stem; each sign and the shelf hold vanilla's block entity (so a sign keeps its text and the
+     * shelf its items), a wall sign drops
+     * as its sign, every form of the log saws into four planks, every other recipe gives vanilla's count, a player opens
+     * the door, trapdoor and gate and presses the button, and nothing in the set burns (fuel, fire or lava).
+     */
+    private static void chorusWoodSet(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var axis = net.minecraft.world.level.block.state.properties.BlockStateProperties.AXIS;
+        var x = net.minecraft.core.Direction.Axis.X;
+        var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
+        var player = helper.makeMockServerPlayerInLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 2, 1));
+        // crimson's stem first, as the control: ours must strip as it does and cost the axe what it costs
+        int controlDamage = -1;
+        for (var pair : List.of(List.of(net.minecraft.world.level.block.Blocks.CRIMSON_STEM, net.minecraft.world.level.block.Blocks.STRIPPED_CRIMSON_STEM),
+                List.of(ModBlocks.CHORUS_LOG.get(), ModBlocks.STRIPPED_CHORUS_LOG.get()),
+                List.of(ModBlocks.CHORUS_WOOD.get(), ModBlocks.STRIPPED_CHORUS_WOOD.get()))) {
+            level.setBlock(at, pair.get(0).defaultBlockState().setValue(axis, x), 3);
+            player.setItemInHand(hand, new ItemStack(net.minecraft.world.item.Items.IRON_AXE));
+            var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(at), net.minecraft.core.Direction.UP, at, false);
+            player.getMainHandItem().useOn(new net.minecraft.world.item.context.UseOnContext(player, hand, hit));
+            var now = level.getBlockState(at);
+            if (!now.is(pair.get(1)) || now.getValue(axis) != x) bad.add("an axe on " + pair.get(0) + " left " + now);
+            int damage = player.getMainHandItem().getDamageValue();
+            if (controlDamage < 0) controlDamage = damage;
+            else if (damage != controlDamage) bad.add("stripping " + pair.get(0) + " cost the axe " + damage + ", crimson's stem " + controlDamage);
+        }
+        BlockPos sign = helper.absolutePos(new BlockPos(3, 2, 3));
+        var signType = net.minecraft.world.level.block.entity.BlockEntityTypes.SIGN;
+        var hangingType = net.minecraft.world.level.block.entity.BlockEntityTypes.HANGING_SIGN;
+        for (var e : List.of(java.util.Map.entry(ModBlocks.CHORUS_SIGN.get(), signType), java.util.Map.entry(ModBlocks.CHORUS_WALL_SIGN.get(), signType),
+                java.util.Map.entry(ModBlocks.CHORUS_HANGING_SIGN.get(), hangingType), java.util.Map.entry(ModBlocks.CHORUS_WALL_HANGING_SIGN.get(), hangingType),
+                java.util.Map.entry(ModBlocks.CHORUS_SHELF.get(), net.minecraft.world.level.block.entity.BlockEntityTypes.SHELF))) {
+            level.setBlock(sign, e.getKey().defaultBlockState(), 2);
+            var be = level.getBlockEntity(sign);
+            if (be == null || be.getType() != e.getValue()) bad.add(e.getKey() + " holds " + (be == null ? "no block entity" : be.getType()));
+            level.setBlock(sign, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+        if (!ModBlocks.CHORUS_WALL_SIGN.get().getLootTable().equals(ModBlocks.CHORUS_SIGN.get().getLootTable())) bad.add("the wall sign has its own drops");
+        if (!ModBlocks.CHORUS_WALL_HANGING_SIGN.get().getLootTable().equals(ModBlocks.CHORUS_HANGING_SIGN.get().getLootTable()))
+            bad.add("the wall hanging sign has its own drops");
+        var recipes = level.getServer().getRecipeManager();
+        java.util.function.Function<net.minecraft.world.item.crafting.CraftingInput, ItemStack> craft = input -> recipes
+                .getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level).map(h -> h.value().assemble(input)).orElse(ItemStack.EMPTY);
+        for (var log : List.of(ModBlocks.CHORUS_LOG, ModBlocks.CHORUS_WOOD, ModBlocks.STRIPPED_CHORUS_LOG, ModBlocks.STRIPPED_CHORUS_WOOD)) {
+            var out = craft.apply(net.minecraft.world.item.crafting.CraftingInput.of(1, 1, List.of(new ItemStack(log.get()))));
+            if (!out.is(ModBlocks.CHORUS_PLANKS.get().asItem()) || out.getCount() != 4) bad.add(log.getId().getPath() + " saws into " + out);
+        }
+        // every crafted form, by vanilla's patterns (P planks, L stripped log, S stick, C chain), and its count
+        var planks = new ItemStack(ModBlocks.CHORUS_PLANKS.get());
+        var key = java.util.Map.of('P', planks, 'W', new ItemStack(ModBlocks.CHORUS_LOG.get()), 'L', new ItemStack(ModBlocks.STRIPPED_CHORUS_LOG.get()),
+                'S', new ItemStack(net.minecraft.world.item.Items.STICK),
+                'C', new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace("iron_chain"))));
+        record Grid(String[] rows, net.minecraft.world.level.block.Block out, int count) {}
+        for (var g : List.of(new Grid(new String[] {"WW", "WW"}, ModBlocks.CHORUS_WOOD.get(), 3),
+                new Grid(new String[] {"LL", "LL"}, ModBlocks.STRIPPED_CHORUS_WOOD.get(), 3),
+                new Grid(new String[] {"P  ", "PP ", "PPP"}, ModBlocks.CHORUS_STAIRS.get(), 4),
+                new Grid(new String[] {"PPP"}, ModBlocks.CHORUS_SLAB.get(), 6),
+                new Grid(new String[] {"PSP", "PSP"}, ModBlocks.CHORUS_FENCE.get(), 3),
+                new Grid(new String[] {"SPS", "SPS"}, ModBlocks.CHORUS_FENCE_GATE.get(), 1),
+                new Grid(new String[] {"PP", "PP", "PP"}, ModBlocks.CHORUS_DOOR.get(), 3),
+                new Grid(new String[] {"PPP", "PPP"}, ModBlocks.CHORUS_TRAPDOOR.get(), 2),
+                new Grid(new String[] {"PP"}, ModBlocks.CHORUS_PRESSURE_PLATE.get(), 1),
+                new Grid(new String[] {"P"}, ModBlocks.CHORUS_BUTTON.get(), 1),
+                new Grid(new String[] {"PPP", "PPP", " S "}, ModBlocks.CHORUS_SIGN.get(), 3),
+                new Grid(new String[] {"C C", "LLL", "LLL"}, ModBlocks.CHORUS_HANGING_SIGN.get(), 6),
+                new Grid(new String[] {"LLL", "   ", "LLL"}, ModBlocks.CHORUS_SHELF.get(), 6))) {
+            List<ItemStack> cells = new ArrayList<>();
+            for (String row : g.rows()) for (char c : row.toCharArray()) cells.add(c == ' ' ? ItemStack.EMPTY : key.get(c).copy());
+            var out = craft.apply(net.minecraft.world.item.crafting.CraftingInput.of(g.rows()[0].length(), g.rows().length, cells));
+            if (!out.is(g.out().asItem()) || out.getCount() != g.count()) bad.add(String.join("/", g.rows()) + " makes " + out + ", not " + g.count() + " " + g.out());
+        }
+        // a player opens the door, the trapdoor and the gate by hand, and the button powers
+        player.setItemInHand(hand, ItemStack.EMPTY);
+        BlockPos use = helper.absolutePos(new BlockPos(5, 2, 1));
+        var open = net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN;
+        for (var block : List.of(ModBlocks.CHORUS_DOOR.get(), ModBlocks.CHORUS_TRAPDOOR.get(), ModBlocks.CHORUS_FENCE_GATE.get(), ModBlocks.CHORUS_BUTTON.get())) {
+            level.setBlock(use, block.defaultBlockState(), 2);
+            if (block == ModBlocks.CHORUS_DOOR.get()) level.setBlock(use.above(), block.defaultBlockState().setValue(
+                    net.minecraft.world.level.block.DoorBlock.HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER), 2);
+            var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(use), net.minecraft.core.Direction.NORTH, use, false);
+            player.gameMode.useItemOn(player, level, ItemStack.EMPTY, hand, hit);
+            var now = level.getBlockState(use);
+            var property = block == ModBlocks.CHORUS_BUTTON.get() ? net.minecraft.world.level.block.state.properties.BlockStateProperties.POWERED : open;
+            if (!now.is(block) || !now.getValue(property)) bad.add("a player's hand on " + block + " left " + now);
+            level.setBlock(use, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            level.setBlock(use.above(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+        // nothing in the set burns: no fuel, no flammability, lava doesn't light it. Oak planks are the control
+        BlockPos burn = helper.absolutePos(new BlockPos(5, 2, 3));
+        var oak = net.minecraft.world.level.block.Blocks.OAK_PLANKS.defaultBlockState();
+        if (oak.getFlammability(level, burn, net.minecraft.core.Direction.UP) == 0 || !oak.ignitedByLava()) bad.add("oak planks don't burn, so this check can't tell");
+        for (var h : ModBlocks.BLOCKS.getEntries()) {
+            var block = h.get();
+            if (!h.getId().getPath().contains("chorus_") || block == ModBlocks.CHORUS_MOSS.get()) continue;
+            var state = block.defaultBlockState();
+            if (state.getFlammability(level, burn, net.minecraft.core.Direction.UP) != 0) bad.add(block + " is flammable");
+            if (state.ignitedByLava()) bad.add(block + " catches from lava");
+            if (block.asItem() != net.minecraft.world.item.Items.AIR && new ItemStack(block).has(net.minecraft.core.component.DataComponents.COOKING_FUEL))
+                bad.add(block + " burns in a furnace");
+        }
+        if (!bad.isEmpty()) helper.fail("chorus wood set: " + bad);
         helper.succeed();
     }
 
@@ -1288,7 +1397,10 @@ public final class EndGameTests {
         helper.runAtTickTime(36, () -> {
             var left = wardensOf(helper, dragon);
             release.run();
-            if (!left.isEmpty()) helper.fail(left.size() + " wardens outlived their dragon");
+            if (!left.isEmpty()) helper.fail(left.size() + " wardens outlived their dragon: " + left.stream().map(w -> String.format(java.util.Locale.ROOT,
+                    "[alive %s, removed %s, health %.1f, ticks %d, no AI %s, entity-ticking %s, at %.1f %.1f %.1f, %.1f from the dragon]",
+                    w.isAlive(), w.getRemovalReason(), w.getHealth(), w.tickCount, w.isNoAi(),
+                    helper.getLevel().isPositionEntityTicking(w.blockPosition()), w.getX(), w.getY(), w.getZ(), w.distanceTo(dragon))).toList());
             helper.succeed();
         });
     }

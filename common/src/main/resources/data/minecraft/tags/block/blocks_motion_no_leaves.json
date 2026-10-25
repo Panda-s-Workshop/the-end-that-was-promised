@@ -8,6 +8,9 @@
     "promisedend:chorus_log",
     "promisedend:chorus_planks",
     "promisedend:chorus_moss",
+    "promisedend:chorus_wood",
+    "promisedend:stripped_chorus_log",
+    "promisedend:stripped_chorus_wood",
     "#minecraft:slabs",
     "#minecraft:stairs",
     "#minecraft:walls"

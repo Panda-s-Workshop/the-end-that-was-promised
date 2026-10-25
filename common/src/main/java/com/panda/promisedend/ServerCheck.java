@@ -14,7 +14,7 @@ import net.minecraft.world.level.Level;
  * (the Shattered Rim, or with {@code terrain.enabled} off the End's own) and the Voidstone the Rim yields, and logs
  * {@code [promisedend servercheck] PASS} or {@code FAIL}. Booting to "Done" alone never generates an End chunk, so it
  * can't show that the worldgen runs without a client. For the same reason it also makes and ticks a Crystal Warden
- * there, and generates the nearest Chorus Thicket.
+ * there, strips chorus timber with an axe, and generates the nearest Chorus Thicket.
  */
 public final class ServerCheck {
     public static final String PROPERTY = "promisedend.servercheck";
@@ -62,8 +62,34 @@ public final class ServerCheck {
         PromisedEnd.LOGGER.info("[promisedend servercheck] voidstone within {} of {}: {}", RADIUS, centre, voidstone);
         if (voidstone < 200) return "too little Voidstone around x=300: " + voidstone;
         String failure = construct(end, centre.above(26));
+        if (failure == null) failure = strips(end, centre.above(40));
         if (failure == null && terrain) failure = thicket(end);
         return failure != null ? failure : wrath(server);
+    }
+
+    /**
+     * The axe's block transformer strips chorus timber on this loader: NeoForge appends it from a data map, Fabric
+     * registers it in code. There is no player on a dedicated server, so the axe is used from the off hand, which
+     * vanilla's transformer allows without one.
+     */
+    private static String strips(net.minecraft.server.level.ServerLevel end, BlockPos at) {
+        var axis = net.minecraft.world.level.block.state.properties.BlockStateProperties.AXIS;
+        var axe = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_AXE);
+        var transformer = axe.get(net.minecraft.core.component.DataComponents.BLOCK_TRANSFORMER);
+        if (transformer == null) return "an iron axe has no block transformer";
+        var pairs = java.util.List.of(java.util.List.of(ModBlocks.CHORUS_LOG.get(), ModBlocks.STRIPPED_CHORUS_LOG.get()),
+                java.util.List.of(ModBlocks.CHORUS_WOOD.get(), ModBlocks.STRIPPED_CHORUS_WOOD.get()));
+        for (var pair : pairs) {
+            end.setBlock(at, pair.get(0).defaultBlockState().setValue(axis, net.minecraft.core.Direction.Axis.Z), 3);
+            var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(at), net.minecraft.core.Direction.UP, at, false);
+            var context = new net.minecraft.world.item.context.UseOnContext(end, null, net.minecraft.world.InteractionHand.OFF_HAND, axe, hit) {};
+            transformer.value().transformBlock(context);
+            var now = end.getBlockState(at);
+            end.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+            if (!now.is(pair.get(1)) || now.getValue(axis) != net.minecraft.core.Direction.Axis.Z) return "an axe on " + pair.get(0) + " left " + now;
+        }
+        PromisedEnd.LOGGER.info("[promisedend servercheck] an axe strips the chorus log and wood");
+        return null;
     }
 
     /** The nearest Chorus Thicket, generated: its groves are built without a client. */

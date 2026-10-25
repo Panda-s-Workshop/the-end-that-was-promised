@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_shelf_unpowered",
+  "textures": {
+    "all": "promisedend:block/chorus_shelf",
+    "particle": "promisedend:block/stripped_chorus_log"
+  }
+}

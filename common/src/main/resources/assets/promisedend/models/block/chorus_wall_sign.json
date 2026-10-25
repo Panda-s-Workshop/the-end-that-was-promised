@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_wall_sign",
+  "textures": {
+    "all": "promisedend:block/chorus_sign",
+    "particle": "promisedend:block/chorus_planks"
+  }
+}

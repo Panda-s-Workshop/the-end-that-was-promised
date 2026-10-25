@@ -2,6 +2,20 @@
   "replace": false,
   "values": [
     "promisedend:chorus_log",
-    "promisedend:chorus_planks"
+    "promisedend:chorus_planks",
+    "promisedend:stripped_chorus_log",
+    "promisedend:chorus_wood",
+    "promisedend:stripped_chorus_wood",
+    "promisedend:chorus_slab",
+    "promisedend:chorus_pressure_plate",
+    "promisedend:chorus_fence",
+    "promisedend:chorus_trapdoor",
+    "promisedend:chorus_fence_gate",
+    "promisedend:chorus_stairs",
+    "promisedend:chorus_button",
+    "promisedend:chorus_door",
+    "promisedend:chorus_sign",
+    "promisedend:chorus_hanging_sign",
+    "promisedend:chorus_shelf"
   ]
 }

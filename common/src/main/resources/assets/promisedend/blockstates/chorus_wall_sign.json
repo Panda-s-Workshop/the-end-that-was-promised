@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "promisedend:block/chorus_wall_sign",
+      "y": 270
+    },
+    "facing=north": {
+      "model": "promisedend:block/chorus_wall_sign",
+      "y": 180
+    },
+    "facing=south": {
+      "model": "promisedend:block/chorus_wall_sign"
+    },
+    "facing=west": {
+      "model": "promisedend:block/chorus_wall_sign",
+      "y": 90
+    }
+  }
+}

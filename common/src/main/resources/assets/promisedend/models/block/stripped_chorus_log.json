@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "promisedend:block/stripped_chorus_log_top",
+    "side": "promisedend:block/stripped_chorus_log"
+  }
+}

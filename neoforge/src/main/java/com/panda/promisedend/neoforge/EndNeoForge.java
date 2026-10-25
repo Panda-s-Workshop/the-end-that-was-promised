@@ -4,6 +4,7 @@ import com.panda.promisedend.EndConfig;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.logic.VoidAnchor;
 import com.panda.promisedend.platform.registry.DeferredRegister;
+import com.panda.promisedend.registry.ModBlocks;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -22,6 +23,12 @@ public final class EndNeoForge {
         modBus.addListener((RegisterEvent e) -> DeferredRegister.all().forEach(register -> registerInto(e, register)));
         modBus.addListener((net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent e) ->
                 com.panda.promisedend.registry.ModEntities.attributes((type, attributes) -> e.put(type, attributes.build())));
+        // the chorus signs and shelf are vanilla's block entities; stripping is data (neoforge/data_maps/block/transformables.json)
+        modBus.addListener((net.neoforged.neoforge.event.BlockEntityTypeAddBlocksEvent e) -> {
+            e.modify(net.minecraft.world.level.block.entity.BlockEntityTypes.SIGN, ModBlocks.CHORUS_SIGN.get(), ModBlocks.CHORUS_WALL_SIGN.get());
+            e.modify(net.minecraft.world.level.block.entity.BlockEntityTypes.HANGING_SIGN, ModBlocks.CHORUS_HANGING_SIGN.get(), ModBlocks.CHORUS_WALL_HANGING_SIGN.get());
+            e.modify(net.minecraft.world.level.block.entity.BlockEntityTypes.SHELF, ModBlocks.CHORUS_SHELF.get());
+        });
         container.registerConfig(ModConfig.Type.SYNCED, NeoForgeConfig.SPEC);
         EndConfig.use(new NeoForgeConfig());
 

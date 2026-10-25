@@ -7,11 +7,11 @@
       },
       "trigger": "minecraft:recipe_unlocked"
     },
-    "has_chorus_log": {
+    "has_chorus_logs": {
       "conditions": {
         "items": [
           {
-            "items": "promisedend:chorus_log"
+            "items": "#promisedend:chorus_logs"
           }
         ]
       },
@@ -21,7 +21,7 @@
   "requirements": [
     [
       "has_the_recipe",
-      "has_chorus_log"
+      "has_chorus_logs"
     ]
   ],
   "rewards": {

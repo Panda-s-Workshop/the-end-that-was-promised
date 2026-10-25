@@ -4,6 +4,7 @@ import com.panda.promisedend.EndConfig;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.logic.VoidAnchor;
 import com.panda.promisedend.platform.registry.DeferredRegister;
+import com.panda.promisedend.registry.ModBlocks;
 import java.util.Comparator;
 import java.util.List;
 import net.fabricmc.api.ModInitializer;
@@ -11,12 +12,15 @@ import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.item.v1.BlockTransformerHelper;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityType;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.block.entity.BlockEntityTypes;
 import net.minecraft.world.level.levelgen.GenerationStep;
 
 /** The Fabric entry point: registers the common content and wires the common hooks to Fabric API's events. */
@@ -38,6 +42,15 @@ public final class EndFabric implements ModInitializer {
                     return i < 0 ? FIRST.size() : i;
                 }))
                 .forEach(EndFabric::registerAll);
+        // the chorus signs and shelf are vanilla's block entities, and the axe strips chorus timber (NeoForge: stripping is data)
+        FabricBlockEntityType sign = (FabricBlockEntityType) BlockEntityTypes.SIGN, hanging = (FabricBlockEntityType) BlockEntityTypes.HANGING_SIGN;
+        sign.addValidBlock(ModBlocks.CHORUS_SIGN.get());
+        sign.addValidBlock(ModBlocks.CHORUS_WALL_SIGN.get());
+        hanging.addValidBlock(ModBlocks.CHORUS_HANGING_SIGN.get());
+        hanging.addValidBlock(ModBlocks.CHORUS_WALL_HANGING_SIGN.get());
+        ((FabricBlockEntityType) BlockEntityTypes.SHELF).addValidBlock(ModBlocks.CHORUS_SHELF.get());
+        BlockTransformerHelper.registerStripping(ModBlocks.CHORUS_LOG.get(), ModBlocks.STRIPPED_CHORUS_LOG.get());
+        BlockTransformerHelper.registerStripping(ModBlocks.CHORUS_WOOD.get(), ModBlocks.STRIPPED_CHORUS_WOOD.get());
         com.panda.promisedend.registry.ModEntities.attributes(
                 net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry::register);
 

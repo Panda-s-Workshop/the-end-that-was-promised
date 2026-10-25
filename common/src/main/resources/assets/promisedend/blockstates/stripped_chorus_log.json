@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "promisedend:block/stripped_chorus_log",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y": {
+      "model": "promisedend:block/stripped_chorus_log"
+    },
+    "axis=z": {
+      "model": "promisedend:block/stripped_chorus_log",
+      "x": 90
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/slab",
+  "textures": {
+    "bottom": "promisedend:block/chorus_planks",
+    "side": "promisedend:block/chorus_planks",
+    "top": "promisedend:block/chorus_planks"
+  }
+}
