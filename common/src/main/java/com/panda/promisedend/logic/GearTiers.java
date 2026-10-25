@@ -29,6 +29,27 @@ public final class GearTiers {
 
     /** Cheap End gear before the dragon: copper's durability, a little faster, and it mines what iron mines. */
     public static final Tier VOIDSTONE = new Tier("voidstone", 190, 5.5F, 5.5F, 14, 2);
+    /**
+     * The outer End's crystal gear, the step after diamond: diamond's damage, a little faster and longer-lived, and it
+     * mines what diamond mines; the Resonance set bonus is what sets it apart.
+     */
+    public static final Tier RESONITE = new Tier("resonite", 1700, 8.5F, 7.0F, 14, 3);
+
+    /** One armour material: defence per piece (helmet, chestplate, leggings, boots), toughness. */
+    public record Armour(String name, int helmet, int chestplate, int leggings, int boots, float toughness, int enchantability) {
+        public int total() {
+            return helmet + chestplate + leggings + boots;
+        }
+    }
+
+    // vanilla, read from the 26.3 ArmorMaterials with javap, for comparison
+    public static final Armour DIAMOND_ARMOUR = new Armour("diamond", 3, 8, 6, 3, 2.0F, 10);
+    public static final Armour NETHERITE_ARMOUR = new Armour("netherite", 3, 8, 6, 3, 3.0F, 15);
+
+    /** Diamond's defence and toughness; the set bonus is the step up. */
+    public static final Armour RESONITE_ARMOUR = new Armour("resonite", 3, 8, 6, 3, 2.0F, 14);
+    /** Armour durability: vanilla's multiplier per piece times this (diamond 33, netherite 37). */
+    public static final int RESONITE_ARMOUR_DURABILITY = 35;
 
     private GearTiers() {}
 }

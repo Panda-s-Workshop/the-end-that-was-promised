@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "promisedend:resonite_shard",
+    "promisedend:resonite_shard",
+    "promisedend:resonite_shard",
+    "promisedend:resonite_shard",
+    "promisedend:chorus_resin",
+    "promisedend:chorus_resin",
+    "minecraft:iron_ingot",
+    "minecraft:iron_ingot"
+  ],
+  "result": {
+    "id": "promisedend:resonite_ingot"
+  }
+}

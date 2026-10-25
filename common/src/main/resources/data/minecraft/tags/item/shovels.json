@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "promisedend:voidstone_shovel"
+    "promisedend:voidstone_shovel",
+    "promisedend:resonite_shovel"
   ]
 }

@@ -1,0 +1,54 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:resonite_ingot"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_resonite_shard": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:resonite_shard"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_chorus_resin": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:chorus_resin"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_iron_ingot": {
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:iron_ingot"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_resonite_shard",
+      "has_chorus_resin",
+      "has_iron_ingot"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:resonite_ingot"
+    ]
+  }
+}

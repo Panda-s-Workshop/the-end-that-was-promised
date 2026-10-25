@@ -55,6 +55,9 @@ public final class EndGameTests {
         FUNCTIONS.register("every_recipe_unlocks", () -> EndGameTests::everyRecipeUnlocks);
         FUNCTIONS.register("void_anchor_rules", () -> EndGameTests::voidAnchorRules);
         FUNCTIONS.register("terrain_off_falls_back", () -> EndGameTests::terrainOffFallsBack);
+        FUNCTIONS.register("resonite_gear", () -> EndGameTests::resoniteGear);
+        FUNCTIONS.register("chorus_resin_from_stripping", () -> EndGameTests::chorusResinFromStripping);
+        FUNCTIONS.register("set_bonus_resonance", () -> EndGameTests::setBonusResonance);
         FUNCTIONS.register("void_anchor_safe_ground", () -> EndGameTests::voidAnchorSafeGround);
         FUNCTIONS.register("void_anchor_landing", () -> EndGameTests::voidAnchorLanding);
         FUNCTIONS.register("void_anchor_end_fallback", () -> EndGameTests::voidAnchorEndFallback);
@@ -1066,6 +1069,8 @@ public final class EndGameTests {
         }
         if (budding.asItem() != net.minecraft.world.item.Items.AIR) bad.add("budding Resonite has an item");
         if (budding.getLootTable().isPresent()) bad.add("budding Resonite has a loot table");
+        // the ticks above are called by hand: in a world only a block that takes random ticks gets them
+        if (!budding.defaultBlockState().isRandomlyTicking()) bad.add("budding Resonite takes no random ticks, so it never grows in a world");
         if (!bad.isEmpty()) helper.fail("budding Resonite: " + bad);
         helper.succeed();
     }
@@ -1118,7 +1123,8 @@ public final class EndGameTests {
      * The gateway's own search (bedrock allowed, radius 16) finds the pillar beside the Resonite column too, so the
      * gateway stands 10 over the ground there, in a pearl's reach of the exit; with a cluster in the gateway's frame over
      * the pillar it goes over the next tallest ground with a clear frame (the floor), and with every frame crowded (a 3
-     * by 3 floor between two spires, searched 1 out) it keeps vanilla's answer, a spire's top.
+     * by 3 floor between two spires, searched 1 out) it keeps vanilla's answer, a spire's top. When the tallest is end
+     * stone at the search's edge and a spire just past the edge reaches into the frame over it, it goes over the floor.
      */
     private static void gatewayExitsBesideSpires(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1161,12 +1167,212 @@ public final class EndGameTests {
             BlockPos hemmed = (BlockPos) search.invoke(null, level, small, 1, true);
             if (!small.offset(-1, 19, 0).equals(hemmed)) bad.add("with every frame crowded the search found " + hemmed + ", not vanilla's, the first spire's top");
             for (BlockPos p : BlockPos.betweenClosed(small.offset(-1, -1, -1), small.offset(1, 20, 1))) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            // the tallest is end stone at the search's edge, and a spire just past the edge reaches into the frame over
+            // it: the gateway goes over the floor, whose frame is clear
+            BlockPos edge = centre.offset(0, 0, -24);
+            for (BlockPos p : BlockPos.betweenClosed(edge.offset(-1, -1, -1), edge.offset(1, -1, 1))) level.setBlock(p, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+            for (int k = 0; k < 3; k++) level.setBlock(edge.offset(1, k, 0), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+            for (int k = 0; k < 20; k++) level.setBlock(edge.offset(2, k, 0), ModBlocks.RESONITE_BLOCK.get().defaultBlockState(), 2);
+            BlockPos beside = (BlockPos) search.invoke(null, level, edge, 1, true);
+            if (beside.getY() != edge.getY() - 1) bad.add("with a spire past the edge in the frame over the tallest the search found " + beside + ", not the floor");
+            for (BlockPos q : BlockPos.betweenClosed(beside.above(8).offset(-1, 0, -1), beside.above(12).offset(1, 0, 1))) {
+                if (!level.getBlockState(q).isAir()) bad.add("the gateway's frame over " + beside + " holds " + level.getBlockState(q));
+            }
+            for (BlockPos p : BlockPos.betweenClosed(edge.offset(-1, -1, -1), edge.offset(2, 20, 1))) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
         } catch (ReflectiveOperationException e) {
             bad.add("no exit search: " + e);
         }
         clear(level, centre);
         if (!bad.isEmpty()) helper.fail("gateway exits: " + bad);
         helper.succeed();
+    }
+
+    /**
+     * Resonite gear is built from GearTiers' numbers: each tool's durability, its sword's damage, a pickaxe that takes
+     * obsidian (diamond's tier) where Voidstone's doesn't; each armour piece's defence and toughness, the worn look
+     * (equipment asset promisedend:resonite), the Resonance set tag on all four; the ingot repairs every piece; the
+     * ingot's recipe is 4 shards, 2 Chorus Resin and 2 iron ingots.
+     */
+    private static void resoniteGear(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var tier = com.panda.promisedend.logic.GearTiers.RESONITE;
+        var ingot = new ItemStack(ModItems.RESONITE_INGOT.get());
+        for (var h : List.of(ModItems.RESONITE_SWORD, ModItems.RESONITE_SHOVEL, ModItems.RESONITE_PICKAXE, ModItems.RESONITE_AXE, ModItems.RESONITE_HOE)) {
+            var stack = new ItemStack(h.get());
+            if (stack.getMaxDamage() != tier.durability()) bad.add(h.getId() + " lasts " + stack.getMaxDamage() + ", not " + tier.durability());
+            if (!stack.isValidRepairItem(ingot)) bad.add("the ingot doesn't repair " + h.getId());
+        }
+        var sword = new ItemStack(ModItems.RESONITE_SWORD.get());
+        double[] damage = {1.0};   // the player's fist
+        sword.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+            if (attribute.is(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)) damage[0] += modifier.amount();
+        });
+        if (Math.abs(damage[0] - tier.swordDamage()) > 1e-4) bad.add("the sword deals " + damage[0] + ", not " + tier.swordDamage());
+        var obsidian = net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState();
+        if (!new ItemStack(ModItems.RESONITE_PICKAXE.get()).isCorrectToolForDrops(obsidian)) bad.add("the pickaxe doesn't mine obsidian");
+        if (new ItemStack(ModItems.VOIDSTONE_PICKAXE.get()).isCorrectToolForDrops(obsidian)) bad.add("Voidstone's pickaxe mines obsidian too, so this can't tell");
+        var armour = com.panda.promisedend.logic.GearTiers.RESONITE_ARMOUR;
+        record Piece(com.panda.promisedend.platform.registry.DeferredItem<?> item, net.minecraft.world.entity.EquipmentSlot slot, int defence) {}
+        for (var p : List.of(new Piece(ModItems.RESONITE_HELMET, net.minecraft.world.entity.EquipmentSlot.HEAD, armour.helmet()),
+                new Piece(ModItems.RESONITE_CHESTPLATE, net.minecraft.world.entity.EquipmentSlot.CHEST, armour.chestplate()),
+                new Piece(ModItems.RESONITE_LEGGINGS, net.minecraft.world.entity.EquipmentSlot.LEGS, armour.leggings()),
+                new Piece(ModItems.RESONITE_BOOTS, net.minecraft.world.entity.EquipmentSlot.FEET, armour.boots()))) {
+            var stack = new ItemStack((net.minecraft.world.item.Item) p.item().get());
+            double[] got = {0, 0};
+            stack.forEachModifier(p.slot(), (attribute, modifier) -> {
+                if (attribute.is(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR)) got[0] += modifier.amount();
+                if (attribute.is(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR_TOUGHNESS)) got[1] += modifier.amount();
+            });
+            if (got[0] != p.defence() || Math.abs(got[1] - armour.toughness()) > 1e-4)
+                bad.add(p.item().getId() + " gives " + got[0] + " armour and " + got[1] + " toughness, not " + p.defence() + " and " + armour.toughness());
+            var equippable = stack.get(net.minecraft.core.component.DataComponents.EQUIPPABLE);
+            if (equippable == null || equippable.slot() != p.slot() || equippable.assetId().filter(ModItems.RESONITE_ASSET::equals).isEmpty())
+                bad.add(p.item().getId() + " is worn as " + equippable);
+            if (!stack.is(com.panda.promisedend.registry.ModTags.RESONANCE_SET)) bad.add(p.item().getId() + " isn't in #promisedend:resonance_set");
+            if (!stack.isValidRepairItem(ingot)) bad.add("the ingot doesn't repair " + p.item().getId());
+            int durability = net.minecraft.world.item.equipment.ArmorType.valueOf(p.slot() == net.minecraft.world.entity.EquipmentSlot.HEAD ? "HELMET"
+                    : p.slot() == net.minecraft.world.entity.EquipmentSlot.CHEST ? "CHESTPLATE" : p.slot() == net.minecraft.world.entity.EquipmentSlot.LEGS ? "LEGGINGS" : "BOOTS")
+                    .getDurability(com.panda.promisedend.logic.GearTiers.RESONITE_ARMOUR_DURABILITY);
+            if (stack.getMaxDamage() != durability) bad.add(p.item().getId() + " lasts " + stack.getMaxDamage() + ", not " + durability);
+        }
+        // the ingot from its recipe: the shapeless grid, in any order
+        var recipes = level.getServer().getRecipeManager();
+        List<ItemStack> grid = new ArrayList<>();
+        for (int i = 0; i < 4; i++) grid.add(new ItemStack(ModItems.RESONITE_SHARD.get()));
+        for (int i = 0; i < 2; i++) grid.add(new ItemStack(ModItems.CHORUS_RESIN.get()));
+        for (int i = 0; i < 2; i++) grid.add(new ItemStack(net.minecraft.world.item.Items.IRON_INGOT));
+        java.util.Collections.shuffle(grid, new java.util.Random(3));
+        grid.add(ItemStack.EMPTY);
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, grid);
+        var made = recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level)
+                .map(r -> r.value().assemble(input)).orElse(ItemStack.EMPTY);
+        if (!made.is(ModItems.RESONITE_INGOT.get()) || made.getCount() != 1) bad.add("4 shards, 2 resin and 2 iron make " + made);
+        grid.set(grid.indexOf(grid.stream().filter(st -> st.is(ModItems.CHORUS_RESIN.get())).findFirst().orElseThrow()), ItemStack.EMPTY);
+        var short1 = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, grid);
+        if (recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, short1, level).isPresent()) bad.add("one resin short still makes an ingot");
+        if (!bad.isEmpty()) helper.fail("Resonite gear: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Stripping chorus timber sheds Chorus Resin half the time: a survival player's axe strips 400 chorus logs and wood
+     * (in turn), and 175-225 resin come out (2.5 standard deviations round 200), each popped onto the stripped block.
+     * Stripped timber set any other way sheds none: over air, over stripped timber, over end stone (a command or a
+     * player's placing).
+     */
+    private static void chorusResinFromStripping(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
+        var survivor = helper.makeMockServerPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        BlockPos at = helper.absolutePos(new BlockPos(1, 2, 1));
+        var box = new net.minecraft.world.phys.AABB(at).inflate(3);
+        var resin = ModItems.CHORUS_RESIN.get();
+        int shed = 0;
+        for (int i = 0; i < 400; i++) {
+            var log = (i % 2 == 0 ? ModBlocks.CHORUS_LOG : ModBlocks.CHORUS_WOOD).get();
+            level.setBlock(at, log.defaultBlockState(), 3);
+            survivor.setItemInHand(hand, new ItemStack(net.minecraft.world.item.Items.IRON_AXE));
+            var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(at), net.minecraft.core.Direction.UP, at, false);
+            survivor.getMainHandItem().useOn(new net.minecraft.world.item.context.UseOnContext(survivor, hand, hit));
+            if (!level.getBlockState(at).is(i % 2 == 0 ? ModBlocks.STRIPPED_CHORUS_LOG.get() : ModBlocks.STRIPPED_CHORUS_WOOD.get())) {
+                bad.add("the axe left " + level.getBlockState(at));
+                break;
+            }
+            for (var e : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box)) {
+                if (e.getItem().is(resin)) shed += e.getItem().getCount();
+                e.discard();
+            }
+        }
+        PromisedEnd.LOGGER.info("[chorus_resin_from_stripping] {} resin from 400 strips", shed);
+        if (shed < 175 || shed > 225) bad.add(shed + " resin from 400 strips (175-225)");
+        // set any other way: nothing
+        int other = 0;
+        for (var under : List.of(net.minecraft.world.level.block.Blocks.AIR, ModBlocks.STRIPPED_CHORUS_LOG.get(), net.minecraft.world.level.block.Blocks.END_STONE)) {
+            for (int i = 0; i < 40; i++) {
+                level.setBlock(at, under.defaultBlockState(), 3);
+                level.setBlock(at, ModBlocks.STRIPPED_CHORUS_LOG.get().defaultBlockState(), 3);
+            }
+        }
+        for (var e : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box)) {
+            if (e.getItem().is(resin)) other += e.getItem().getCount();
+            e.discard();
+        }
+        if (other > 0) bad.add(other + " resin from stripped timber set over air, stripped timber or end stone");
+        level.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        if (!bad.isEmpty()) helper.fail("Chorus Resin: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Resonance set bonus: a survival player in the four Resonite pieces punches an iron golem (no AI,
+     * no armour, knockback-proof), its hurt cooldown cleared each time (the swings are all equally weak). Hits 1-3 take the same, the 4th that and 2 more, with Slowness II on the golem for
+     * at most a second; the count starts again after it. A hit on another target restarts the count (A, A, A, B, A:
+     * no ring), three pieces ring nothing in eight hits, and a gap over 3 s (61 ticks) restarts it (A, A, A, wait, A:
+     * no ring). Every hit lands: the golem's hurt cooldown (26.3's damageCooldownTime) is cleared between hits.
+     */
+    private static void setBonusResonance(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var player = helper.makeMockServerPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var set = java.util.Map.of(net.minecraft.world.entity.EquipmentSlot.HEAD, ModItems.RESONITE_HELMET.get(),
+                net.minecraft.world.entity.EquipmentSlot.CHEST, ModItems.RESONITE_CHESTPLATE.get(),
+                net.minecraft.world.entity.EquipmentSlot.LEGS, ModItems.RESONITE_LEGGINGS.get(),
+                net.minecraft.world.entity.EquipmentSlot.FEET, ModItems.RESONITE_BOOTS.get());
+        set.forEach((slot, item) -> player.setItemSlot(slot, new ItemStack(item)));
+        java.util.function.Supplier<net.minecraft.world.entity.animal.golem.IronGolem> golem = () -> {
+            var g = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityTypes.IRON_GOLEM, new BlockPos(2, 2, 2));
+            g.setHealth(g.getMaxHealth());
+            return g;
+        };
+        var a = golem.get();
+        var b = golem.get();
+        java.util.function.ToDoubleFunction<net.minecraft.world.entity.LivingEntity> hit = target -> {
+            // 26.3's hurt cooldown is damageCooldownTime: a second hit within 20 ticks lands only if it is harder
+            target.damageCooldownTime = 0;
+            target.setInvulnerableTime(0);
+            target.hurtTime = 0;
+            float before = target.getHealth();
+            player.attack(target);
+            return before - target.getHealth();
+        };
+        double[] d = new double[5];
+        for (int k = 0; k < 4; k++) d[k] = hit.applyAsDouble(a);
+        PromisedEnd.LOGGER.info("[set_bonus_resonance] hits 1-4 took {} {} {} {}", d[0], d[1], d[2], d[3]);
+        if (d[0] <= 0) bad.add("the first hit took nothing, so this can't tell");
+        if (Math.abs(d[1] - d[0]) > 1e-3 || Math.abs(d[2] - d[0]) > 1e-3) bad.add("hits 1-3 took " + d[0] + ", " + d[1] + ", " + d[2]);
+        if (Math.abs(d[3] - d[0] - com.panda.promisedend.logic.Resonance.BONUS_DAMAGE) > 1e-3) bad.add("the 4th hit took " + d[3] + ", not " + d[0] + " + 2");
+        var slow = a.getEffect(net.minecraft.world.effect.MobEffects.SLOWNESS);
+        if (slow == null || slow.getAmplifier() != 1 || slow.getDuration() > 20) bad.add("after the 4th hit the golem has " + slow);
+        d[4] = hit.applyAsDouble(a);
+        if (Math.abs(d[4] - d[0]) > 1e-3) bad.add("the 5th hit (the count started again) took " + d[4]);
+        // another target between: A, A, A, B, A rings nothing (B first, so A's count starts from none: the 5th hit began one)
+        a.removeAllEffects();
+        hit.applyAsDouble(b);
+        for (int k = 0; k < 3; k++) hit.applyAsDouble(a);
+        hit.applyAsDouble(b);
+        double after = hit.applyAsDouble(a);
+        if (Math.abs(after - d[0]) > 1e-3 || a.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS)) bad.add("a hit on another target didn't restart the count (" + after + ")");
+        // three pieces: nothing in eight hits
+        player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, ItemStack.EMPTY);
+        for (int k = 0; k < 8; k++) {
+            double took = hit.applyAsDouble(a);
+            if (Math.abs(took - d[0]) > 1e-3) {
+                bad.add("with three pieces hit " + (k + 1) + " took " + took);
+                break;
+            }
+        }
+        player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, new ItemStack(ModItems.RESONITE_BOOTS.get()));
+        // a gap over the window: A, A, A, 61 ticks, A rings nothing
+        var c = golem.get();
+        for (int k = 0; k < 3; k++) hit.applyAsDouble(c);
+        helper.runAfterDelay(com.panda.promisedend.logic.Resonance.WINDOW + 1, () -> {
+            double late = hit.applyAsDouble(c);
+            if (Math.abs(late - d[0]) > 1e-3 || c.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS)) bad.add("a hit 61 ticks on still rang (" + late + ")");
+            if (!bad.isEmpty()) helper.fail("Resonance: " + bad);
+            helper.succeed();
+        });
     }
 
     /** The Thicket's grove feature, run as it is configured, on a floor high in the test level's sky. */

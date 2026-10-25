@@ -11,6 +11,9 @@ import net.minecraft.world.level.block.Block;
 public final class ModTags {
     /** What repairs Voidstone tools in an anvil. */
     public static final TagKey<Item> VOIDSTONE_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("voidstone_tool_materials"));
+    public static final TagKey<Item> RESONITE_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("resonite_tool_materials"));
+    /** The armour the Resonance bonus counts: four pieces, one a slot. */
+    public static final TagKey<Item> RESONANCE_SET = TagKey.create(Registries.ITEM, PromisedEnd.id("resonance_set"));
     /** What a Dragon Scale repairs in an anvil, half its durability a scale (the elytra). */
     public static final TagKey<Item> REPAIRED_BY_DRAGON_SCALE = TagKey.create(Registries.ITEM, PromisedEnd.id("repaired_by_dragon_scale"));
 
@@ -21,6 +24,8 @@ public final class ModTags {
     public static final TagKey<Block> VOID_SAFE_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("void_safe_ground"));
     /** Blocks an outer gateway and its exit keep off while other ground is in reach (the spires' Resonite): TheEndGatewayBlockEntityMixin. */
     public static final TagKey<Block> NOT_A_GATEWAY_EXIT = TagKey.create(Registries.BLOCK, PromisedEnd.id("not_a_gateway_exit"));
+    /** What an outer gateway's frame keeps clear of: the spires' blocks and their clusters. */
+    public static final TagKey<Block> GATEWAY_FRAME_KEEP_OUT = TagKey.create(Registries.BLOCK, PromisedEnd.id("gateway_frame_keep_out"));
 
     /** The Ancients' constructs: they never turn on each other or on the dragon they guard. */
     public static final TagKey<EntityType<?>> CONSTRUCTS = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("constructs"));

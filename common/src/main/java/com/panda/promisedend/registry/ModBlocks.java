@@ -78,8 +78,8 @@ public final class ModBlocks {
     // in vanilla's creative-tab order for a wood set: each item is registered right after its block
     public static final DeferredBlock<RotatedPillarBlock> CHORUS_LOG = withItem(BLOCKS.registerBlock("chorus_log", RotatedPillarBlock::new, CHORUS_TIMBER));
     public static final DeferredBlock<RotatedPillarBlock> CHORUS_WOOD = withItem(BLOCKS.registerBlock("chorus_wood", RotatedPillarBlock::new, CHORUS_TIMBER));
-    public static final DeferredBlock<RotatedPillarBlock> STRIPPED_CHORUS_LOG = withItem(BLOCKS.registerBlock("stripped_chorus_log", RotatedPillarBlock::new, CHORUS_TIMBER));
-    public static final DeferredBlock<RotatedPillarBlock> STRIPPED_CHORUS_WOOD = withItem(BLOCKS.registerBlock("stripped_chorus_wood", RotatedPillarBlock::new, CHORUS_TIMBER));
+    public static final DeferredBlock<com.panda.promisedend.block.StrippedChorusBlock> STRIPPED_CHORUS_LOG = withItem(BLOCKS.registerBlock("stripped_chorus_log", com.panda.promisedend.block.StrippedChorusBlock::new, CHORUS_TIMBER));
+    public static final DeferredBlock<com.panda.promisedend.block.StrippedChorusBlock> STRIPPED_CHORUS_WOOD = withItem(BLOCKS.registerBlock("stripped_chorus_wood", com.panda.promisedend.block.StrippedChorusBlock::new, CHORUS_TIMBER));
     public static final DeferredBlock<Block> CHORUS_PLANKS = simple("chorus_planks", CHORUS_BOARDS);
     public static final DeferredBlock<StairBlock> CHORUS_STAIRS = withItem(BLOCKS.registerBlock("chorus_stairs",
             p -> new StairBlock(CHORUS_PLANKS.get().defaultBlockState(), p), CHORUS_BOARDS));

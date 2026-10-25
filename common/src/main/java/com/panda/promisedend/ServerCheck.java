@@ -109,9 +109,8 @@ public final class ServerCheck {
     /** As above within {@code radius} blocks: a sparse fallback wants a wider look than a biome of ours. */
     private static String biome(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key,
                                 String name, net.minecraft.world.level.block.Block block, int minimum, int radius) {
-        var found = end.findClosestBiome3d(h -> h.is(key), new BlockPos(0, 64, 0), 6400, 32, 64);
-        if (found == null) return "no " + name + " within 6400 blocks";
-        BlockPos at = interior(end, key, found.getFirst());
+        BlockPos at = spot(end, key, radius);
+        if (at == null) return "no " + name + " within 6400 blocks";
         for (int cx = (at.getX() - radius - 8) >> 4; cx <= (at.getX() + radius + 8) >> 4; cx++) {
             for (int cz = (at.getZ() - radius - 8) >> 4; cz <= (at.getZ() + radius + 8) >> 4; cz++) end.getChunk(cx, cz);
         }
@@ -122,6 +121,45 @@ public final class ServerCheck {
         String what = block.getName().getString();
         PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} {} within {} blocks", name, at, count, what, radius);
         return count >= minimum ? null : "only " + count + " " + what + " in the " + name + " at " + at;
+    }
+
+    /**
+     * A place in the biome to count at: the middle ({@link #interior}) of the biome nearest the centre, or, when the
+     * biome holds land on under a quarter of the box round that middle (vanilla's highlands can be a few chunks of
+     * island there, too few for a feature one in six chunks to be sure of), of the biome nearest a point 1500 out
+     * along each axis in turn; the first with land enough, else the one with the most. Null when there is no such
+     * biome within 6400 blocks.
+     */
+    private static BlockPos spot(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, int radius) {
+        BlockPos best = null;
+        int bestLand = -1;
+        for (BlockPos from : java.util.List.of(new BlockPos(0, 64, 0), new BlockPos(1500, 64, 0), new BlockPos(0, 64, 1500), new BlockPos(-1500, 64, 0), new BlockPos(0, 64, -1500))) {
+            var found = end.findClosestBiome3d(h -> h.is(key), from, 6400, 32, 64);
+            if (found == null) continue;
+            BlockPos at = interior(end, key, found.getFirst());
+            int land = 0, samples = 0;
+            for (int dx = -radius; dx <= radius; dx += 8) {
+                for (int dz = -radius; dz <= radius; dz += 8) {
+                    samples++;
+                    if (land(end, key, at.getX() + dx, at.getZ() + dz)) land++;
+                }
+            }
+            PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: land in the biome at {} of {} samples", key.identifier(), at, land, samples);
+            if (land * 4 >= samples) return at;
+            if (land > bestLand) {
+                best = at;
+                bestLand = land;
+            }
+        }
+        return best;
+    }
+
+    /** Whether the column at x, z is in the biome with land under it, asked of the biome source and the generator (no chunks). */
+    private static boolean land(net.minecraft.server.level.ServerLevel level, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, int x, int z) {
+        if (!level.getUncachedNoiseBiome(x >> 2, 16, z >> 2).is(key)) return false;
+        int ground = level.getChunkSource().getGenerator().getBaseHeight(x, z, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG,
+                level, level.getChunkSource().randomState());
+        return ground > level.getMinY() + 1;
     }
 
     /**
@@ -136,10 +174,7 @@ public final class ServerCheck {
         for (int dx = -96; dx <= 96; dx += 8) {
             for (int dz = -96; dz <= 96; dz += 8) {
                 int x = hit.getX() + dx, z = hit.getZ() + dz;
-                if (!level.getUncachedNoiseBiome(x >> 2, 16, z >> 2).is(key)) continue;
-                int ground = level.getChunkSource().getGenerator().getBaseHeight(x, z, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG,
-                        level, level.getChunkSource().randomState());
-                if (ground > level.getMinY() + 1) in.add(new BlockPos(x, 64, z));
+                if (land(level, key, x, z)) in.add(new BlockPos(x, 64, z));
             }
         }
         if (in.isEmpty()) return hit;

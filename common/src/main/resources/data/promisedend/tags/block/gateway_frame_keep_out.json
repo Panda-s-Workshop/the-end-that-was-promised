@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "#promisedend:not_a_gateway_exit",
+    "promisedend:resonite_cluster"
+  ]
+}

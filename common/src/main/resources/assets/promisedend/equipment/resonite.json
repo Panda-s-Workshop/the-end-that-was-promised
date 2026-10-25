@@ -1,0 +1,19 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "promisedend:resonite"
+      }
+    ],
+    "humanoid_baby": [
+      {
+        "texture": "promisedend:resonite"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "promisedend:resonite"
+      }
+    ]
+  }
+}
