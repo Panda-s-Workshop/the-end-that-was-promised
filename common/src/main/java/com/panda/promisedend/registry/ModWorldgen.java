@@ -8,6 +8,7 @@ import com.panda.promisedend.worldgen.MirePoolFeature;
 import com.panda.promisedend.worldgen.ResoniteSpireFeature;
 import com.panda.promisedend.worldgen.RimDebrisFeature;
 import com.panda.promisedend.worldgen.RingSpreadPlacement;
+import com.panda.promisedend.worldgen.UpdraftVentFeature;
 import java.util.function.Supplier;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -23,6 +24,7 @@ public final class ModWorldgen {
     public static final Supplier<MapCodec<ChorusGroveFeature>> CHORUS_GROVE = FEATURE_TYPES.register("chorus_grove", () -> ChorusGroveFeature.CODEC);
     public static final Supplier<MapCodec<MirePoolFeature>> MIRE_POOL = FEATURE_TYPES.register("mire_pool", () -> MirePoolFeature.CODEC);
     public static final Supplier<MapCodec<ResoniteSpireFeature>> RESONITE_SPIRE = FEATURE_TYPES.register("resonite_spire", () -> ResoniteSpireFeature.CODEC);
+    public static final Supplier<MapCodec<UpdraftVentFeature>> UPDRAFT_VENT = FEATURE_TYPES.register("updraft_vent", () -> UpdraftVentFeature.CODEC);
     public static final Supplier<MapCodec<RingSpreadPlacement>> RING_SPREAD = PLACEMENTS.register("ring_spread", () -> RingSpreadPlacement.CODEC);
 
     private ModWorldgen() {}

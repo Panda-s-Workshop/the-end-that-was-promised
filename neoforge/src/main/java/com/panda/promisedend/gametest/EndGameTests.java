@@ -97,6 +97,9 @@ public final class EndGameTests {
         FUNCTIONS.register("budding_resonite_grows", () -> EndGameTests::buddingResoniteGrows);
         FUNCTIONS.register("resonite_drops", () -> EndGameTests::resoniteDrops);
         FUNCTIONS.register("gateway_exits_beside_spires", () -> EndGameTests::gatewayExitsBesideSpires);
+        FUNCTIONS.register("updraft_lifts_entity", () -> EndGameTests::updraftLiftsEntity);
+        FUNCTIONS.register("updraft_vent_on_edges", () -> EndGameTests::updraftVentOnEdges);
+        FUNCTIONS.register("updraft_keeps_player_aloft", () -> EndGameTests::updraftKeepsPlayerAloft);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -1198,6 +1201,169 @@ public final class EndGameTests {
         }
         clear(level, centre);
         if (!bad.isEmpty()) helper.fail("gateway exits: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Updraft Vent, high in the test level's sky where nothing else stands, in chunks kept ticking: an armour stand
+     * on a crafted vent rises above its start within 40 ticks, never faster than 0.8 a tick, and an item there rises
+     * too; a stand on a platform 17 over a crafted vent (its column is 16) stays put; a roof 7 over a vent stops the
+     * column at 6, and the stand under it never gets its head past the roof; a stand 20 over an ancient vent (32) rises.
+     */
+    private static void updraftLiftsEntity(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        BlockPos origin = new BlockPos(5200, level.getMaxY() - 100, 3200);
+        Runnable release = forceAround(helper, origin.offset(16, 0, 0), 24);
+        var crafted = ModBlocks.UPDRAFT_VENT.get().defaultBlockState();
+        var ancient = crafted.setValue(com.panda.promisedend.block.UpdraftVentBlock.ANCIENT, true);
+        BlockPos onVent = origin, platformed = origin.offset(8, 0, 0), roofed = origin.offset(16, 0, 0), deep = origin.offset(24, 0, 0), item = origin.offset(32, 0, 0);
+        for (BlockPos p : List.of(onVent, platformed, roofed, item)) level.setBlock(p, crafted, 3);
+        level.setBlock(deep, ancient, 3);
+        level.setBlock(platformed.above(18), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
+        level.setBlock(roofed.above(7), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
+        java.util.function.BiFunction<BlockPos, Integer, net.minecraft.world.entity.decoration.ArmorStand> stand = (vent, over) -> {
+            var s = new net.minecraft.world.entity.decoration.ArmorStand(level, vent.getX() + 0.5, vent.getY() + 1 + over, vent.getZ() + 0.5);
+            level.addFreshEntity(s);
+            return s;
+        };
+        var a = stand.apply(onVent, 0);
+        var b = stand.apply(platformed, 18);
+        var c = stand.apply(roofed, 0);
+        var d = stand.apply(deep, 20);
+        var e = new net.minecraft.world.entity.item.ItemEntity(level, item.getX() + 0.5, item.getY() + 1, item.getZ() + 0.5, new ItemStack(net.minecraft.world.item.Items.STICK));
+        e.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        e.setNeverPickUp();
+        level.addFreshEntity(e);
+        double[] start = {a.getY(), b.getY(), c.getY(), d.getY(), e.getY()};
+        double[] fastest = {0};
+        double[] highestHead = {0};
+        for (int t = 1; t <= 40; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                fastest[0] = Math.max(fastest[0], a.getDeltaMovement().y);
+                highestHead[0] = Math.max(highestHead[0], c.getY() + c.getBbHeight());
+                if (tick < 40) return;
+                PromisedEnd.LOGGER.info("[updraft_lifts_entity] rose {} (stand), {} (item), {} (20 over an ancient vent); the fastest {}; on the platform {}; under the roof the head reached {} (roof at {})",
+                        a.getY() - start[0], e.getY() - start[4], d.getY() - start[3], fastest[0], b.getY() - start[1], highestHead[0], roofed.getY() + 7);
+                if (a.getY() <= start[0] + 1) bad.add("a stand on a crafted vent rose only " + (a.getY() - start[0]) + " in 40 ticks");
+                if (fastest[0] > com.panda.promisedend.logic.Updraft.CAP + 1e-6) bad.add("a stand rose at " + fastest[0] + " a tick, over 0.8");
+                if (e.getY() <= start[4] + 1) bad.add("an item on a crafted vent rose only " + (e.getY() - start[4]));
+                if (Math.abs(b.getY() - start[1]) > 0.01) bad.add("a stand 17 over a crafted vent moved " + (b.getY() - start[1]));
+                if (highestHead[0] > roofed.getY() + 7 + 1e-6) bad.add("under a roof 7 over the vent the stand's head reached " + highestHead[0]);
+                if (!(level.getBlockEntity(roofed) instanceof com.panda.promisedend.block.UpdraftVentBlockEntity vent) || vent.height() != 6)
+                    bad.add("the roofed vent's column isn't 6: " + level.getBlockEntity(roofed));
+                if (d.getY() <= start[3] + 1) bad.add("a stand 20 over an ancient vent rose only " + (d.getY() - start[3]));
+                for (var s : List.of(a, b, c, d)) s.discard();
+                e.discard();
+                for (BlockPos p : List.of(onVent, platformed, roofed, deep, item, platformed.above(18), roofed.above(7)))
+                    level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                release.run();
+                if (!bad.isEmpty()) helper.fail("updraft: " + bad);
+                helper.succeed();
+            });
+        }
+    }
+
+    /**
+     * The server's part for players, whose own client lifts them: each tick a server player in a vent's column has their
+     * fall distance and the count that kicks a player for floating cleared; one 3 blocks off the column keeps both. The
+     * integrated server of single player never counts floating, so the `updraft` scenario can't show this.
+     */
+    private static void updraftKeepsPlayerAloft(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 2, 1));
+        var state = ModBlocks.UPDRAFT_VENT.get().defaultBlockState();
+        level.setBlock(at, state, 3);
+        var vent = (com.panda.promisedend.block.UpdraftVentBlockEntity) level.getBlockEntity(at);
+        var inside = helper.makeMockServerPlayerInLevel();
+        var beside = helper.makeMockServerPlayerInLevel();
+        inside.snapTo(at.getX() + 0.5, at.getY() + 3, at.getZ() + 0.5);
+        beside.snapTo(at.getX() + 3.5, at.getY() + 3, at.getZ() + 0.5);
+        List<String> bad = new ArrayList<>();
+        try {
+            var floating = net.minecraft.server.network.ServerGamePacketListenerImpl.class.getDeclaredField("aboveGroundTickCount");
+            floating.setAccessible(true);
+            for (var p : List.of(inside, beside)) {
+                p.fallDistance = 10;
+                floating.setInt(p.connection, 50);
+            }
+            com.panda.promisedend.block.UpdraftVentBlockEntity.tick(level, at, state, vent);
+            int in = floating.getInt(inside.connection), out = floating.getInt(beside.connection);
+            PromisedEnd.LOGGER.info("[updraft_keeps_player_aloft] in the column: floating {}, fall distance {}; beside it: {}, {}", in, inside.fallDistance, out, beside.fallDistance);
+            if (in != 0 || inside.fallDistance != 0) bad.add("a player in the column kept floating " + in + " and fall distance " + inside.fallDistance);
+            if (out != 50 || beside.fallDistance != 10) bad.add("a player beside the column had floating " + out + " and fall distance " + beside.fallDistance);
+        } catch (ReflectiveOperationException e) {
+            bad.add(e.toString());
+        }
+        level.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        if (!bad.isEmpty()) helper.fail("updraft for players: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The vent feature, high in the test level's sky: on an island 11 across it sinks one ancient vent into the top,
+     * within 2 of the edge, with the air open over it for the whole column; from the middle of one 29 across, with no
+     * edge in reach, nothing; on a lone pillar (no ground beside it), on obsidian (not vent ground) and in a chunk an
+     * End City has claimed, nothing (the same island unclaimed gets one).
+     */
+    private static void updraftVentOnEdges(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var feature = grove(level, "updraft_vent");
+        var generator = level.getChunkSource().getGenerator();
+        var endStone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        var vent = ModBlocks.UPDRAFT_VENT.get();
+        List<String> bad = new ArrayList<>();
+        int y = level.getMaxY() - 140;
+        java.util.function.Function<BlockPos, List<BlockPos>> vents = centre -> {
+            List<BlockPos> found = new ArrayList<>();
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -3, -16), centre.offset(16, 3, 16))) if (level.getBlockState(p).is(vent)) found.add(p.immutable());
+            return found;
+        };
+        // r: the island's half width; ground: what it is made of; then what the feature should do
+        record Island(String name, int r, net.minecraft.world.level.block.state.BlockState ground, boolean vent) {}
+        List<Island> islands = List.of(new Island("an island 11 across", 5, endStone, true), new Island("a wide island", 14, endStone, false),
+                new Island("a lone pillar", 0, endStone, false), new Island("an obsidian island", 5, net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState(), false));
+        for (int n = 0; n < islands.size(); n++) {
+            Island island = islands.get(n);
+            BlockPos centre = new BlockPos(5200 + n * 64, y, 3600);
+            floor(level, centre, island.r(), island.ground());
+            floor(level, centre.below(), island.r(), island.ground());
+            boolean placed = feature.place(level, generator, net.minecraft.util.RandomSource.create(1300 + n), centre);
+            var found = vents.apply(centre);
+            PromisedEnd.LOGGER.info("[updraft_vent_on_edges] {}: placed {}, vents {}", island.name(), placed, found);
+            if (placed != island.vent() || found.size() != (island.vent() ? 1 : 0)) bad.add(island.name() + ": placed " + placed + ", vents " + found);
+            for (BlockPos p : found) {
+                if (!level.getBlockState(p).getValue(com.panda.promisedend.block.UpdraftVentBlock.ANCIENT)) bad.add("a crafted vent placed at " + p);
+                if (p.getY() != y - 1) bad.add("the vent isn't sunk into the top at " + p);
+                if (Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())) < island.r() - 1) bad.add("the vent is more than 2 in from the edge at " + p);
+                for (int dy = 1; dy <= com.panda.promisedend.logic.Updraft.HEIGHT_ANCIENT; dy++) if (!level.getBlockState(p.above(dy)).isAir()) bad.add("the air over the vent is shut at " + p.above(dy));
+                if (!(level.getBlockEntity(p) instanceof com.panda.promisedend.block.UpdraftVentBlockEntity)) bad.add("the placed vent has no block entity at " + p);
+            }
+            clear(level, centre);
+        }
+        // an End City's claim on the chunks under the island (it straddles two): nothing (the same island unclaimed gets a vent)
+        {
+            BlockPos centre = new BlockPos(5200, y, 3800);
+            floor(level, centre, 5, endStone);
+            floor(level, centre.below(), 5, endStone);
+            var city = level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getValueOrThrow(net.minecraft.world.level.levelgen.structure.BuiltinStructures.END_CITY);
+            var before = new java.util.HashMap<net.minecraft.world.level.chunk.ChunkAccess, java.util.Map<net.minecraft.world.level.levelgen.structure.Structure, it.unimi.dsi.fastutil.longs.LongSet>>();
+            for (int cx = (centre.getX() - 8) >> 4; cx <= (centre.getX() + 8) >> 4; cx++) {
+                for (int cz = (centre.getZ() - 8) >> 4; cz <= (centre.getZ() + 8) >> 4; cz++) {
+                    var chunk = level.getChunk(cx, cz);
+                    before.put(chunk, new java.util.HashMap<>(chunk.getAllReferences()));
+                    chunk.addReferenceForStructure(city, net.minecraft.world.level.ChunkPos.pack(centre.getX() >> 4, centre.getZ() >> 4));
+                }
+            }
+            boolean claimed = feature.place(level, generator, net.minecraft.util.RandomSource.create(1300), centre);
+            before.forEach(net.minecraft.world.level.chunk.ChunkAccess::setAllReferences);
+            if (claimed || !vents.apply(centre).isEmpty()) bad.add("a vent in an End City's chunk");
+            boolean free = feature.place(level, generator, net.minecraft.util.RandomSource.create(1300), centre);
+            if (!free) bad.add("no vent on the unclaimed control island, so the claim case can't tell");
+            clear(level, centre);
+        }
+        if (!bad.isEmpty()) helper.fail("updraft vents: " + bad);
         helper.succeed();
     }
 

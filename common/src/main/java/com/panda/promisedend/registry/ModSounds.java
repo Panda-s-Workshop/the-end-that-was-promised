@@ -26,6 +26,8 @@ public final class ModSounds {
     // Resonite: a cluster's hum when you're near, and the chime when one breaks
     public static final Supplier<SoundEvent> RESONITE_HUM = sound("block.resonite_cluster.hum");
     public static final Supplier<SoundEvent> RESONITE_CHIME = sound("block.resonite_cluster.chime");
+    // the Updraft Vent's wind
+    public static final Supplier<SoundEvent> UPDRAFT_WIND = sound("block.updraft_vent.wind");
 
     private static Supplier<SoundEvent> sound(String name) {
         return SOUNDS.register(name, SoundEvent::createVariableRangeEvent);

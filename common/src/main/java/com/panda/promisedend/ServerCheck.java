@@ -14,7 +14,8 @@ import net.minecraft.world.level.Level;
  * (the Shattered Rim, or with {@code terrain.enabled} off the End's own) and the Voidstone the Rim yields, and logs
  * {@code [promisedend servercheck] PASS} or {@code FAIL}. Booting to "Done" alone never generates an End chunk, so it
  * can't show that the worldgen runs without a client. For the same reason it also makes and ticks a Crystal Warden
- * there, strips chorus timber with an axe, and generates the nearest of each outer biome built so far.
+ * there, strips chorus timber with an axe, lifts an item over an Updraft Vent, and generates the nearest of each outer
+ * biome built so far.
  */
 public final class ServerCheck {
     public static final String PROPERTY = "promisedend.servercheck";
@@ -63,6 +64,7 @@ public final class ServerCheck {
         if (voidstone < 200) return "too little Voidstone around x=300: " + voidstone;
         String failure = construct(end, centre.above(26));
         if (failure == null) failure = strips(end, centre.above(40));
+        if (failure == null) failure = updraft(end, centre.above(50));
         if (failure == null && terrain) failure = biome(end, "chorus_thicket", "Chorus Thicket", ModBlocks.CHORUS_LOG.get(), 30);
         if (failure == null && terrain) failure = biome(end, "lumen_mire", "Lumen Mire", ModBlocks.VOID_WATER.get(), 60);
         if (failure == null && terrain) failure = biome(end, "resonant_spires", "Resonant Spires", ModBlocks.RESONITE_BLOCK.get(), 100);
@@ -213,6 +215,35 @@ public final class ServerCheck {
         com.panda.promisedend.logic.DragonWrath.setStored(server, before);
         PromisedEnd.LOGGER.info("[promisedend servercheck] anvil loaded; Wrath stored {}, set to 3 read {}", before, read);
         return read == 3 ? null : "Wrath set to 3 read back " + read;
+    }
+
+    /**
+     * An Updraft Vent placed in the air, its block entity found and ticked by the ticker the block hands out, with an
+     * item over it ticked alongside: the item must rise. The vent and its block entity must work without a client.
+     */
+    private static String updraft(net.minecraft.server.level.ServerLevel end, BlockPos at) {
+        var state = ModBlocks.UPDRAFT_VENT.get().defaultBlockState();
+        end.setBlock(at, state, 3);
+        var ticker = state.getTicker(end, com.panda.promisedend.registry.ModBlockEntities.UPDRAFT_VENT.get());
+        var vent = end.getBlockEntity(at, com.panda.promisedend.registry.ModBlockEntities.UPDRAFT_VENT.get()).orElse(null);
+        var item = new net.minecraft.world.entity.item.ItemEntity(end, at.getX() + 0.5, at.getY() + 1, at.getZ() + 0.5,
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK), 0, 0, 0);
+        end.addFreshEntity(item);
+        double start = item.getY();
+        String failure = null;
+        if (ticker == null || vent == null) failure = "the Updraft Vent has no " + (ticker == null ? "ticker" : "block entity");
+        else {
+            for (int i = 0; i < 20; i++) {
+                ticker.tick(end, at, state, vent);
+                item.tick();
+            }
+            PromisedEnd.LOGGER.info("[promisedend servercheck] an item over an Updraft Vent rose {} in 20 ticks (the column {})",
+                    String.format(java.util.Locale.ROOT, "%.2f", item.getY() - start), vent.height());
+            if (item.getY() < start + 2) failure = "an item over an Updraft Vent rose only " + (item.getY() - start);
+        }
+        item.discard();
+        end.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        return failure;
     }
 
     /** A Crystal Warden made, added and ticked on the server: its GeckoLib side and AI must load without a client. */

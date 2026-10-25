@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "ancient=false": {
+      "model": "promisedend:block/updraft_vent"
+    },
+    "ancient=true": {
+      "model": "promisedend:block/updraft_vent_ancient"
+    }
+  }
+}

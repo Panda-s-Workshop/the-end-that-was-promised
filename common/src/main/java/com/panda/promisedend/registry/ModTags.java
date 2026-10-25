@@ -26,6 +26,8 @@ public final class ModTags {
      * players build bridges and paths from whose tops aren't full faces.
      */
     public static final TagKey<Block> VOID_SAFE_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("void_safe_ground"));
+    /** The ground an ancient Updraft Vent is sunk into on an island's edge: UpdraftVentFeature. */
+    public static final TagKey<Block> UPDRAFT_VENT_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("updraft_vent_ground"));
     /** Blocks an outer gateway and its exit keep off while other ground is in reach (the spires' Resonite): TheEndGatewayBlockEntityMixin. */
     public static final TagKey<Block> NOT_A_GATEWAY_EXIT = TagKey.create(Registries.BLOCK, PromisedEnd.id("not_a_gateway_exit"));
     /** What an outer gateway's frame keeps clear of: the spires' blocks and their clusters. */

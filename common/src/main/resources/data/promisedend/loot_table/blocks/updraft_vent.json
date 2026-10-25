@@ -1,0 +1,34 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:alternatives",
+          "children": [
+            {
+              "type": "minecraft:item",
+              "name": "promisedend:crystal_fragment",
+              "condition": {
+                "type": "minecraft:match_block",
+                "blocks": "promisedend:updraft_vent",
+                "state": {
+                  "ancient": "true"
+                }
+              }
+            },
+            {
+              "type": "minecraft:item",
+              "name": "promisedend:updraft_vent"
+            }
+          ]
+        }
+      ],
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      }
+    }
+  ],
+  "random_sequence": "promisedend:blocks/updraft_vent"
+}

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "bottom": "minecraft:block/purpur_block",
+    "side": "promisedend:block/updraft_vent_ancient_side",
+    "top": "promisedend:block/updraft_vent_ancient_top"
+  }
+}

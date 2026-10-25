@@ -168,5 +168,15 @@
         "pitch": 1.6
       }
     ]
+  },
+  "block.updraft_vent.wind": {
+    "subtitle": "subtitles.promisedend.updraft_vent.wind",
+    "sounds": [
+      {
+        "name": "minecraft:item.elytra.flying",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
   }
 }

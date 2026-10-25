@@ -143,6 +143,11 @@ public final class ModBlocks {
             com.panda.promisedend.block.ResoniteClusterBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).forceSolidOn().noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(s -> 5).pushReaction(PushReaction.POPPED)), 1);
 
+    // ---- the Updraft Vent: the item places a crafted one (16 tall); the ancient ones (32) are found on the islands
+    public static final DeferredBlock<com.panda.promisedend.block.UpdraftVentBlock> UPDRAFT_VENT = withHint(BLOCKS.registerBlock("updraft_vent",
+            com.panda.promisedend.block.UpdraftVentBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).strength(3.0F, 9.0F)
+                    .sound(SoundType.POLISHED_DEEPSLATE).requiresCorrectToolForDrops().lightLevel(s -> 4)), 2);
+
     private ModBlocks() {}
 
     /** Every block item, in registration order: the creative tab lists them. */

@@ -42,6 +42,7 @@
   "block.promisedend.resonite_cluster": "Resonite Cluster",
   "block.promisedend.stripped_chorus_log": "Stripped Chorus Log",
   "block.promisedend.stripped_chorus_wood": "Stripped Chorus Wood",
+  "block.promisedend.updraft_vent": "Updraft Vent",
   "block.promisedend.void_water": "Void-water",
   "block.promisedend.voidstone": "Voidstone",
   "block.promisedend.voidstone_brick_slab": "Voidstone Brick Slab",
@@ -138,6 +139,7 @@
   "subtitles.promisedend.resonant_spires.additions": "Crystals resonate",
   "subtitles.promisedend.resonite_cluster.chime": "Resonite rings out",
   "subtitles.promisedend.resonite_cluster.hum": "Resonite hums",
+  "subtitles.promisedend.updraft_vent.wind": "Updraft whistles",
   "subtitles.promisedend.void_water.enter": "Void-water splashes",
   "tag.block.promisedend.gateway_frame_keep_out": "Gateway Frame Keep Out",
   "tag.block.promisedend.not_a_gateway_exit": "Not a Gateway Exit",
@@ -166,6 +168,8 @@
   "tooltip.promisedend.resonite_cluster.0": "Breaking it rings out, and Endermen come",
   "tooltip.promisedend.resonite_shard.0": "It hums against your hand",
   "tooltip.promisedend.resonite_shard.1": "A cluster that breaks rings out, and Endermen come",
+  "tooltip.promisedend.updraft_vent.0": "Air rises over it, 16 blocks up",
+  "tooltip.promisedend.updraft_vent.1": "and lifts whatever is in the column",
   "tooltip.promisedend.void_anchor.0": "Catches you if you fall into the void",
   "tooltip.promisedend.void_anchor.1": "Once, then it cracks"
 }
