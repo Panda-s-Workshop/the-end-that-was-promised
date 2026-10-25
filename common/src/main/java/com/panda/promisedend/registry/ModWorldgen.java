@@ -4,8 +4,10 @@ import com.mojang.serialization.MapCodec;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.platform.registry.DeferredRegister;
 import com.panda.promisedend.worldgen.ChorusGroveFeature;
+import com.panda.promisedend.worldgen.CrumblingEdgeFeature;
 import com.panda.promisedend.worldgen.MirePoolFeature;
 import com.panda.promisedend.worldgen.ResoniteSpireFeature;
+import com.panda.promisedend.worldgen.RiftScarFeature;
 import com.panda.promisedend.worldgen.RimDebrisFeature;
 import com.panda.promisedend.worldgen.RingSpreadPlacement;
 import com.panda.promisedend.worldgen.TerrainOffFilter;
@@ -29,6 +31,8 @@ public final class ModWorldgen {
     public static final Supplier<MapCodec<MirePoolFeature>> MIRE_POOL = FEATURE_TYPES.register("mire_pool", () -> MirePoolFeature.CODEC);
     public static final Supplier<MapCodec<ResoniteSpireFeature>> RESONITE_SPIRE = FEATURE_TYPES.register("resonite_spire", () -> ResoniteSpireFeature.CODEC);
     public static final Supplier<MapCodec<UpdraftVentFeature>> UPDRAFT_VENT = FEATURE_TYPES.register("updraft_vent", () -> UpdraftVentFeature.CODEC);
+    public static final Supplier<MapCodec<RiftScarFeature>> RIFT_SCAR = FEATURE_TYPES.register("rift_scar", () -> RiftScarFeature.CODEC);
+    public static final Supplier<MapCodec<CrumblingEdgeFeature>> CRUMBLING_EDGE = FEATURE_TYPES.register("crumbling_edge", () -> CrumblingEdgeFeature.CODEC);
     public static final Supplier<MapCodec<TerrainOffFilter>> TERRAIN_OFF = MODIFIERS.register("terrain_off", () -> TerrainOffFilter.CODEC);
     public static final Supplier<MapCodec<RingSpreadPlacement>> RING_SPREAD = PLACEMENTS.register("ring_spread", () -> RingSpreadPlacement.CODEC);
 

@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:alternatives",
+          "children": [
+            {
+              "type": "minecraft:item",
+              "condition": "minecraft:tool/can_silk_touch",
+              "name": "promisedend:voidsteel_scrap_ore"
+            },
+            {
+              "type": "minecraft:item",
+              "name": "promisedend:voidsteel_scrap",
+              "modifier": [
+                {
+                  "type": "minecraft:explosion_decay"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "random_sequence": "promisedend:blocks/voidsteel_scrap_ore"
+}

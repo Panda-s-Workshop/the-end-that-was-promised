@@ -94,6 +94,11 @@ public final class EndGameTests {
         FUNCTIONS.register("lumen_moss_drops", () -> EndGameTests::lumenMossDrops);
         FUNCTIONS.register("drift_blossom_rules", () -> EndGameTests::driftBlossomRules);
         FUNCTIONS.register("updraft_vent_recipe", () -> EndGameTests::updraftVentRecipe);
+        FUNCTIONS.register("rift_scar_carves", () -> EndGameTests::riftScarCarves);
+        FUNCTIONS.register("voidscar_islands", () -> EndGameTests::voidscarIslands);
+        FUNCTIONS.register("crumbling_edges_line_islands", () -> EndGameTests::crumblingEdgesLineIslands);
+        FUNCTIONS.register("crumbling_voidstone_falls", () -> EndGameTests::crumblingVoidstoneFalls);
+        FUNCTIONS.register("voidsteel_ore_drops", () -> EndGameTests::voidsteelOreDrops);
         FUNCTIONS.register("mire_pools_walled", () -> EndGameTests::mirePoolsWalled);
         FUNCTIONS.register("resonite_spires_grow", () -> EndGameTests::resoniteSpiresGrow);
         FUNCTIONS.register("resonite_cluster_chimes", () -> EndGameTests::resoniteClusterChimes);
@@ -742,6 +747,239 @@ public final class EndGameTests {
         var out = level.getServer().getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level)
                 .map(h -> h.value().assemble(input)).orElse(ItemStack.EMPTY);
         if (!out.is(ModBlocks.UPDRAFT_VENT.get().asItem()) || out.getCount() != 1) helper.fail("the vent recipe makes " + out);
+        helper.succeed();
+    }
+
+    /**
+     * A rift scar, as the Voidscar configures it, on a floor of end stone four deep high in the test level's sky, in four
+     * seeds: it is cut (at least its length in air under the old top), lined with Voidstone and, in each, two or more
+     * Voidsteel Scrap Ore; nothing changes more than RiftScarFeature.REACH blocks from its origin. On the same floor
+     * with a layer of purpur under the top, a scar would cut into it, so none is made and the floor is untouched. On an
+     * islet 7 across, too small for 12, a shorter scar is made: it cuts under half the islet (196 blocks).
+     */
+    private static void riftScarCarves(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var scar = grove(level, "rift_scar");
+        var stone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        int reach = com.panda.promisedend.worldgen.RiftScarFeature.REACH;
+        for (int seed = 0; seed < 6; seed++) {
+            BlockPos at = new BlockPos(9600 + 64 * seed, level.getMaxY() - 60, 9000);
+            boolean blocked = seed == 4, islet = seed == 5;
+            for (int d = 0; d < 4; d++) floor(level, at.below(d), islet ? 3 : 17, blocked && d == 1 ? net.minecraft.world.level.block.Blocks.PURPUR_BLOCK.defaultBlockState() : stone);
+            boolean placed = scar.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer(500 + seed)), at);
+            int cut = 0, ore = 0, wall = 0, far = 0;
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-(islet ? 3 : 17), -4, -(islet ? 3 : 17)), at.offset(islet ? 3 : 17, -1, islet ? 3 : 17))) {
+                var state = level.getBlockState(p);
+                boolean changed = !(state.is(net.minecraft.world.level.block.Blocks.END_STONE) || state.is(net.minecraft.world.level.block.Blocks.PURPUR_BLOCK));
+                if (state.isAir()) cut++;
+                else if (state.is(ModBlocks.VOIDSTEEL_SCRAP_ORE.get())) ore++;
+                else if (state.is(ModBlocks.VOIDSTONE_SET.base().get())) wall++;
+                if (changed && Math.max(Math.abs(p.getX() - at.getX()), Math.abs(p.getZ() - at.getZ())) > reach) far++;
+            }
+            PromisedEnd.LOGGER.info("[rift_scar_carves] seed {}{}: placed {}, {} cut, {} Voidstone, {} Voidsteel Scrap Ore", seed,
+                    blocked ? " (purpur under the top)" : islet ? " (an islet 7 across)" : "",
+                    placed, cut, wall, ore);
+            if (blocked) {
+                if (placed || cut + ore + wall != 0) bad.add("over purpur a scar was made: placed " + placed + ", " + cut + " cut");
+            } else if (islet) {
+                if (!placed || cut < com.panda.promisedend.worldgen.RiftScarFeature.SHORTEST || cut >= 98) bad.add("on an islet 7 across: placed " + placed + ", " + cut + " cut");
+            } else {
+                if (!placed || cut < 12) bad.add("seed " + seed + ": placed " + placed + ", only " + cut + " cut");
+                if (wall < 20) bad.add("seed " + seed + ": only " + wall + " Voidstone in its walls");
+                if (ore < 2) bad.add("seed " + seed + ": only " + ore + " Voidsteel Scrap Ore");
+                if (far != 0) bad.add("seed " + seed + ": " + far + " blocks changed past its reach of " + reach);
+            }
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-17, -5, -17), at.offset(17, 1, 17))) {
+                if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
+        if (!bad.isEmpty()) helper.fail("rift scar: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Voidscar's islands, the Rim's debris with {@code anywhere}: 9000 blocks out, where the Rim's own copy builds
+     * nothing (it keeps to its ring), the Voidscar's builds an island; over 2000 plans, three in five or more of its
+     * islands 13 or more across are split, where the Rim's are two in eleven.
+     */
+    private static void voidscarIslands(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        BlockPos at = new BlockPos(9000, level.getMaxY() - 60, 9400);
+        var random = net.minecraft.util.RandomSource.create(77);
+        if (grove(level, "rim_debris").place(level, level.getChunkSource().getGenerator(), random, at)) bad.add("the Rim's debris built 9000 out");
+        boolean built = grove(level, "voidscar_debris").place(level, level.getChunkSource().getGenerator(), random, at);
+        int blocks = 0;
+        for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, -20, -16), at.offset(16, 8, 16))) if (!level.getBlockState(p).isAir()) blocks++;
+        for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, -20, -16), at.offset(16, 8, 16))) {
+            if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+        if (!built || blocks < 60) bad.add("the Voidscar's debris 9000 out: built " + built + ", " + blocks + " blocks");
+        var debris = (com.panda.promisedend.worldgen.RimDebrisFeature) grove(level, "voidscar_debris");
+        int big = 0, split = 0;
+        for (int i = 0; i < 2000; i++) {
+            var plan = debris.plan(net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer(30000 + i)));
+            if (plan.radius() < 6) continue;
+            big++;
+            if (plan.shape() == com.panda.promisedend.worldgen.RimDebrisFeature.Shape.SPLIT) split++;
+        }
+        PromisedEnd.LOGGER.info("[voidscar_islands] {} blocks 9000 out; {} of {} islands 13 or more across split", blocks, split, big);
+        if (split * 5 < big * 3) bad.add("only " + split + " of " + big + " big islands split");
+        if (!bad.isEmpty()) helper.fail("Voidscar islands: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Voidscar's worn edges, as configured, on a domed island two blocks thick high in the test level's sky (its
+     * top flat out to ring 4, a block lower a ring after, out to ring 6, the void round it): Crumbling Voidstone only on
+     * tops within 2 blocks of the void (ring 3 and out, as the dome is laid), some there in each of three seeds, none in
+     * its middle, never on a top that isn't its ground (a purpur block on ring 5), and laid as columns down to the air,
+     * so each falls (CrumblingVoidstoneBlock.column). The same dome on a floor five blocks deep has a thick edge: none.
+     */
+    private static void crumblingEdgesLineIslands(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var edge = grove(level, "crumbling_edge");
+        var crumbling = ModBlocks.CRUMBLING_VOIDSTONE.get();
+        for (int seed = 0; seed < 3; seed++) {
+            // the chunk's middle, so the whole island is in the chunk the feature works on
+            BlockPos centre = new BlockPos(9600 + 64 * seed + 8, level.getMaxY() - 60, 9608);
+            diamond(level, centre, 3, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            BlockPos purpur = centre.offset(5, -1 - (5 - DOME_FLAT), 0);
+            level.setBlock(purpur, net.minecraft.world.level.block.Blocks.PURPUR_BLOCK.defaultBlockState(), 2);
+            edge.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer(600 + seed)), centre);
+            int rim = 0, middle = 0, stuck = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-8, -6, -8), centre.offset(8, 0, 8))) {
+                if (!level.getBlockState(p).is(crumbling)) continue;
+                if (Math.abs(p.getX() - centre.getX()) + Math.abs(p.getZ() - centre.getZ()) >= 3) rim++;
+                else middle++;
+                // a column's top: it and what is under it fall
+                if (!level.getBlockState(p.above()).is(crumbling) && com.panda.promisedend.block.CrumblingVoidstoneBlock.column(level, p) == 0) stuck++;
+            }
+            if (stuck != 0) bad.add("seed " + seed + ": " + stuck + " crumbling tops that wouldn't fall");
+            PromisedEnd.LOGGER.info("[crumbling_edges_line_islands] seed {}: {} crumbling on the rim (rings 3-6, 72 tops), {} in the middle", seed, rim, middle);
+            if (rim < 10) bad.add("seed " + seed + ": only " + rim + " crumbling on the rim");
+            if (middle != 0) bad.add("seed " + seed + ": " + middle + " crumbling in the middle");
+            if (!level.getBlockState(purpur).is(net.minecraft.world.level.block.Blocks.PURPUR_BLOCK)) bad.add("seed " + seed + ": the purpur top became " + level.getBlockState(purpur));
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-8, -8, -8), centre.offset(8, 1, 8))) {
+                if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
+        // a thick edge: the dome on a floor 15 across and five deep under its rim
+        BlockPos centre = new BlockPos(9600 + 64 * 3 + 8, level.getMaxY() - 60, 9608);
+        diamond(level, centre, 3, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+        for (int d = 2; d <= 6; d++) floor(level, centre.below(d), 7, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+        edge.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer(603)), centre);
+        int thick = 0;
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-8, -8, -8), centre.offset(8, 0, 8))) if (level.getBlockState(p).is(crumbling)) thick++;
+        PromisedEnd.LOGGER.info("[crumbling_edges_line_islands] a thick edge: {} crumbling", thick);
+        if (thick != 0) bad.add(thick + " crumbling on a thick edge");
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-8, -8, -8), centre.offset(8, 1, 8))) {
+            if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+        if (!bad.isEmpty()) helper.fail("crumbling edges: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Crumbling Voidstone over open air: a survival player's step cracks it (a tick is scheduled) and DELAY ticks later
+     * it has fallen, with the block of it under it (a column of two); a step by a sneaking player, one in creative, or a
+     * pig cracks nothing and it stays. One on end stone cracks and stays (it can't fall). What falls leaves no item. A
+     * pickaxe breaks it to Voidstone, Silk Touch keeps it.
+     */
+    private static void crumblingVoidstoneFalls(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var block = ModBlocks.CRUMBLING_VOIDSTONE.get();
+        List<String> bad = new ArrayList<>();
+        var walker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var sneaker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        sneaker.setShiftKeyDown(true);
+        var creative = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
+        var pig = net.minecraft.world.entity.EntityTypes.PIG.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        // the walker steps on a column of two over air, and on one on end stone (the last)
+        List<net.minecraft.world.entity.Entity> steppers = List.of(walker, sneaker, creative, pig, walker);
+        List<BlockPos> spots = new ArrayList<>();
+        for (int i = 0; i < steppers.size(); i++) {
+            BlockPos at = helper.absolutePos(new BlockPos(1 + 2 * i % 10, 5, 3 + 2 * (i / 5)));
+            if (i == 4) at = helper.absolutePos(new BlockPos(1, 5, 6));
+            for (int dy = 1; dy <= 3; dy++) level.setBlock(at.below(dy), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+            if (i == 0) level.setBlock(at.below(), block.defaultBlockState(), 3);
+            if (i == 4) level.setBlock(at.below(), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
+            level.setBlock(at, block.defaultBlockState(), 3);
+            block.stepOn(level, at, level.getBlockState(at), steppers.get(i));
+            boolean cracked = level.getBlockTicks().hasScheduledTick(at, block);
+            boolean cracks = i == 0 || i == 4;
+            if (cracked != cracks) bad.add((cracks ? "a survival step didn't crack it" : List.of("", "a sneaking step", "a creative step", "a pig").get(i) + " cracked it"));
+            spots.add(at);
+        }
+        var table = level.getServer().reloadableRegistries().getLootTable(block.getLootTable().orElseThrow());
+        var silk = new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE);
+        silk.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
+        for (var c : List.of(java.util.Map.entry(new ItemStack(net.minecraft.world.item.Items.WOODEN_PICKAXE), ModBlocks.VOIDSTONE_SET.base().get().asItem()),
+                java.util.Map.entry(silk, block.asItem()))) {
+            var drops = table.getRandomItems(new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, c.getKey())
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, block.defaultBlockState())
+                    .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK));
+            if (drops.size() != 1 || !drops.get(0).is(c.getValue()) || drops.get(0).getCount() != 1) bad.add("to " + c.getKey() + " it drops " + drops);
+        }
+        if (!new ItemStack(net.minecraft.world.item.Items.WOODEN_PICKAXE).isCorrectToolForDrops(block.defaultBlockState())) bad.add("a wooden pickaxe can't take it");
+        helper.runAfterDelay(com.panda.promisedend.block.CrumblingVoidstoneBlock.DELAY + 2, () -> {
+            for (int i = 0; i < spots.size(); i++) {
+                boolean still = level.getBlockState(spots.get(i)).is(block);
+                if (still == (i == 0)) bad.add(i == 0 ? "the cracked block hadn't fallen after " + (com.panda.promisedend.block.CrumblingVoidstoneBlock.DELAY + 2) + " ticks"
+                        : i == 4 ? "the block on end stone went" : "the block stepped on by " + steppers.get(i).getName().getString() + " fell");
+            }
+            if (level.getBlockState(spots.get(0).below()).is(block)) bad.add("the block under the cracked one stayed");
+            var box = new net.minecraft.world.phys.AABB(spots.get(0)).inflate(4, 8, 4);
+            if (!level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box).isEmpty()) bad.add("what fell left an item");
+            pig.discard();
+            if (!bad.isEmpty()) helper.fail("Crumbling Voidstone: " + bad);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Voidsteel Scrap Ore takes a diamond-tier pickaxe (diamond, Resonite, netherite) and not iron or Voidstone's; it
+     * gives one Voidsteel Scrap, one still with Fortune III over 100 rolls, and itself to Silk Touch. It is in #c:ores,
+     * glows (light 6) and doesn't blow up (blast resistance 1200, as ancient debris).
+     */
+    private static void voidsteelOreDrops(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var ore = ModBlocks.VOIDSTEEL_SCRAP_ORE.get();
+        var state = ore.defaultBlockState();
+        List<String> bad = new ArrayList<>();
+        var tools = java.util.Map.of(net.minecraft.world.item.Items.IRON_PICKAXE, false, ModItems.VOIDSTONE_PICKAXE.get(), false,
+                net.minecraft.world.item.Items.DIAMOND_PICKAXE, true, ModItems.RESONITE_PICKAXE.get(), true, net.minecraft.world.item.Items.NETHERITE_PICKAXE, true);
+        tools.forEach((tool, takes) -> {
+            if (new ItemStack(tool).isCorrectToolForDrops(state) != takes) bad.add(tool + (takes ? " can't take it" : " takes it"));
+        });
+        var table = level.getServer().reloadableRegistries().getLootTable(ore.getLootTable().orElseThrow());
+        var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        var silk = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        silk.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
+        var fortune = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        fortune.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.FORTUNE), 3);
+        for (var c : List.of(java.util.Map.entry(new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE), ModItems.VOIDSTEEL_SCRAP.get()),
+                java.util.Map.entry(fortune, ModItems.VOIDSTEEL_SCRAP.get()), java.util.Map.entry(silk, ore.asItem()))) {
+            for (int i = 0; i < 100; i++) {
+                var drops = table.getRandomItems(new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, c.getKey())
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, state)
+                        .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK), net.minecraft.util.Mth.murmurHash3Mixer(8000 + i));
+                if (drops.size() != 1 || !drops.get(0).is(c.getValue()) || drops.get(0).getCount() != 1) {
+                    bad.add("to " + c.getKey() + " roll " + i + " gave " + drops);
+                    break;
+                }
+            }
+        }
+        if (!state.is(net.minecraft.tags.TagKey.create(Registries.BLOCK, Identifier.parse("c:ores")))) bad.add("not in #c:ores");
+        if (state.getLightEmission() != 6) bad.add("light " + state.getLightEmission());
+        if (ore.getExplosionResistance() < 1200) bad.add("blast resistance " + ore.getExplosionResistance());
+        if (!bad.isEmpty()) helper.fail("Voidsteel Scrap Ore: " + bad);
         helper.succeed();
     }
 
@@ -2443,9 +2681,10 @@ public final class EndGameTests {
             var pool = (com.panda.promisedend.worldgen.MirePoolFeature) grove(level, "mire_pool_fallback");
             var spire = (com.panda.promisedend.worldgen.ResoniteSpireFeature) grove(level, "resonite_spire_fallback");
             var blossom = (net.minecraft.world.level.levelgen.feature.SimpleBlockFeature) grove(level, "drift_blossom_fallback");
+            var scar = (com.panda.promisedend.worldgen.RiftScarFeature) grove(level, "rift_scar_fallback");
             List<net.minecraft.world.level.block.state.BlockState> built = List.of(grove.trunk().getState(level, random, BlockPos.ZERO),
                     pool.water().getState(level, random, BlockPos.ZERO), spire.budding().getState(level, random, BlockPos.ZERO),
-                    blossom.toPlace().value().getState(level, random, BlockPos.ZERO));
+                    blossom.toPlace().value().getState(level, random, BlockPos.ZERO), scar.ore().getState(level, random, BlockPos.ZERO));
             var previous = com.panda.promisedend.EndConfig.current();
             for (int i = 0; i < biomes.size(); i++) {
                 String biome = biomes.get(i);
@@ -3585,6 +3824,8 @@ public final class EndGameTests {
             String spires = fallbackSpires(helper);
             if (spires != null) bad.add(spires);
             bad.addAll(fallbackSkyfall(helper));
+            String scars = fallbackScars(helper);
+            if (scars != null) bad.add(scars);
             // outside the End nothing, even with terrain off: the copies are for the End's own biomes
             BlockPos away = helper.absolutePos(new BlockPos(1, 2, 1)).offset(0, 40, 0);
             var test = helper.getLevel();
@@ -3644,6 +3885,22 @@ public final class EndGameTests {
             var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
             int[] built = skyfallChunk(end, new BlockPos(9472, end.getMaxY() - 60, 9600));
             if (built[0] + built[1] != 0) bad.add("with terrain on the terrain-off copies built " + built[0] + " blossoms and " + built[1] + " vents");
+        }
+        // the Voidscar's scars and vents on vanilla's barrens, through the same loader hook; with terrain on the scar builds nothing
+        var barrens = biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.END_BARRENS);
+        if (!barrens.is(net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("voidscar_fallback")))) bad.add("end_barrens isn't in #promisedend:voidscar_fallback");
+        for (String name : List.of("rift_scar_fallback", "updraft_vent_fallback")) {
+            var feature = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name)));
+            if (barrens.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(feature)))
+                bad.add(name + " isn't among end_barrens' features (the loader's biome modifier didn't apply)");
+        }
+        if (com.panda.promisedend.EndConfig.terrainEnabled()) {
+            var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+            BlockPos at = new BlockPos(9800, end.getMaxY() - 60, 9000);
+            for (int d = 0; d < 4; d++) floor(end, at.below(d), 16, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            if (grove(end, "rift_scar_fallback").place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(501), at))
+                bad.add("the terrain-off scar built with terrain on");
+            clearDeep(end, at);
         }
         // the Mire's pools on vanilla's midlands, through the same loader hook; with terrain on the copy builds nothing
         var pools = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("mire_pool_fallback")));
@@ -3738,6 +3995,43 @@ public final class EndGameTests {
         int built = 0;
         for (BlockPos p : spots) if (placed.value().feature().value().place(level, generator, random, p)) built++;
         return built;
+    }
+
+    /**
+     * With terrain off, the Voidscar's fallback scar in the End, run as worldgen runs it (its rarity and its biome check
+     * included): on a chunk of end stone four deep high in the End's sky, made end_barrens, a scar with Voidsteel Scrap
+     * Ore in its walls (the only scrap there is then) in 8 seeds; the same in the test level, outside the End, none.
+     * Null when it holds.
+     */
+    private static String fallbackScars(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) return "no End level";
+        String result = null;
+        for (var level : List.of(end, helper.getLevel())) {
+            var scar = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rift_scar_fallback")));
+            // a chunk's corner, at the floor's height: its middle is floored 16 round, so a scar has its whole reach
+            BlockPos corner = new BlockPos(9792, level.getMaxY() - 60, 8992), at = corner.offset(8, 0, 8);
+            fillBiome(level, at, "minecraft:end_barrens");
+            int placed = 0, ore = 0;
+            for (int seed = 0; seed < 8; seed++) {
+                // a fresh floor for each seed, the ore counted before the next
+                for (int d = 0; d < 4; d++) floor(level, at.below(d), 16, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+                placed += placeAsWorldgen(level, scar, 950 + seed, corner);
+                for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, -4, -16), at.offset(16, -1, 16))) if (level.getBlockState(p).is(ModBlocks.VOIDSTEEL_SCRAP_ORE.get())) ore++;
+            }
+            clearDeep(level, at);
+            PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Voidscar's fallback scar in {}: {} scars in 8 seeds, {} Voidsteel Scrap Ore", level.dimension().identifier(), placed, ore);
+            if (level == end && (placed == 0 || ore == 0)) result = "the Voidscar's fallback scar with terrain off: " + placed + " scars in 8 seeds, " + ore + " ore";
+            if (level != end && placed != 0) result = "the Voidscar's fallback scar built outside the End";
+        }
+        return result;
+    }
+
+    /** Clears 16 round {@code centre} from 5 under it to 1 over: a scar's floors are four deep. */
+    private static void clearDeep(net.minecraft.server.level.ServerLevel level, BlockPos centre) {
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-17, -5, -17), centre.offset(17, 1, 17))) {
+            if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
     }
 
     /**

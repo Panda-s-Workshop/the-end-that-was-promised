@@ -150,6 +150,17 @@
       }
     ]
   },
+  "ambient.voidscar_wastes.additions": {
+    "subtitle": "subtitles.promisedend.voidscar_wastes.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.respawn_anchor.ambient",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 0.4
+      }
+    ]
+  },
   "block.void_water.enter": {
     "subtitle": "subtitles.promisedend.void_water.enter",
     "sounds": [
@@ -187,6 +198,16 @@
         "name": "minecraft:entity.breeze.idle_air",
         "type": "event",
         "pitch": 0.8
+      }
+    ]
+  },
+  "block.crumbling_voidstone.crack": {
+    "subtitle": "subtitles.promisedend.crumbling_voidstone.crack",
+    "sounds": [
+      {
+        "name": "minecraft:block.pointed_dripstone.break",
+        "type": "event",
+        "pitch": 0.6
       }
     ]
   }

@@ -157,6 +157,15 @@ public final class ModBlocks {
             com.panda.promisedend.block.UpdraftVentBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).strength(3.0F, 9.0F)
                     .sound(SoundType.POLISHED_DEEPSLATE).requiresCorrectToolForDrops().lightLevel(s -> 4).fallDistanceReduction(1.0F)), 3);
 
+    // ---- the Voidscar Wastes: rift scars in the islands, Voidsteel Scrap in their walls, worn edges that give way
+    /** Voidsteel Scrap in the rift walls: diamond tier and blast-proof, as ancient debris is netherite's; it glows magenta. */
+    public static final DeferredBlock<com.panda.promisedend.block.RiftOreBlock> VOIDSTEEL_SCRAP_ORE = withHint(BLOCKS.registerBlock("voidsteel_scrap_ore",
+            com.panda.promisedend.block.RiftOreBlock::new, p -> p.mapColor(MapColor.COLOR_MAGENTA).strength(20.0F, 1200.0F)
+                    .sound(SoundType.ANCIENT_DEBRIS).requiresCorrectToolForDrops().lightLevel(s -> 6)), 2);
+    public static final DeferredBlock<com.panda.promisedend.block.CrumblingVoidstoneBlock> CRUMBLING_VOIDSTONE = withHint(BLOCKS.registerBlock(
+            "crumbling_voidstone", com.panda.promisedend.block.CrumblingVoidstoneBlock::new,
+            p -> p.mapColor(MapColor.TERRACOTTA_PURPLE).strength(1.5F, 3.0F).sound(SoundType.TUFF).requiresCorrectToolForDrops()), 2);
+
     private ModBlocks() {}
 
     /** Every block item, in registration order: the creative tab lists them. */

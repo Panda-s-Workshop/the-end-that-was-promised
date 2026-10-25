@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#promisedend:voidscar_fallback",
+  "features": "promisedend:updraft_vent_fallback",
+  "step": "vegetal_decoration"
+}

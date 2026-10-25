@@ -17,5 +17,8 @@ public final class ModParticles {
     /** A Drift Blossom's petal: white-lilac, carried sideways on the air as it falls, glowing faintly. */
     public static final Supplier<SimpleParticleType> DRIFT_PETAL = PARTICLES.register("drift_petal", () -> new SimpleParticleType(false));
 
+    /** A rift mote: magenta, rising slowly out of the Voidscar's rift scars, glowing faintly. */
+    public static final Supplier<SimpleParticleType> RIFT_MOTE = PARTICLES.register("rift_mote", () -> new SimpleParticleType(false));
+
     private ModParticles() {}
 }

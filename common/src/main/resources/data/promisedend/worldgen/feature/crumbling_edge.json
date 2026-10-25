@@ -1,0 +1,9 @@
+{
+  "type": "promisedend:crumbling_edge",
+  "crumbling": {
+    "id": "promisedend:crumbling_voidstone"
+  },
+  "chance": 0.4,
+  "edge": 2,
+  "drop": 5
+}

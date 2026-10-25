@@ -79,12 +79,17 @@ public final class ServerCheck {
         if (failure == null && terrain) failure = biome(end, "resonant_spires", "Resonant Spires", ModBlocks.RESONITE_BLOCK.get(), 100);
         if (failure == null && terrain) failure = biome(end, "skyfall_archipelago", "Skyfall Archipelago", ModBlocks.DRIFT_BLOSSOM.get(), 15);
         if (failure == null && terrain) failure = generatedVent(end);
+        if (failure == null && terrain) failure = biome(end, "voidscar_wastes", "Voidscar Wastes", ModBlocks.VOIDSTEEL_SCRAP_ORE.get(), 8);
+        if (failure == null && terrain) failure = biome(end, net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("voidscar_wastes")), "Voidscar Wastes' edges",
+                ModBlocks.CRUMBLING_VOIDSTONE.get(), 20, 64);
         // terrain off: the fallbacks on vanilla's biomes, the Thicket's groves and the Spires' formations on its highlands, the Mire's pools on its midlands
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback groves", ModBlocks.CHORUS_LOG.get(), 10, 64);
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback pools", ModBlocks.VOID_WATER.get(), 8, 64);
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback spires", ModBlocks.RESONITE_BLOCK.get(), 50, 64);
         // and the Skyfall's blossoms on its small islands
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback blossoms", ModBlocks.DRIFT_BLOSSOM.get(), 3, 64);
+        // and the Voidscar's scars on its barrens
+        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_BARRENS, "barrens' fallback scars", ModBlocks.VOIDSTEEL_SCRAP_ORE.get(), 3, 64);
         return failure != null ? failure : wrath(server);
     }
 
@@ -160,7 +165,7 @@ public final class ServerCheck {
      * little for its pools to be sure of (world seed 5: 27 of 81 samples, 21 Void-water). Null when there is no such
      * biome within 6400 blocks.
      */
-    private static BlockPos spot(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, int radius) {
+    public static BlockPos spot(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, int radius) {
         BlockPos best = null;
         int bestLand = -1;
         for (BlockPos from : java.util.List.of(new BlockPos(0, 64, 0), new BlockPos(1500, 64, 0), new BlockPos(0, 64, 1500), new BlockPos(-1500, 64, 0), new BlockPos(0, 64, -1500))) {

@@ -22,20 +22,24 @@ public final class ModParticleProviders {
     }
 
     public static void register(Sink sink) {
-        // pollen sinks slowly and sways; a petal falls a little faster and is carried sideways on the air
+        // pollen sinks slowly and sways; a petal falls a little faster and is carried sideways on the air; a rift mote rises
         sink.sprites(ModParticles.CHORUS_POLLEN.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
                 new Mote(level, x, y, z, sprites, POLLEN));
         sink.sprites(ModParticles.DRIFT_PETAL.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
                 new Mote(level, x, y, z, sprites, PETAL));
+        sink.sprites(ModParticles.RIFT_MOTE.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
+                new Mote(level, x, y, z, sprites, RIFT));
     }
 
     private ModParticleProviders() {}
 
-    /** How a mote moves: its start fall, gravity, sway, a steady sideways drift, lifetime and size ranges. */
+    /** How a mote moves: its start fall (up when positive), gravity, sway, a steady sideways drift, lifetime and size ranges. */
     record Motion(double fall, float gravity, double sway, double wind, int life, int lifeSpread, float size, float sizeSpread) {}
 
     static final Motion POLLEN = new Motion(-0.004, 0.003F, 0.0015, 0.0, 80, 60, 0.05F, 0.04F);
     static final Motion PETAL = new Motion(-0.01, 0.004F, 0.003, 0.012, 60, 50, 0.07F, 0.04F);
+    /** Rising, not falling: a start upward and gravity the other way, slower than the others sink. */
+    static final Motion RIFT = new Motion(0.012, -0.003F, 0.001, 0.0, 60, 50, 0.05F, 0.03F);
 
     /**
      * A mote: drifts down slowly, swaying, and fades in and out. It carries its own light: a leaf-like particle takes

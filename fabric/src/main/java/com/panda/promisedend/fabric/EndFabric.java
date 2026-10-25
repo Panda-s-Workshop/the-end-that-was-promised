@@ -73,6 +73,11 @@ public final class EndFabric implements ModInitializer {
             BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("skyfall_fallback"))),
                     GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(feature)));
         }
+        // and rift scars and ancient vents on #promisedend:voidscar_fallback (vanilla's barrens), so Voidsteel Scrap exists
+        BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("voidscar_fallback"))),
+                GenerationStep.Decoration.LOCAL_MODIFICATIONS, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rift_scar_fallback")));
+        BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("voidscar_fallback"))),
+                GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("updraft_vent_fallback")));
 
         ServerLifecycleEvents.SERVER_STARTING.register(PromisedEnd::onServerStarting);
         ServerLifecycleEvents.SERVER_STARTED.register(com.panda.promisedend.ServerCheck::onServerStarted);

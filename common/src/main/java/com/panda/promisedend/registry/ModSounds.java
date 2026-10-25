@@ -28,6 +28,8 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> RESONITE_CHIME = sound("block.resonite_cluster.chime");
     // the Updraft Vent's wind
     public static final Supplier<SoundEvent> UPDRAFT_WIND = sound("block.updraft_vent.wind");
+    // Crumbling Voidstone cracking under a step
+    public static final Supplier<SoundEvent> CRUMBLING_VOIDSTONE_CRACK = sound("block.crumbling_voidstone.crack");
 
     private static Supplier<SoundEvent> sound(String name) {
         return SOUNDS.register(name, SoundEvent::createVariableRangeEvent);

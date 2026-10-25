@@ -26,13 +26,17 @@ import net.minecraft.world.level.levelgen.feature.Feature;
  *
  * <p>{@code ring_inner} and {@code ring_outer} narrow the band it builds in ({@code rim_debris_inner}: small stepping
  * stones close to the main island, so the first crossing is short and the Rim shows through the dragon's fog).
+ * {@code anywhere} lifts the band for a biome of its own out past it ({@code voidscar_debris}: the Voidscar's cracked
+ * islands, which its biome check keeps to it), and {@code split} is the share of the islands 13 or more across that are
+ * split, whatever their drawn shape.
  *
  * <p>An island 8 or more across takes one of four {@link Shape}s, so the Rim isn't a field of the same lens: a level
  * cap, a cap tilted as it settled, one split in two by a crack through it, or one with Voidstone shards thrust up
  * from its top. About one in six of them also carries a piece of the Ancients' building that fell with it
  * ({@link Wreck}): a toppled purpur pillar, a broken corner of Voidstone brick, or a chiseled block with its slab.
  */
-public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, boolean fallback, int ringInner, int ringOuter) implements Feature {
+public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, boolean fallback, int ringInner, int ringOuter, boolean anywhere,
+                               float split) implements Feature {
     public static final MapCodec<RimDebrisFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             // at most 8: loose shards hang up to 8 past the radius, and a feature may build no further than the chunks
             // beside its own (16 from an origin on a chunk's edge)
@@ -41,7 +45,9 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
             Codec.floatRange(0, 1).fieldOf("voidstone").forGetter(RimDebrisFeature::voidstone),
             Codec.BOOL.optionalFieldOf("fallback", false).forGetter(RimDebrisFeature::fallback),
             Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_OUTER).optionalFieldOf("ring_inner", EndRegions.RIM_INNER).forGetter(RimDebrisFeature::ringInner),
-            Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_OUTER).optionalFieldOf("ring_outer", EndRegions.RIM_OUTER).forGetter(RimDebrisFeature::ringOuter)
+            Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_OUTER).optionalFieldOf("ring_outer", EndRegions.RIM_OUTER).forGetter(RimDebrisFeature::ringOuter),
+            Codec.BOOL.optionalFieldOf("anywhere", false).forGetter(RimDebrisFeature::anywhere),
+            Codec.floatRange(0, 1).optionalFieldOf("split", 0F).forGetter(RimDebrisFeature::split)
     ).apply(i, RimDebrisFeature::new));
 
     @Override
@@ -74,7 +80,10 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
 
     public Plan plan(RandomSource random) {
         int radius = Mth.randomBetweenInclusive(random, minRadius, Math.max(minRadius, maxRadius));
-        return new Plan(radius, shape(random, radius), wreck(random, radius));
+        Shape shape = shape(random, radius);
+        // drawn only when the feature asks for it, so the Rim's own plans stay as they were
+        if (split > 0 && radius >= 6 && random.nextFloat() < split) shape = Shape.SPLIT;
+        return new Plan(radius, shape, wreck(random, radius));
     }
 
     /** One island in six of 8 or more across carries a wreck, of the three kinds alike. */
@@ -88,7 +97,7 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
         // only in the Rim's ring: the fallback copy sits on whole End biomes, and must not build on the main island or
         // in the void gap
         double distance = Math.hypot(origin.getX(), origin.getZ());
-        if (distance < ringInner || distance > ringOuter) return false;
+        if (!anywhere && (distance < ringInner || distance > ringOuter)) return false;
         if (fallback && (level.getLevel().dimension() != Level.END
                 || level.getBiome(origin).unwrapKey().map(k -> k.identifier().getNamespace().equals(PromisedEnd.MODID)).orElse(false))) {
             return false;

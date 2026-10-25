@@ -1,0 +1,21 @@
+{
+  "type": "promisedend:rift_scar",
+  "wall": {
+    "id": "promisedend:voidstone"
+  },
+  "ore": {
+    "id": "promisedend:voidsteel_scrap_ore"
+  },
+  "length": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 12,
+    "max_inclusive": 22
+  },
+  "depth": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 4,
+    "max_inclusive": 9
+  },
+  "ore_chance": 0.12,
+  "fallback": true
+}
