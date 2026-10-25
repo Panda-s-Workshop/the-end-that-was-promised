@@ -15,8 +15,11 @@ import net.minecraft.world.level.block.state.BlockState;
  * a player farms it where it grew.
  */
 public class BuddingResoniteBlock extends AmethystBlock {
-    /** Vanilla budding amethyst's chance, so a farm grows at the pace players know. */
-    public static final int GROWTH_CHANCE = 5;
+    /**
+     * Budding amethyst grows a stage one tick in 5 and a cluster takes four stages, so a whole cluster here one tick in
+     * 20 keeps a farm at the pace players know.
+     */
+    public static final int GROWTH_CHANCE = 20;
 
     public BuddingResoniteBlock(Properties properties) {
         super(properties);

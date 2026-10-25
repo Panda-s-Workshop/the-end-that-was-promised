@@ -125,9 +125,10 @@
   "subtitles.promisedend.ender_dragon.void_breath_gather": "Void breath gathers",
   "subtitles.promisedend.lumen_mire.additions": "Void-water bubbles",
   "subtitles.promisedend.resonant_spires.additions": "Crystals resonate",
-  "subtitles.promisedend.resonite_cluster.chime": "Resonite chimes",
+  "subtitles.promisedend.resonite_cluster.chime": "Resonite rings out",
   "subtitles.promisedend.resonite_cluster.hum": "Resonite hums",
   "subtitles.promisedend.void_water.enter": "Void-water splashes",
+  "tag.entity_type.promisedend.hears_resonite": "Hears Resonite",
   "tag.item.promisedend.plants_on_void_water": "Plants on Void-water",
   "tag.item.promisedend.repaired_by_dragon_scale": "Repaired by Dragon Scale",
   "tag.item.promisedend.voidstone_tool_materials": "Voidstone Tool Materials",
@@ -137,6 +138,7 @@
   "tooltip.promisedend.dragon_scale.0": "Repairs half an elytra in an anvil",
   "tooltip.promisedend.lumen.0": "Scraped from Lumen Moss: it still holds a little light",
   "tooltip.promisedend.resonite_shard.0": "It hums against your hand",
+  "tooltip.promisedend.resonite_shard.1": "A cluster that breaks rings out, and Endermen come",
   "tooltip.promisedend.void_anchor.0": "Catches you if you fall into the void",
   "tooltip.promisedend.void_anchor.1": "Once, then it cracks"
 }

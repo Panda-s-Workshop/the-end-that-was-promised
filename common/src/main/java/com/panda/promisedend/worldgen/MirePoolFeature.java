@@ -33,7 +33,8 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
  *
  * <p>The pool lies at the commonest surface height under it. A pool cell is ground from
  * {@code #promisedend:mire_pool_ground} at that height, on something solid, with air over it, or a column one block
- * higher, whose top block is cut away, so a pool settles into a gentle slope. Cells whose side would face the open air
+ * higher, whose top block is cut away, so a pool settles into a gentle slope (never a block that walls a higher pool
+ * already there). Cells whose side would face the open air
  * are dropped, so every cell is walled in by ground, by other cells or by a pool already there (which joins this one),
  * and a pool never spills over an island's edge (a dropped cell stays ground, so one pass does it). Everything stays
  * within {@code 1.5 radius + 3} blocks of the origin, inside the chunks a feature may write to.
@@ -79,22 +80,25 @@ public record MirePoolFeature(BlockStateProvider water, IntProvider radius, floa
                 if (!in) continue;
                 BlockPos column = new BlockPos(origin.getX() + dx, 0, origin.getZ() + dz);
                 inside.add(column);
-                heights.merge(level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, column).getY() - 1, 1, Integer::sum);
+                // a column over the void has no surface, and doesn't vote
+                int surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, column).getY() - 1;
+                if (surface >= level.getMinY()) heights.merge(surface, 1, Integer::sum);
             }
         }
+        if (heights.isEmpty()) return false;
         // the commonest surface height, the lower on a tie
         int y = heights.entrySet().stream().max(Map.Entry.<Integer, Integer>comparingByValue()
                 .thenComparing(Map.Entry.<Integer, Integer>comparingByKey().reversed())).orElseThrow().getKey();
         Set<BlockPos> cells = new LinkedHashSet<>();
         for (BlockPos column : inside) {
             BlockPos cell = column.atY(y);
-            if (poolable(level, cell, y)) cells.add(cell);
+            if (poolable(level, cell, y, pool)) cells.add(cell);
         }
         // a single block of ground between this pool and water beyond it goes under too, so pools that meet join
         for (BlockPos cell : List.copyOf(cells)) {
             for (Direction d : Direction.Plane.HORIZONTAL) {
                 BlockPos gap = cell.relative(d), beyond = gap.relative(d);
-                if (!cells.contains(gap) && (cells.contains(beyond) || level.getBlockState(beyond).is(pool)) && poolable(level, gap, y)) cells.add(gap);
+                if (!cells.contains(gap) && (cells.contains(beyond) || level.getBlockState(beyond).is(pool)) && poolable(level, gap, y, pool)) cells.add(gap);
             }
         }
         // walled in on every side, by ground, by this pool or by one already there
@@ -126,11 +130,14 @@ public record MirePoolFeature(BlockStateProvider water, IntProvider radius, floa
      * Ground a pool may take at height {@code y}, on something solid: pool ground at the surface with air over it, or
      * under one more block of pool ground (cut away when the pool is made) with air over that.
      */
-    private static boolean poolable(WorldGenLevel level, BlockPos cell, int y) {
+    private static boolean poolable(WorldGenLevel level, BlockPos cell, int y, Block pool) {
         int surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, cell).getY() - 1;
         if (surface != y && surface != y + 1) return false;
         if (!level.getBlockState(cell).is(GROUND) || !level.getBlockState(cell.below()).isFaceSturdy(level, cell.below(), Direction.UP)) return false;
         if (surface == y) return level.getBlockState(cell.above()).isAir();
-        return level.getBlockState(cell.above()).is(GROUND) && level.getBlockState(cell.above(2)).isAir();
+        // the block cut away must not be the wall of a higher pool already there, or that pool would face the air
+        BlockPos top = cell.above();
+        if (Direction.Plane.HORIZONTAL.stream().anyMatch(d -> level.getBlockState(top.relative(d)).is(pool))) return false;
+        return level.getBlockState(top).is(GROUND) && level.getBlockState(cell.above(2)).isAir();
     }
 }

@@ -73,7 +73,8 @@ public class VoidWaterBlock extends Block {
     protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity, InsideBlockEffectApplier effects, boolean intersects) {
         if (level.isClientSide() || !(entity instanceof LivingEntity living)) return;
         MobEffectInstance slow = living.getEffect(MobEffects.SLOWNESS);
-        // stepping in (no Slowness yet, since it's topped up while you stay): a dull splash and the void's motes
+        // stepping in: a dull splash and the void's motes, when the pool's Slowness starts (none yet: it is topped up
+        // while you stay, so this is once a stay); someone already slowed by something else walks in quietly
         if (slow == null && level instanceof ServerLevel server) {
             server.playSound(null, entity.getX(), entity.getY(), entity.getZ(), ModSounds.VOID_WATER_ENTER.get(), SoundSource.BLOCKS, 0.6F, 1.0F);
             server.sendParticles(ParticleTypes.REVERSE_PORTAL, entity.getX(), pos.getY() + 0.85, entity.getZ(), 8, 0.3, 0.05, 0.3, 0.02);

@@ -64,7 +64,7 @@ public final class ServerCheck {
         String failure = construct(end, centre.above(26));
         if (failure == null) failure = strips(end, centre.above(40));
         if (failure == null && terrain) failure = biome(end, "chorus_thicket", "Chorus Thicket", ModBlocks.CHORUS_LOG.get(), 30);
-        if (failure == null && terrain) failure = biome(end, "lumen_mire", "Lumen Mire", ModBlocks.VOID_WATER.get(), 20);
+        if (failure == null && terrain) failure = biome(end, "lumen_mire", "Lumen Mire", ModBlocks.VOID_WATER.get(), 60);
         if (failure == null && terrain) failure = biome(end, "resonant_spires", "Resonant Spires", ModBlocks.RESONITE_BLOCK.get(), 100);
         return failure != null ? failure : wrath(server);
     }
@@ -118,14 +118,19 @@ public final class ServerCheck {
     /**
      * Where to look at a biome found by its nearest point: that point is on the biome's edge, so the middle of the
      * biome round it instead. The biome is sampled every 8 blocks within 96 of {@code hit} (by the biome source, no
-     * chunks generated); the result is the matching sample nearest their centroid, at y 64.
+     * chunks generated), keeping the samples with land under them (the generator's base height, also without chunks:
+     * a biome of the End runs on over the void, and a middle there has nothing to count); the result is the kept sample
+     * nearest their centroid, at y 64, or {@code hit} if none is kept.
      */
     public static BlockPos interior(net.minecraft.server.level.ServerLevel level, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, BlockPos hit) {
         java.util.List<BlockPos> in = new java.util.ArrayList<>();
         for (int dx = -96; dx <= 96; dx += 8) {
             for (int dz = -96; dz <= 96; dz += 8) {
                 int x = hit.getX() + dx, z = hit.getZ() + dz;
-                if (level.getUncachedNoiseBiome(x >> 2, 16, z >> 2).is(key)) in.add(new BlockPos(x, 64, z));
+                if (!level.getUncachedNoiseBiome(x >> 2, 16, z >> 2).is(key)) continue;
+                int ground = level.getChunkSource().getGenerator().getBaseHeight(x, z, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG,
+                        level, level.getChunkSource().randomState());
+                if (ground > level.getMinY() + 1) in.add(new BlockPos(x, 64, z));
             }
         }
         if (in.isEmpty()) return hit;

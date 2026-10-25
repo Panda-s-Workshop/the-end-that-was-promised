@@ -121,10 +121,13 @@ public final class ModBlocks {
     /** End stone grown over, as Chorus Moss is; it pays Lumen when broken without Silk Touch (its loot table). */
     public static final DeferredBlock<Block> LUMEN_MOSS = simple("lumen_moss",
             p -> p.mapColor(MapColor.COLOR_YELLOW).strength(3.0F, 9.0F).sound(SoundType.NYLIUM).requiresCorrectToolForDrops());
-    /** A still pool, not a fluid: no item, nothing drops, a block placed into it replaces it; pistons don't move it. */
+    /**
+     * A still pool, not a fluid: no item, nothing drops, a block placed into it replaces it; pistons, pickaxes and
+     * explosions don't move or break it (a player holding a lily targets its surface, so it mustn't be minable).
+     */
     public static final DeferredBlock<com.panda.promisedend.block.VoidWaterBlock> VOID_WATER = BLOCKS.registerBlock("void_water",
             com.panda.promisedend.block.VoidWaterBlock::new, p -> p.mapColor(MapColor.COLOR_BLACK).replaceable().noCollision().noOcclusion()
-                    .strength(100.0F).pushReaction(PushReaction.IMMOVEABLE).noLootTable().sound(SoundType.EMPTY));
+                    .strength(-1.0F, 3600000.0F).pushReaction(PushReaction.IMMOVEABLE).noLootTable().sound(SoundType.EMPTY));
     public static final DeferredBlock<com.panda.promisedend.block.MireLilyBlock> MIRE_LILY = withItem(BLOCKS.registerBlock("mire_lily",
             com.panda.promisedend.block.MireLilyBlock::new, p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY).noCollision().instabreak()
                     .sound(SoundType.LILY_PAD).lightLevel(s -> 7).pushReaction(PushReaction.POPPED)));

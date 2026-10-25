@@ -97,7 +97,7 @@ public final class EndGameTests {
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
-            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160);
+            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 200);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -617,7 +617,7 @@ public final class EndGameTests {
     }
 
     /**
-     * Lumen Moss drops end stone and, one time in five, a Lumen (seven in ten with Fortune III), over 400 seeded rolls
+     * Lumen Moss drops end stone and, one time in five, a Lumen (0.3, 0.45 and 0.7 with Fortune I-III), over 400 seeded rolls
      * each; with Silk Touch the moss alone. Endermen pick it up.
      */
     private static void lumenMossDrops(GameTestHelper helper) {
@@ -631,10 +631,15 @@ public final class EndGameTests {
         var fortune = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
         fortune.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.FORTUNE), 3);
         var plain = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
-        // tool, the fewest and the most Lumen in 400 rolls (p 0.2: 80 expected; p 0.7: 280)
+        var fortune1 = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        fortune1.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.FORTUNE), 1);
+        var fortune2 = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
+        fortune2.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.FORTUNE), 2);
+        // tool, the fewest and the most Lumen in 400 rolls (p 0.2: 80 expected; 0.3: 120; 0.45: 180; 0.7: 280)
         record Case(String name, ItemStack tool, int min, int max) {}
         // the bounds are 2.5 standard deviations either side
-        for (var c : List.of(new Case("a pickaxe", plain, 60, 100), new Case("Fortune III", fortune, 255, 305), new Case("Silk Touch", silk, 0, 0))) {
+        for (var c : List.of(new Case("a pickaxe", plain, 60, 100), new Case("Fortune I", fortune1, 97, 143), new Case("Fortune II", fortune2, 155, 205),
+                new Case("Fortune III", fortune, 255, 305), new Case("Silk Touch", silk, 0, 0))) {
             int lumen = 0;
             for (int i = 0; i < 400; i++) {
                 var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
@@ -664,7 +669,9 @@ public final class EndGameTests {
      * cell has solid ground under it and ground or water on all four sides (nothing spills off the islet), a lily only
      * ever on the water, and over the wide floors at least 4 cells a pool, a lily and a Lumen Moss rim. On the wide
      * floors a second pool goes 4 blocks off the first, and the two join: no single block of ground left between water
-     * on both sides. On obsidian, which isn't pool ground, nothing.
+     * on both sides. On obsidian, which isn't pool ground, nothing. On ten terraces (the east half a block higher) a pool
+     * on the upper step and then one at the step: the second settles below and cuts into the upper step, every cell at
+     * both heights still walled in, and no rim moss with anything over it.
      */
     private static void mirePoolsWalled(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -715,6 +722,34 @@ public final class EndGameTests {
             PromisedEnd.LOGGER.info("[mire_pools_walled] {} (floor {} across): placed {}, {} cells", centre, 2 * r + 1, placed, cells);
             clear(level, centre);
         }
+        // ten terraces, the east half a block higher: a pool on the upper step first, then one at the step, which settles
+        // on the lower level and cuts into the upper one, never into the first pool's wall
+        int cuts = 0, upper = 0;
+        for (int n = 0; n < 10; n++) {
+            BlockPos centre = new BlockPos(4000 + n * 64, y, 2400);
+            floor(level, centre, 12, endStone);
+            floor(level, centre.below(), 12, endStone);
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(1, 0, -12), centre.offset(12, 0, 12))) level.setBlock(p, endStone, 2);
+            feature.place(level, generator, net.minecraft.util.RandomSource.create(1100 + n), centre.offset(5, 0, 0));
+            feature.place(level, generator, net.minecraft.util.RandomSource.create(1200 + n), centre);
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -2, -16), centre.offset(16, 4, 16))) {
+                var state = level.getBlockState(p);
+                if (state.is(ModBlocks.LUMEN_MOSS.get()) && !level.getBlockState(p.above()).isAir()) bad.add("moss buried under " + level.getBlockState(p.above()) + " at " + p);
+                if (!state.is(water)) continue;
+                if (p.getY() == y) upper++;
+                if (p.getY() == y - 1 && p.getX() > centre.getX()) cuts++;
+                if (!level.getBlockState(p.below()).isFaceSturdy(level, p.below(), net.minecraft.core.Direction.UP)) bad.add("terrace void-water over nothing at " + p);
+                for (var d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                    BlockPos q = p.relative(d);
+                    var side = level.getBlockState(q);
+                    if (!side.is(water) && !side.isFaceSturdy(level, q, d.getOpposite())) bad.add("terrace void-water open to the " + d + " at " + p);
+                }
+            }
+            clear(level, centre);
+        }
+        PromisedEnd.LOGGER.info("[mire_pools_walled] terraces: {} cells on the upper step, {} cut into it from below", upper, cuts);
+        if (upper == 0) bad.add("no pool on the upper steps, so the terraces can't tell");
+        if (cuts == 0) bad.add("no pool cut into the upper step, so the terraces can't tell");
         if (wide < 9) bad.add("only " + wide + " of 10 pools on the wide floors");
         if (walls > 0) bad.add(walls / 2 + " one-block walls between pools that should have joined");
         if (lilies == 0) bad.add("no lilies in 20 pools");
@@ -728,7 +763,10 @@ public final class EndGameTests {
     /**
      * The spire feature as configured, over ten seeds on open end stone: a formation every time, its tallest column
      * 10-30 blocks over the floor, budding Resonite in it, and every cluster standing on crystal (its facing away from a
-     * Resonite or budding block). On obsidian, which isn't spire ground, nothing.
+     * Resonite or budding block), and nothing written more than {@code ResoniteSpireFeature.REACH} blocks off on either
+     * axis. On obsidian, which isn't spire ground, nothing; inside a purpur ring round the origin (an End City's wall),
+     * nothing, and the ring whole; under a purpur overhang 34 up (above any spire) that starts a block east of
+     * the origin, over the first column's side, nothing.
      */
     private static void resoniteSpiresGrow(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -749,9 +787,10 @@ public final class EndGameTests {
                 clear(level, centre);
                 continue;
             }
-            int top = -1, crystals = 0, buds = 0, clusters = 0;
+            int top = -1, crystals = 0, buds = 0, clusters = 0, reach = 0;
             for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, 0, -16), centre.offset(16, 40, 16))) {
                 var state = level.getBlockState(p);
+                if (state.is(crystal) || state.is(budding) || state.is(cluster)) reach = Math.max(reach, Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())));
                 if (state.is(crystal) || state.is(budding)) {
                     crystals++;
                     if (state.is(budding)) buds++;
@@ -768,6 +807,31 @@ public final class EndGameTests {
             if (top < 10 || top > 30) bad.add("the tallest column " + top + " tall at " + centre);
             if (buds == 0) bad.add("no budding Resonite at " + centre);
             if (clusters == 0) bad.add("no clusters at " + centre);
+            if (reach > com.panda.promisedend.worldgen.ResoniteSpireFeature.REACH) bad.add("crystal " + reach + " blocks off at " + centre);
+            clear(level, centre);
+        }
+        // keep out: a purpur ring round the origin (the formation meets it), then a purpur overhang 34 up, over the
+        // tallest spire, from a block east of the origin (the formation is under it)
+        for (int n = 0; n < 2; n++) {
+            BlockPos centre = new BlockPos(6000 + (12 + n) * 64, y, 2000);
+            floor(level, centre, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            List<BlockPos> obstacle = new ArrayList<>();
+            if (n == 0) {
+                for (BlockPos p : BlockPos.betweenClosed(centre.offset(-1, 0, -1), centre.offset(1, 5, 1))) {
+                    if (Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())) == 1) obstacle.add(p.immutable());
+                }
+            } else {
+                for (BlockPos p : BlockPos.betweenClosed(centre.offset(1, 34, -14), centre.offset(14, 34, 14))) obstacle.add(p.immutable());
+            }
+            for (BlockPos p : obstacle) level.setBlock(p, net.minecraft.world.level.block.Blocks.PURPUR_BLOCK.defaultBlockState(), 2);
+            boolean placed = feature.place(level, generator, net.minecraft.util.RandomSource.create(950 + n), centre);
+            int crystals = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, 0, -16), centre.offset(16, 40, 16))) {
+                if (level.getBlockState(p).is(crystal) || level.getBlockState(p).is(budding) || level.getBlockState(p).is(cluster)) crystals++;
+            }
+            String where = n == 0 ? "inside a purpur ring" : "under a purpur overhang";
+            if (placed || crystals > 0) bad.add(crystals + " Resonite " + where);
+            if (obstacle.stream().anyMatch(p -> !level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.PURPUR_BLOCK))) bad.add("the purpur " + where + " was broken");
             clear(level, centre);
         }
         if (!bad.isEmpty()) helper.fail("Resonite spires: " + bad);
@@ -775,42 +839,52 @@ public final class EndGameTests {
     }
 
     /**
-     * A survival player breaking a Resonite Cluster turns the Endermen within 12 blocks on them (one 8 blocks off) and
-     * not one further out (15.6 blocks, across the arena); a creative player's break draws none. The cluster's break
-     * hook is called as the game calls it before removing the block (the in-level mock player is always creative).
+     * The chime draws the nearest three Endermen within 12 blocks (4, 6 and 8 off) onto the player, not a fourth 10 off
+     * (the cap), not one 15.6 off (the radius), and not a pig 3 off (not in #promisedend:hears_resonite). A creative
+     * player's real break (the server's own destroyBlock, which removes the cluster) finds no player in survival near, so
+     * it rings and draws none. A survival player's real break is the `biomes` scenario's `ring` step.
      */
     private static void resoniteClusterChimes(GameTestHelper helper) {
         var level = helper.getLevel();
         List<String> bad = new ArrayList<>();
         var cluster = ModBlocks.RESONITE_CLUSTER.get().defaultBlockState();
-        BlockPos at = helper.absolutePos(new BlockPos(0, 2, 0)), also = helper.absolutePos(new BlockPos(0, 2, 3));
+        BlockPos at = helper.absolutePos(new BlockPos(0, 2, 0)), also = helper.absolutePos(new BlockPos(0, 2, 6));
         level.setBlock(at, cluster, 3);
-        level.setBlock(also, cluster, 3);
         // held still (no AI), so the check reads where the chime found them
         java.util.function.Function<BlockPos, net.minecraft.world.entity.monster.Enderman> enderman = rel -> {
             var e = helper.spawn(net.minecraft.world.entity.EntityTypes.ENDERMAN, rel);
             e.setNoAi(true);
             return e;
         };
-        var near = enderman.apply(new BlockPos(8, 2, 0));
+        List<net.minecraft.world.entity.monster.Enderman> within = new ArrayList<>();
+        for (int x : new int[] {4, 6, 8, 10}) within.add(enderman.apply(new BlockPos(x, 2, 0)));
         var far = enderman.apply(new BlockPos(11, 2, 11));
+        var pig = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, new BlockPos(0, 2, 3));
+        pig.setNoAi(true);
         var survivor = helper.makeMockServerPlayer(net.minecraft.world.level.GameType.SURVIVAL);
-        cluster.getBlock().playerWillDestroy(level, at, cluster, survivor);
-        level.removeBlock(at, false);
-        if (near.getTarget() != survivor) bad.add("the Enderman 8 blocks off targets " + near.getTarget());
+        int drawn = com.panda.promisedend.block.ResoniteClusterBlock.chime(level, at, survivor);
+        if (drawn != 3) bad.add("the chime drew " + drawn + ", not 3");
+        for (int k = 0; k < 4; k++) {
+            boolean on = within.get(k).getTarget() == survivor;
+            if (on != (k < 3)) bad.add("the Enderman " + (4 + 2 * k) + " blocks off " + (on ? "was" : "wasn't") + " drawn");
+        }
         if (far.getTarget() != null) bad.add("the Enderman 15.6 blocks off targets " + far.getTarget());
-        near.setTarget(null);
+        if (pig.getTarget() != null) bad.add("the pig targets " + pig.getTarget());
+        within.forEach(e -> e.setTarget(null));
+        level.setBlock(also, cluster, 3);
         var creative = helper.makeMockServerPlayerInLevel();
-        cluster.getBlock().playerWillDestroy(level, also, cluster, creative);
-        level.removeBlock(also, false);
-        if (near.getTarget() != null) bad.add("a creative player's break drew the Enderman: " + near.getTarget());
+        creative.gameMode.destroyBlock(also);
+        if (!level.getBlockState(also).isAir()) bad.add("the creative break left " + level.getBlockState(also));
+        for (var e : within) if (e.getTarget() != null) bad.add("a creative player's break drew an Enderman onto " + e.getTarget());
         if (!bad.isEmpty()) helper.fail("Resonite chime: " + bad);
         helper.succeed();
     }
 
     /**
-     * Budding Resonite grows a cluster on an open face (random ticks, seeded), facing out from it, and on no face that
-     * isn't open; it has no item and no loot table.
+     * Budding Resonite grows a cluster on an open face, facing out from it, and on no face that isn't open: with only its
+     * top open, 4000 seeded random ticks grow 19-48 clusters (one tick in 20, then one face in 6: 33 expected, 2.5
+     * standard deviations either side; one in 5 would give 133, one in 50 give 13), each taken away when it grows. It has
+     * no item and no loot table.
      */
     private static void buddingResoniteGrows(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -825,10 +899,17 @@ public final class EndGameTests {
         }
         level.setBlock(at.above(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
         var random = net.minecraft.util.RandomSource.create(11);
-        for (int i = 0; i < 400 && !level.getBlockState(at.above()).is(cluster); i++) budding.defaultBlockState().randomTick(level, at, random);
-        var grown = level.getBlockState(at.above());
-        if (!grown.is(cluster)) bad.add("nothing grew on the open top in 400 random ticks");
-        else if (grown.getValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING) != net.minecraft.core.Direction.UP) bad.add("the cluster faces " + grown);
+        int grew = 0;
+        for (int i = 0; i < 4000; i++) {
+            budding.defaultBlockState().randomTick(level, at, random);
+            var grown = level.getBlockState(at.above());
+            if (!grown.is(cluster)) continue;
+            grew++;
+            if (grown.getValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING) != net.minecraft.core.Direction.UP) bad.add("the cluster faces " + grown);
+            level.setBlock(at.above(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        }
+        PromisedEnd.LOGGER.info("[budding_resonite_grows] {} clusters in 4000 random ticks", grew);
+        if (grew < 19 || grew > 48) bad.add(grew + " clusters in 4000 random ticks (19-48)");
         for (var d : net.minecraft.core.Direction.values()) {
             if (d != net.minecraft.core.Direction.UP && !level.getBlockState(at.relative(d)).is(net.minecraft.world.level.block.Blocks.STONE)) bad.add("it grew into the " + d + " face");
         }
@@ -1802,19 +1883,31 @@ public final class EndGameTests {
                         - com.panda.promisedend.logic.DragonPhase3.RING_RADIUS) > 1.5) fail(helper, release, "a warden's home is off the ring: " + w.home());
             }
         });
-        helper.runAtTickTime(30, () -> {
-            if (wardensOf(helper, dragon).size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) fail(helper, release, "it called wardens again");
-            dragon.kill(helper.getLevel());
-        });
-        helper.runAtTickTime(36, () -> {
-            var left = wardensOf(helper, dragon);
-            release.run();
-            if (!left.isEmpty()) helper.fail(left.size() + " wardens outlived their dragon: " + left.stream().map(w -> String.format(java.util.Locale.ROOT,
-                    "[alive %s, removed %s, health %.1f, ticks %d, no AI %s, entity-ticking %s, at %.1f %.1f %.1f, %.1f from the dragon]",
-                    w.isAlive(), w.getRemovalReason(), w.getHealth(), w.tickCount, w.isNoAi(),
-                    helper.getLevel().isPositionEntityTicking(w.blockPosition()), w.getX(), w.getY(), w.getZ(), w.distanceTo(dragon))).toList());
-            helper.succeed();
-        });
+        // the kill waits until every warden has ticked in an entity-ticking chunk: a forced chunk's entities load in the
+        // background, and on a busy test server a warden called at tick 10 sat 26 ticks in a chunk that wasn't ticking
+        // yet, so it never saw its dragon die (P80; the shattering itself is the warden's own tick)
+        long[] killed = {-1};
+        for (int t = 30; t <= 160; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (killed[0] < 0) {
+                    var wardens = wardensOf(helper, dragon);
+                    boolean ready = wardens.stream().allMatch(w -> w.tickCount > 0 && helper.getLevel().isPositionEntityTicking(w.blockPosition()));
+                    if (!ready && tick < 140) return;
+                    if (wardens.size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) fail(helper, release, "it called wardens again");
+                    dragon.kill(helper.getLevel());
+                    killed[0] = tick;
+                } else if (tick == killed[0] + 6) {
+                    var left = wardensOf(helper, dragon);
+                    release.run();
+                    if (!left.isEmpty()) helper.fail(left.size() + " wardens outlived their dragon (killed at tick " + killed[0] + "): " + left.stream().map(w -> String.format(java.util.Locale.ROOT,
+                            "[alive %s, removed %s, health %.1f, ticks %d, no AI %s, entity-ticking %s, at %.1f %.1f %.1f, %.1f from the dragon]",
+                            w.isAlive(), w.getRemovalReason(), w.getHealth(), w.tickCount, w.isNoAi(),
+                            helper.getLevel().isPositionEntityTicking(w.blockPosition()), w.getX(), w.getY(), w.getZ(), w.distanceTo(dragon))).toList());
+                    helper.succeed();
+                }
+            });
+        }
     }
 
     /** Keeps the chunks within {@code reach} of a spot loaded and ticking until the returned clean-up runs. */
