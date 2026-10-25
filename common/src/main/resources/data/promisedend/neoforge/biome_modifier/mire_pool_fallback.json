@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#promisedend:mire_fallback",
+  "features": "promisedend:mire_pool_fallback",
+  "step": "vegetal_decoration"
+}

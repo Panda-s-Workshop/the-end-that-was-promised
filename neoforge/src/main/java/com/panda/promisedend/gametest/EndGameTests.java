@@ -681,6 +681,23 @@ public final class EndGameTests {
             PromisedEnd.LOGGER.info("[lumen_moss_drops] {}: {} Lumen in 400", c.name(), lumen);
             if (lumen < c.min() || lumen > c.max()) bad.add("with " + c.name() + " " + lumen + " Lumen in 400 (" + c.min() + "-" + c.max() + ")");
         }
+        // blown up by a radius-6 blast, each drop survives one time in six: the end stone in 400 about 67 (48-85), the
+        // Lumen 0.2 x 1/6 of them, about 13 (4-22); without the explosion conditions 400 and 80
+        int stone = 0, blownLumen = 0;
+        for (int i = 0; i < 400; i++) {
+            var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, ItemStack.EMPTY)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, moss.defaultBlockState())
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.EXPLOSION_RADIUS, 6.0F)
+                    .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
+            var drops = table.getRandomItems(params, net.minecraft.util.Mth.murmurHash3Mixer(9000 + i));
+            stone += (int) drops.stream().filter(st -> st.is(net.minecraft.world.item.Items.END_STONE)).count();
+            blownLumen += (int) drops.stream().filter(st -> st.is(ModItems.LUMEN.get())).mapToInt(ItemStack::getCount).sum();
+        }
+        PromisedEnd.LOGGER.info("[lumen_moss_drops] a radius-6 blast: {} end stone, {} Lumen in 400", stone, blownLumen);
+        if (stone < 48 || stone > 85) bad.add("a radius-6 blast left " + stone + " end stone in 400 (48-85)");
+        if (blownLumen < 4 || blownLumen > 22) bad.add("a radius-6 blast left " + blownLumen + " Lumen in 400 (4-22)");
         if (moss.defaultBlockState().is(net.minecraft.tags.BlockTags.ENDERMAN_HOLDABLE)) bad.add("endermen pick it up, out of the pools' walls");
         if (!ModBlocks.CHORUS_MOSS.get().defaultBlockState().is(net.minecraft.tags.BlockTags.ENDERMAN_HOLDABLE)) bad.add("Chorus Moss isn't holdable either, so this can't tell");
         if (!bad.isEmpty()) helper.fail("Lumen Moss: " + bad);
@@ -1098,8 +1115,9 @@ public final class EndGameTests {
     /**
      * A gateway's exit search (vanilla's tallest full block within a radius) passes over a Resonite column 20 tall and
      * finds an end-stone pillar 3 tall beside it; with the column made of end stone instead, it finds the column's top.
-     * The gateway's own search (bedrock allowed, radius 16) is left as vanilla's: it finds the column's top either way,
-     * so the gateway goes 10 over the spire, not into it.
+     * The gateway's own search (bedrock allowed, radius 16) finds the pillar beside the Resonite column too, so the
+     * gateway stands 10 over the ground there, in a pearl's reach of the exit; with Resonite leaning into the gateway's
+     * frame over the pillar it keeps vanilla's answer, the column's top, so the frame never bites into a spire.
      */
     private static void gatewayExitsBesideSpires(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1117,10 +1135,16 @@ public final class EndGameTests {
                 BlockPos found = (BlockPos) search.invoke(null, level, centre, 5, false);
                 BlockPos want = block == net.minecraft.world.level.block.Blocks.END_STONE ? column : pillar;
                 if (!want.equals(found)) bad.add("beside a column of " + block + " the exit search found " + found + ", not " + want);
-                // the gateway's own search (radius 16, bedrock allowed) is vanilla's: over everything, the column too
+                // the gateway's own search (radius 16, bedrock allowed) comes down beside a spire too, as the frame round
+                // its perch 10 over the pillar is clear; over an end-stone column it is vanilla's
                 BlockPos perch = (BlockPos) search.invoke(null, level, centre, 16, true);
-                if (!column.equals(perch)) bad.add("beside a column of " + block + " the gateway's search found " + perch + ", not the column's top");
+                if (!want.equals(perch)) bad.add("beside a column of " + block + " the gateway's search found " + perch + ", not " + want);
             }
+            // a spire leaning into the frame over the pillar: the gateway keeps vanilla's perch, over the spire
+            for (int k = 0; k < 20; k++) level.setBlock(centre.offset(2, k, 0), ModBlocks.RESONITE_BLOCK.get().defaultBlockState(), 2);
+            for (int k = 0; k < 3; k++) level.setBlock(pillar.offset(1, 9 + k, 0), ModBlocks.RESONITE_BLOCK.get().defaultBlockState(), 2);
+            BlockPos crowded = (BlockPos) search.invoke(null, level, centre, 16, true);
+            if (!column.equals(crowded)) bad.add("with a spire in the gateway's frame over the pillar the search found " + crowded + ", not the spire's top");
         } catch (ReflectiveOperationException e) {
             bad.add("no exit search: " + e);
         }
@@ -2532,6 +2556,8 @@ public final class EndGameTests {
      * the Rim's content falls back to whatever End biomes fill the same ring, so Voidstone, outposts, the Codex and the
      * anchor stay obtainable: the outposts are still found near spawn, and the debris copy sits on every biome in
      * {@code #promisedend:rim_fallback}, which takes in each biome of {@code #minecraft:is_end} and {@code #c:is_end}.
+     * The Mire's pools go on vanilla's midlands ({@code #promisedend:mire_fallback}): with terrain off one builds in the
+     * End, moss round it; with terrain on the copy builds nothing.
      */
     private static void terrainOffFallsBack(GameTestHelper helper) {
         var access = helper.getLevel().registryAccess();
@@ -2553,6 +2579,8 @@ public final class EndGameTests {
             var biome = generator.getBiomeSource().createUncachedResolver(random).getNoiseBiome(300 >> 2, 64 >> 2, 0);
             if (!biome.is(net.minecraft.world.level.biome.Biomes.THE_END)) bad.add("terrain off, yet the biome at x=300 is " + biome.unwrapKey().orElse(null));
             bad.addAll(outpostSurvey(helper, "terrain off"));
+            String pools = fallbackPools(helper);
+            if (pools != null) bad.add(pools);
         } finally {
             com.panda.promisedend.EndConfig.use(previous);
         }
@@ -2575,8 +2603,52 @@ public final class EndGameTests {
                 if (!b.is(fallbackTag)) bad.add(b.unwrapKey().map(k -> k.identifier().toString()).orElse("?") + " is in #" + tag.location() + " but not in the fallback");
             });
         }
+        // the Mire's pools on vanilla's midlands, through the same loader hook; with terrain on the copy builds nothing
+        var pools = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("mire_pool_fallback")));
+        var midlands = biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.END_MIDLANDS);
+        if (!midlands.is(net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("mire_fallback")))) bad.add("end_midlands isn't in #promisedend:mire_fallback");
+        if (midlands.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(pools)))
+            bad.add("mire_pool_fallback isn't among end_midlands' features (the loader's biome modifier didn't apply)");
+        if (com.panda.promisedend.EndConfig.terrainEnabled()) {
+            var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+            // the same floor, two deep, and seed that make a pool with terrain off
+            BlockPos at = new BlockPos(9064, end.getMaxY() - 60, 9000);
+            floor(end, at, 12, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            floor(end, at.below(), 12, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            if (pools.value().feature().value().place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(700), at))
+                bad.add("the terrain-off pools built with terrain on");
+            clear(end, at);
+        }
         if (!bad.isEmpty()) helper.fail("terrain-off fallback: " + bad);
         helper.succeed();
+    }
+
+    /**
+     * With terrain off, the Mire's fallback pool in the End: on a floor of end stone two deep, high in the End's sky, a
+     * pool of at least MirePoolFeature.MIN_CELLS void-water with Lumen Moss round it (the only moss there is then).
+     * The same floor and seed make a pool in mire_pools_walled. Null when it holds.
+     */
+    private static String fallbackPools(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) return "no End level";
+        var pools = end.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE)
+                .getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("mire_pool_fallback"))).value().feature().value();
+        BlockPos at = new BlockPos(9000, end.getMaxY() - 60, 9000);
+        var endStone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        floor(end, at, 12, endStone);
+        floor(end, at.below(), 12, endStone);
+        boolean placed = pools.place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(700), at);
+        int water = 0, moss = 0;
+        for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, -3, -16), at.offset(16, 3, 16))) {
+            var state = end.getBlockState(p);
+            if (state.is(ModBlocks.VOID_WATER.get())) water++;
+            else if (state.is(ModBlocks.LUMEN_MOSS.get())) moss++;
+        }
+        clear(end, at);
+        PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Mire's fallback pool: {} void-water, {} Lumen Moss", water, moss);
+        if (!placed || water < com.panda.promisedend.worldgen.MirePoolFeature.MIN_CELLS || moss == 0)
+            return "the Mire's fallback pool with terrain off: placed " + placed + ", " + water + " void-water, " + moss + " Lumen Moss";
+        return null;
     }
 
     /**

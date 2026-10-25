@@ -1,0 +1,20 @@
+{
+  "type": "promisedend:mire_pool",
+  "water": {
+    "id": "promisedend:void_water"
+  },
+  "radius": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 2,
+    "max_inclusive": 5
+  },
+  "lily_chance": 0.12,
+  "lily": {
+    "id": "promisedend:mire_lily"
+  },
+  "rim": {
+    "id": "promisedend:lumen_moss"
+  },
+  "rim_chance": 0.7,
+  "fallback": true
+}

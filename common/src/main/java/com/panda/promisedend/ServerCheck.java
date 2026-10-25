@@ -66,6 +66,9 @@ public final class ServerCheck {
         if (failure == null && terrain) failure = biome(end, "chorus_thicket", "Chorus Thicket", ModBlocks.CHORUS_LOG.get(), 30);
         if (failure == null && terrain) failure = biome(end, "lumen_mire", "Lumen Mire", ModBlocks.VOID_WATER.get(), 60);
         if (failure == null && terrain) failure = biome(end, "resonant_spires", "Resonant Spires", ModBlocks.RESONITE_BLOCK.get(), 100);
+        // terrain off: the fallbacks on vanilla's biomes, the Thicket's groves on its highlands and the Mire's pools on its midlands
+        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback groves", ModBlocks.CHORUS_LOG.get(), 10, 64);
+        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback pools", ModBlocks.VOID_WATER.get(), 8, 64);
         return failure != null ? failure : wrath(server);
     }
 
@@ -99,19 +102,24 @@ public final class ServerCheck {
      * {@code minimum} of {@code block} (what only that biome's features make) lie within 32 blocks.
      */
     private static String biome(net.minecraft.server.level.ServerLevel end, String id, String name, net.minecraft.world.level.block.Block block, int minimum) {
-        var key = net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id(id));
+        return biome(end, net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id(id)), name, block, minimum, 32);
+    }
+
+    /** As above within {@code radius} blocks: a sparse fallback wants a wider look than a biome of ours. */
+    private static String biome(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key,
+                                String name, net.minecraft.world.level.block.Block block, int minimum, int radius) {
         var found = end.findClosestBiome3d(h -> h.is(key), new BlockPos(0, 64, 0), 6400, 32, 64);
         if (found == null) return "no " + name + " within 6400 blocks";
         BlockPos at = interior(end, key, found.getFirst());
-        for (int cx = (at.getX() - 40) >> 4; cx <= (at.getX() + 40) >> 4; cx++) {
-            for (int cz = (at.getZ() - 40) >> 4; cz <= (at.getZ() + 40) >> 4; cz++) end.getChunk(cx, cz);
+        for (int cx = (at.getX() - radius - 8) >> 4; cx <= (at.getX() + radius + 8) >> 4; cx++) {
+            for (int cz = (at.getZ() - radius - 8) >> 4; cz <= (at.getZ() + radius + 8) >> 4; cz++) end.getChunk(cx, cz);
         }
         int count = 0;
-        for (BlockPos p : BlockPos.betweenClosed(at.offset(-32, -40, -32), at.offset(32, 40, 32))) {
+        for (BlockPos p : BlockPos.betweenClosed(at.offset(-radius, -40, -radius), at.offset(radius, 40, radius))) {
             if (end.getBlockState(p).is(block)) count++;
         }
         String what = block.getName().getString();
-        PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} {} within 32 blocks", name, at, count, what);
+        PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} {} within {} blocks", name, at, count, what, radius);
         return count >= minimum ? null : "only " + count + " " + what + " in the " + name + " at " + at;
     }
 

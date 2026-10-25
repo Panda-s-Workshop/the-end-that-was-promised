@@ -3,6 +3,7 @@ package com.panda.promisedend.worldgen;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.panda.promisedend.EndConfig;
 import com.panda.promisedend.PromisedEnd;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +19,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.valueproviders.IntProvider;
 import net.minecraft.util.valueproviders.IntProviders;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -38,9 +40,12 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
  * are dropped, so every cell is walled in by ground, by other cells or by a pool already there (which joins this one),
  * and a pool never spills over an island's edge (a dropped cell stays ground, so one pass does it). Everything stays
  * within {@code 1.5 radius + 3} blocks of the origin, inside the chunks a feature may write to.
+ *
+ * <p>{@code fallback} marks the sparser copy on {@code #promisedend:mire_fallback} (vanilla's midlands), which builds
+ * only in the End with our terrain off: there the Mire never generates, and its rim is the only Lumen Moss.
  */
 public record MirePoolFeature(BlockStateProvider water, IntProvider radius, float lilyChance, BlockStateProvider lily,
-                              BlockStateProvider rim, float rimChance) implements Feature {
+                              BlockStateProvider rim, float rimChance, boolean fallback) implements Feature {
     public static final TagKey<Block> GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("mire_pool_ground"));
     /** The smallest pool worth leaving: fewer cells than this and the ground stays as it was. */
     public static final int MIN_CELLS = 4;
@@ -50,7 +55,8 @@ public record MirePoolFeature(BlockStateProvider water, IntProvider radius, floa
             Codec.floatRange(0, 1).fieldOf("lily_chance").forGetter(MirePoolFeature::lilyChance),
             BlockStateProvider.DIRECT_CODEC.fieldOf("lily").forGetter(MirePoolFeature::lily),
             BlockStateProvider.DIRECT_CODEC.fieldOf("rim").forGetter(MirePoolFeature::rim),
-            Codec.floatRange(0, 1).fieldOf("rim_chance").forGetter(MirePoolFeature::rimChance)
+            Codec.floatRange(0, 1).fieldOf("rim_chance").forGetter(MirePoolFeature::rimChance),
+            Codec.BOOL.optionalFieldOf("fallback", false).forGetter(MirePoolFeature::fallback)
     ).apply(i, MirePoolFeature::new));
 
     @Override
@@ -60,6 +66,7 @@ public record MirePoolFeature(BlockStateProvider water, IntProvider radius, floa
 
     @Override
     public boolean place(WorldGenLevel level, ChunkGenerator generator, RandomSource random, BlockPos origin) {
+        if (fallback && (EndConfig.terrainEnabled() || level.getLevel().dimension() != Level.END)) return false;
         Block pool = water.getState(level, random, origin).getBlock();
         int r = radius.sample(random);
         // lobes: the first on the origin, the others off it by up to half the radius, each 60-100 % of it across
