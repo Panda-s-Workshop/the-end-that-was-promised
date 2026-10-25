@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:ancient_purpur_pillar_from_ancient_purpur_stonecutting"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_ancient_purpur": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:ancient_purpur"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_ancient_purpur"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:ancient_purpur_pillar_from_ancient_purpur_stonecutting"
+    ]
+  }
+}

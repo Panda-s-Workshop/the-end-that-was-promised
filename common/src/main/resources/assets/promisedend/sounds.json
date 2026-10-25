@@ -161,6 +161,17 @@
       }
     ]
   },
+  "ambient.shulker_reefs.additions": {
+    "subtitle": "subtitles.promisedend.shulker_reefs.additions",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.open",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 0.4
+      }
+    ]
+  },
   "block.void_water.enter": {
     "subtitle": "subtitles.promisedend.void_water.enter",
     "sounds": [

@@ -22,6 +22,16 @@
     "promisedend:lumen_lamp",
     "promisedend:updraft_vent",
     "promisedend:voidsteel_scrap_ore",
-    "promisedend:crumbling_voidstone"
+    "promisedend:crumbling_voidstone",
+    "promisedend:ancient_purpur",
+    "promisedend:ancient_purpur_stairs",
+    "promisedend:ancient_purpur_slab",
+    "promisedend:ancient_purpur_wall",
+    "promisedend:ancient_purpur_bricks",
+    "promisedend:ancient_purpur_brick_stairs",
+    "promisedend:ancient_purpur_brick_slab",
+    "promisedend:ancient_purpur_brick_wall",
+    "promisedend:ancient_purpur_tiles",
+    "promisedend:ancient_purpur_pillar"
   ]
 }

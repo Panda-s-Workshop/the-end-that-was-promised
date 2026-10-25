@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#promisedend:reef_fallback",
+  "features": "promisedend:purpur_reef_fallback",
+  "step": "vegetal_decoration"
+}

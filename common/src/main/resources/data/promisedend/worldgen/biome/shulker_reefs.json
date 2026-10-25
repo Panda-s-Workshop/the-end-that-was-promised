@@ -1,0 +1,60 @@
+{
+  "attributes": {
+    "minecraft:gameplay/natural_mob_spawns": {
+      "argument": {
+        "spawn_costs": {},
+        "spawns_by_category": {
+          "monster": [
+            {
+              "type": "minecraft:enderman",
+              "count": 4,
+              "weight": 10
+            }
+          ]
+        }
+      },
+      "modifier": "overlay"
+    },
+    "minecraft:visual/fog_color": "#20141f",
+    "minecraft:visual/ambient_particles": {
+      "argument": [
+        {
+          "particle": {
+            "type": "minecraft:end_rod"
+          },
+          "probability": 0.0006
+        }
+      ],
+      "modifier": "append"
+    },
+    "minecraft:audio/ambient_sounds": {
+      "additions": {
+        "sound": {
+          "sound_id": "promisedend:ambient.shulker_reefs.additions"
+        },
+        "tick_chance": 0.005
+      }
+    }
+  },
+  "carvers": [],
+  "downfall": 0.5,
+  "effects": {
+    "water_color": "#3f76e4"
+  },
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "promisedend:purpur_reef"
+    ]
+  ],
+  "has_precipitation": false,
+  "temperature": 0.5
+}

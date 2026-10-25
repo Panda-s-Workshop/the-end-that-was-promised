@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": "promisedend:ancient_purpur_bricks",
+  "result": {
+    "id": "promisedend:ancient_purpur_brick_slab",
+    "count": 2
+  }
+}

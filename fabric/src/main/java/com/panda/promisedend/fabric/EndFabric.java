@@ -78,6 +78,9 @@ public final class EndFabric implements ModInitializer {
                 GenerationStep.Decoration.LOCAL_MODIFICATIONS, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("rift_scar_fallback")));
         BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("voidscar_fallback"))),
                 GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("updraft_vent_fallback")));
+        // and the Reefs' growths and colonies on #promisedend:reef_fallback (vanilla's midlands), so Ancient Purpur exists
+        BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("reef_fallback"))),
+                GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("purpur_reef_fallback")));
 
         ServerLifecycleEvents.SERVER_STARTING.register(PromisedEnd::onServerStarting);
         ServerLifecycleEvents.SERVER_STARTED.register(com.panda.promisedend.ServerCheck::onServerStarted);

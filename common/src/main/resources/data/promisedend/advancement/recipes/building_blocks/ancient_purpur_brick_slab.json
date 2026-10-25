@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:ancient_purpur_brick_slab"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_ancient_purpur_bricks": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:ancient_purpur_bricks"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_ancient_purpur_bricks"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:ancient_purpur_brick_slab"
+    ]
+  }
+}

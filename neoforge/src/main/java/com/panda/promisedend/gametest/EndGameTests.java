@@ -96,6 +96,8 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_vent_recipe", () -> EndGameTests::updraftVentRecipe);
         FUNCTIONS.register("rift_scar_carves", () -> EndGameTests::riftScarCarves);
         FUNCTIONS.register("voidscar_islands", () -> EndGameTests::voidscarIslands);
+        FUNCTIONS.register("purpur_reef_grows", () -> EndGameTests::purpurReefGrows);
+        FUNCTIONS.register("ancient_purpur_set", () -> EndGameTests::ancientPurpurSet);
         FUNCTIONS.register("crumbling_edges_line_islands", () -> EndGameTests::crumblingEdgesLineIslands);
         FUNCTIONS.register("crumbling_voidstone_falls", () -> EndGameTests::crumblingVoidstoneFalls);
         FUNCTIONS.register("voidsteel_ore_drops", () -> EndGameTests::voidsteelOreDrops);
@@ -795,6 +797,128 @@ public final class EndGameTests {
             }
         }
         if (!bad.isEmpty()) helper.fail("rift scar: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A Shulker Reef, as the Reefs configure it, on a floor of end stone high in the test level's sky, in 40 seeds:
+     * each makes 20 or more Ancient Purpur, standing 4 or more blocks over the floor at its tallest, nothing changed past
+     * PurpurReefFeature.REACH blocks from its spot. Over the seeds: a fifth or more of the purpur hangs over air (the
+     * branches, fans and caps: a reef of bare trunks has none); 0.8-3.5 end rods (its polyps) a reef; a colony in 10-45 %
+     * of the reefs (one in four is asked; a reef with no perch has none), each of 2 or 3 wild shulkers, every one on the
+     * purpur with air in its own block and the one over it. On the same floor under a layer of cobweb two blocks up (it
+     * stops nothing that moves, so the growths still find the floor), every growth would go into the cobweb: none is
+     * made and the cobweb is whole.
+     */
+    private static void purpurReefGrows(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var reef = grove(level, "purpur_reef");
+        var coral = ModBlocks.ANCIENT_PURPUR_SET.base().get();
+        var web = net.minecraft.world.level.block.Blocks.COBWEB;
+        int reach = com.panda.promisedend.worldgen.PurpurReefFeature.REACH, seeds = 40;
+        int rods = 0, colonies = 0, shulkers = 0, purpur = 0, hanging = 0;
+        for (int seed = 0; seed <= seeds; seed++) {
+            BlockPos at = new BlockPos(9600 + 64 * (seed % 20), level.getMaxY() - 60 - 30 * (seed / 20), 9800);
+            boolean roofed = seed == seeds;
+            floor(level, at, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            if (roofed) floor(level, at.above(3), 14, web.defaultBlockState());
+            boolean placed = reef.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer(700 + seed)), at);
+            int blocks = 0, tallest = 0, far = 0, here = 0, under = 0, webs = 0;
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, 0, -16), at.offset(16, 14, 16))) {
+                var state = level.getBlockState(p);
+                if (state.isAir()) continue;
+                if (state.is(web)) {
+                    webs++;
+                    continue;
+                }
+                if (state.is(coral)) {
+                    blocks++;
+                    tallest = Math.max(tallest, p.getY() - at.getY() + 1);
+                    if (p.getY() > at.getY() && level.getBlockState(p.below()).isAir()) under++;
+                }
+                if (state.is(net.minecraft.world.level.block.Blocks.END_ROD)) here++;
+                if (Math.max(Math.abs(p.getX() - at.getX()), Math.abs(p.getZ() - at.getZ())) > reach) far++;
+            }
+            var box = new net.minecraft.world.phys.AABB(at).inflate(16, 16, 16);
+            var found = level.getEntitiesOfClass(net.minecraft.world.entity.monster.Shulker.class, box);
+            for (var shulker : found) {
+                BlockPos b = shulker.blockPosition();
+                if (!level.getBlockState(b.below()).is(coral) || !level.getBlockState(b).isAir() || !level.getBlockState(b.above()).isAir())
+                    bad.add("seed " + seed + ": a shulker at " + b + " over " + level.getBlockState(b.below()) + ", in " + level.getBlockState(b) + ", under " + level.getBlockState(b.above()));
+                shulker.discard();
+            }
+            PromisedEnd.LOGGER.info("[purpur_reef_grows] seed {}{}: placed {}, {} Ancient Purpur ({} over air), the tallest {} over the floor, {} end rods, {} shulkers",
+                    seed, roofed ? " (under cobweb)" : "", placed, blocks, under, tallest, here, found.size());
+            if (roofed) {
+                if (placed || blocks != 0 || webs != 29 * 29) bad.add("under cobweb: placed " + placed + ", " + blocks + " purpur, " + webs + " of " + 29 * 29 + " cobwebs left");
+            } else {
+                if (!placed || blocks < 20 || tallest < 4) bad.add("seed " + seed + ": placed " + placed + ", " + blocks + " purpur, " + tallest + " tall");
+                if (far != 0) bad.add("seed " + seed + ": " + far + " blocks past its reach of " + reach);
+                if (!found.isEmpty() && (found.size() < 2 || found.size() > 3)) bad.add("seed " + seed + ": a colony of " + found.size());
+                rods += here;
+                purpur += blocks;
+                hanging += under;
+                if (!found.isEmpty()) colonies++;
+                shulkers += found.size();
+            }
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, -1, -16), at.offset(16, 14, 16))) {
+                if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
+        PromisedEnd.LOGGER.info("[purpur_reef_grows] over {} seeds: {} Ancient Purpur ({} over air), {} end rods, {} colonies, {} shulkers",
+                seeds, purpur, hanging, rods, colonies, shulkers);
+        if (hanging * 5 < purpur) bad.add("only " + hanging + " of " + purpur + " purpur over air: bare trunks");
+        if (rods * 10 < seeds * 8 || rods * 10 > seeds * 35) bad.add(rods + " end rods in " + seeds + " reefs");
+        if (colonies * 100 < seeds * 10 || colonies * 100 > seeds * 45) bad.add(colonies + " colonies in " + seeds + " reefs");
+        if (!bad.isEmpty()) helper.fail("purpur reef: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Ancient Purpur set: four of the grown block make four bricks, four bricks four tiles, two of its slabs a
+     * pillar; the stonecutter makes each from the grown block. All take a pickaxe and drop themselves; the grown block
+     * sounds as coral, the cut ones as stone, with vanilla purpur's strength (1.5).
+     */
+    private static void ancientPurpurSet(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var recipes = level.getServer().getRecipeManager();
+        var grown = new ItemStack(ModBlocks.ANCIENT_PURPUR_SET.base().get());
+        var bricks = new ItemStack(ModBlocks.ANCIENT_PURPUR_BRICK_SET.base().get());
+        var slab = new ItemStack(ModBlocks.ANCIENT_PURPUR_SET.slab().get());
+        record Craft(String name, int w, int h, ItemStack in, net.minecraft.world.item.Item out, int count) {}
+        for (var c : List.of(new Craft("bricks", 2, 2, grown, ModBlocks.ANCIENT_PURPUR_BRICK_SET.base().get().asItem(), 4),
+                new Craft("tiles", 2, 2, bricks, ModBlocks.ANCIENT_PURPUR_TILES.get().asItem(), 4),
+                new Craft("pillar", 1, 2, slab, ModBlocks.ANCIENT_PURPUR_PILLAR.get().asItem(), 1))) {
+            List<ItemStack> grid = new ArrayList<>();
+            for (int i = 0; i < c.w() * c.h(); i++) grid.add(c.in().copy());
+            var input = net.minecraft.world.item.crafting.CraftingInput.of(c.w(), c.h(), grid);
+            var out = recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level).map(h -> h.value().assemble(input)).orElse(ItemStack.EMPTY);
+            if (!out.is(c.out()) || out.getCount() != c.count()) bad.add("the " + c.name() + " recipe makes " + out);
+        }
+        var cut = new net.minecraft.world.item.crafting.SingleRecipeInput(grown);
+        java.util.Set<net.minecraft.world.item.Item> fromStone = new java.util.HashSet<>();
+        for (var h : recipes.getRecipes()) {
+            if (h.value() instanceof net.minecraft.world.item.crafting.StonecutterRecipe r && r.matches(cut, level)) fromStone.add(r.assemble(cut).getItem());
+        }
+        for (var want : List.of(ModBlocks.ANCIENT_PURPUR_BRICK_SET.base().get(), ModBlocks.ANCIENT_PURPUR_TILES.get(), ModBlocks.ANCIENT_PURPUR_PILLAR.get(),
+                ModBlocks.ANCIENT_PURPUR_SET.stairs().get(), ModBlocks.ANCIENT_PURPUR_BRICK_SET.wall().get())) {
+            if (!fromStone.contains(want.asItem())) bad.add("the stonecutter makes no " + want.getName().getString() + " from Ancient Purpur");
+        }
+        var set = List.of(ModBlocks.ANCIENT_PURPUR_SET.base().get(), ModBlocks.ANCIENT_PURPUR_SET.stairs().get(), ModBlocks.ANCIENT_PURPUR_SET.slab().get(),
+                ModBlocks.ANCIENT_PURPUR_SET.wall().get(), ModBlocks.ANCIENT_PURPUR_BRICK_SET.base().get(), ModBlocks.ANCIENT_PURPUR_BRICK_SET.stairs().get(),
+                ModBlocks.ANCIENT_PURPUR_BRICK_SET.slab().get(), ModBlocks.ANCIENT_PURPUR_BRICK_SET.wall().get(), ModBlocks.ANCIENT_PURPUR_PILLAR.get(),
+                ModBlocks.ANCIENT_PURPUR_TILES.get());
+        if (set.size() != 10) bad.add(set.size() + " blocks in the set");
+        for (var block : set) {
+            var state = block.defaultBlockState();
+            if (!state.requiresCorrectToolForDrops() || !state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE)) bad.add(block.getName().getString() + " doesn't take a pickaxe");
+            if (Math.abs(block.defaultDestroyTime() - 1.5F) > 0.001F) bad.add(block.getName().getString() + " strength " + block.defaultDestroyTime());
+        }
+        if (ModBlocks.ANCIENT_PURPUR_SET.base().get().defaultBlockState().getSoundType() != net.minecraft.world.level.block.SoundType.CORAL_BLOCK) bad.add("the grown block doesn't sound as coral");
+        if (ModBlocks.ANCIENT_PURPUR_TILES.get().defaultBlockState().getSoundType() != net.minecraft.world.level.block.SoundType.STONE) bad.add("the tiles don't sound as stone");
+        if (!bad.isEmpty()) helper.fail("Ancient Purpur set: " + bad);
         helper.succeed();
     }
 
@@ -2682,9 +2806,11 @@ public final class EndGameTests {
             var spire = (com.panda.promisedend.worldgen.ResoniteSpireFeature) grove(level, "resonite_spire_fallback");
             var blossom = (net.minecraft.world.level.levelgen.feature.SimpleBlockFeature) grove(level, "drift_blossom_fallback");
             var scar = (com.panda.promisedend.worldgen.RiftScarFeature) grove(level, "rift_scar_fallback");
+            var reef = (com.panda.promisedend.worldgen.PurpurReefFeature) grove(level, "purpur_reef_fallback");
             List<net.minecraft.world.level.block.state.BlockState> built = List.of(grove.trunk().getState(level, random, BlockPos.ZERO),
                     pool.water().getState(level, random, BlockPos.ZERO), spire.budding().getState(level, random, BlockPos.ZERO),
-                    blossom.toPlace().value().getState(level, random, BlockPos.ZERO), scar.ore().getState(level, random, BlockPos.ZERO));
+                    blossom.toPlace().value().getState(level, random, BlockPos.ZERO), scar.ore().getState(level, random, BlockPos.ZERO),
+                    reef.coral().getState(level, random, BlockPos.ZERO));
             var previous = com.panda.promisedend.EndConfig.current();
             for (int i = 0; i < biomes.size(); i++) {
                 String biome = biomes.get(i);
@@ -3826,6 +3952,8 @@ public final class EndGameTests {
             bad.addAll(fallbackSkyfall(helper));
             String scars = fallbackScars(helper);
             if (scars != null) bad.add(scars);
+            String reefs = fallbackReefs(helper);
+            if (reefs != null) bad.add(reefs);
             // outside the End nothing, even with terrain off: the copies are for the End's own biomes
             BlockPos away = helper.absolutePos(new BlockPos(1, 2, 1)).offset(0, 40, 0);
             var test = helper.getLevel();
@@ -3900,6 +4028,20 @@ public final class EndGameTests {
             for (int d = 0; d < 4; d++) floor(end, at.below(d), 16, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
             if (grove(end, "rift_scar_fallback").place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(501), at))
                 bad.add("the terrain-off scar built with terrain on");
+            clearDeep(end, at);
+        }
+        // the Reefs' growths on vanilla's midlands, through the same loader hook
+        var reefs = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("purpur_reef_fallback")));
+        var middle = biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.END_MIDLANDS);
+        if (!middle.is(net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("reef_fallback")))) bad.add("end_midlands isn't in #promisedend:reef_fallback");
+        if (middle.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(reefs)))
+            bad.add("purpur_reef_fallback isn't among end_midlands' features (the loader's biome modifier didn't apply)");
+        if (com.panda.promisedend.EndConfig.terrainEnabled()) {
+            var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+            BlockPos at = new BlockPos(9900, end.getMaxY() - 60, 9000);
+            floor(end, at, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            if (grove(end, "purpur_reef_fallback").place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(701), at))
+                bad.add("the terrain-off reef built with terrain on");
             clearDeep(end, at);
         }
         // the Mire's pools on vanilla's midlands, through the same loader hook; with terrain on the copy builds nothing
@@ -4023,6 +4165,36 @@ public final class EndGameTests {
             PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Voidscar's fallback scar in {}: {} scars in 8 seeds, {} Voidsteel Scrap Ore", level.dimension().identifier(), placed, ore);
             if (level == end && (placed == 0 || ore == 0)) result = "the Voidscar's fallback scar with terrain off: " + placed + " scars in 8 seeds, " + ore + " ore";
             if (level != end && placed != 0) result = "the Voidscar's fallback scar built outside the End";
+        }
+        return result;
+    }
+
+    /**
+     * With terrain off, the Reefs' fallback in the End, run as worldgen runs it (its rarity, heightmap and biome check
+     * included): on a chunk of end stone high in the End's sky, made end_midlands, growths of Ancient Purpur (the only
+     * Ancient Purpur there is then) in 6 seeds; the same in the test level, outside the End, none. Null when it holds.
+     */
+    private static String fallbackReefs(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) return "no End level";
+        String result = null;
+        for (var level : List.of(end, helper.getLevel())) {
+            var reef = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("purpur_reef_fallback")));
+            BlockPos corner = new BlockPos(9920, level.getMaxY() - 60, 8992), at = corner.offset(8, 0, 8);
+            fillBiome(level, at, "minecraft:end_midlands");
+            int placed = 0, coral = 0;
+            for (int seed = 0; seed < 6; seed++) {
+                floor(level, at, 16, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+                placed += placeAsWorldgen(level, reef, 960 + seed, corner);
+                for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, 0, -16), at.offset(16, 14, 16))) {
+                    if (level.getBlockState(p).is(ModBlocks.ANCIENT_PURPUR_SET.base().get())) coral++;
+                }
+                clearDeep(level, at);
+                for (var s : level.getEntitiesOfClass(net.minecraft.world.entity.monster.Shulker.class, new net.minecraft.world.phys.AABB(at).inflate(17))) s.discard();
+            }
+            PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Reefs' fallback in {}: {} reefs in 6 seeds, {} Ancient Purpur", level.dimension().identifier(), placed, coral);
+            if (level == end && (placed == 0 || coral == 0)) result = "the Reefs' fallback with terrain off: " + placed + " reefs in 6 seeds, " + coral + " Ancient Purpur";
+            if (level != end && placed != 0) result = "the Reefs' fallback built outside the End";
         }
         return result;
     }

@@ -3,6 +3,8 @@
   "values": [
     "promisedend:voidstone_wall",
     "promisedend:polished_voidstone_wall",
-    "promisedend:voidstone_brick_wall"
+    "promisedend:voidstone_brick_wall",
+    "promisedend:ancient_purpur_wall",
+    "promisedend:ancient_purpur_brick_wall"
   ]
 }

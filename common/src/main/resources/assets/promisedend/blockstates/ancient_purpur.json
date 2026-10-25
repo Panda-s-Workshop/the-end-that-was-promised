@@ -1,0 +1,40 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "promisedend:block/ancient_purpur"
+      },
+      {
+        "model": "promisedend:block/ancient_purpur",
+        "x": 90
+      },
+      {
+        "model": "promisedend:block/ancient_purpur",
+        "x": 180
+      },
+      {
+        "model": "promisedend:block/ancient_purpur",
+        "x": 270
+      },
+      {
+        "model": "promisedend:block/ancient_purpur",
+        "y": 90
+      },
+      {
+        "model": "promisedend:block/ancient_purpur",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "promisedend:block/ancient_purpur",
+        "x": 180,
+        "y": 90
+      },
+      {
+        "model": "promisedend:block/ancient_purpur",
+        "x": 270,
+        "y": 90
+      }
+    ]
+  }
+}

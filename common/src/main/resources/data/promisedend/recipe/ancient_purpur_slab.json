@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "###"
+  ],
+  "key": {
+    "#": "promisedend:ancient_purpur"
+  },
+  "result": {
+    "id": "promisedend:ancient_purpur_slab",
+    "count": 6
+  }
+}

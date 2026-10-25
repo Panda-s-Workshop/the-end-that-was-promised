@@ -166,6 +166,19 @@ public final class ModBlocks {
             "crumbling_voidstone", com.panda.promisedend.block.CrumblingVoidstoneBlock::new,
             p -> p.mapColor(MapColor.TERRACOTTA_PURPLE).strength(1.5F, 3.0F).sound(SoundType.TUFF).requiresCorrectToolForDrops()), 2);
 
+    // ---- the Shulker Reefs: Ancient Purpur, the purpur the reefs grow as coral, and what the Ancients cut from it
+    /** As vanilla's purpur (1.5 / 6, a pickaxe), the grown block with coral's sound. */
+    private static final UnaryOperator<BlockBehaviour.Properties> ANCIENT_PURPUR_GROWN =
+            p -> p.mapColor(MapColor.COLOR_MAGENTA).strength(1.5F, 6.0F).sound(SoundType.CORAL_BLOCK).requiresCorrectToolForDrops();
+    private static final UnaryOperator<BlockBehaviour.Properties> ANCIENT_PURPUR_CUT =
+            p -> p.mapColor(MapColor.COLOR_MAGENTA).strength(1.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops();
+    public static final StoneSet ANCIENT_PURPUR_SET = stoneSet("ancient_purpur",
+            withHint(BLOCKS.registerSimpleBlock("ancient_purpur", ANCIENT_PURPUR_GROWN), 2), ANCIENT_PURPUR_GROWN);
+    public static final StoneSet ANCIENT_PURPUR_BRICK_SET = stoneSet("ancient_purpur_brick", "ancient_purpur_bricks", ANCIENT_PURPUR_CUT);
+    public static final DeferredBlock<RotatedPillarBlock> ANCIENT_PURPUR_PILLAR = withItem(BLOCKS.registerBlock("ancient_purpur_pillar",
+            RotatedPillarBlock::new, ANCIENT_PURPUR_CUT));
+    public static final DeferredBlock<Block> ANCIENT_PURPUR_TILES = simple("ancient_purpur_tiles", ANCIENT_PURPUR_CUT);
+
     private ModBlocks() {}
 
     /** Every block item, in registration order: the creative tab lists them. */
@@ -210,7 +223,11 @@ public final class ModBlocks {
 
     /** {@code prefix} names the variants ("voidstone_brick_stairs"), {@code baseName} the full block ("voidstone_bricks"). */
     private static StoneSet stoneSet(String prefix, String baseName, UnaryOperator<BlockBehaviour.Properties> properties) {
-        DeferredBlock<Block> base = simple(baseName, properties);
+        return stoneSet(prefix, simple(baseName, properties), properties);
+    }
+
+    /** As above, round a full block registered already, one with a hint. */
+    private static StoneSet stoneSet(String prefix, DeferredBlock<Block> base, UnaryOperator<BlockBehaviour.Properties> properties) {
         DeferredBlock<StairBlock> stairs = BLOCKS.registerBlock(prefix + "_stairs", p -> new StairBlock(base.get().defaultBlockState(), p), properties);
         DeferredBlock<SlabBlock> slab = BLOCKS.registerBlock(prefix + "_slab", SlabBlock::new, properties);
         DeferredBlock<WallBlock> wall = BLOCKS.registerBlock(prefix + "_wall", WallBlock::new, p -> properties.apply(p).forceSolidOn());

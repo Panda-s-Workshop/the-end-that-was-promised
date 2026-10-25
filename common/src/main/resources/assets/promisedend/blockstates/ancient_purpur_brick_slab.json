@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "promisedend:block/ancient_purpur_brick_slab"
+    },
+    "type=top": {
+      "model": "promisedend:block/ancient_purpur_brick_slab_top"
+    },
+    "type=double": {
+      "model": "promisedend:block/ancient_purpur_bricks"
+    }
+  }
+}
