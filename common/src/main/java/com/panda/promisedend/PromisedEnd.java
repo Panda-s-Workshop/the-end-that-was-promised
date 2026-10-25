@@ -62,6 +62,7 @@ public final class PromisedEnd {
     public static void onPlayerTick(net.minecraft.server.level.ServerPlayer player) {
         com.panda.promisedend.logic.VoidAnchor.tick(player);
         com.panda.promisedend.logic.RimProgress.tick(player);
+        com.panda.promisedend.logic.OuterProgress.tick(player);
     }
 
     public static Identifier id(String path) {

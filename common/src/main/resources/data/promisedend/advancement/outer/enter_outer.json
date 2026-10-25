@@ -1,0 +1,28 @@
+{
+  "parent": "promisedend:rim/root",
+  "criteria": {
+    "far_out": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "minecraft:ender_pearl"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.enter_outer.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.enter_outer.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "far_out"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

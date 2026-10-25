@@ -103,6 +103,7 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_column_bounds", () -> EndGameTests::updraftColumnBounds);
         FUNCTIONS.register("updraft_landing_safe", () -> EndGameTests::updraftLandingSafe);
         FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
+        FUNCTIONS.register("biome_visits_award", () -> EndGameTests::biomeVisitsAward);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -2198,6 +2199,145 @@ public final class EndGameTests {
         // feet stand inside a bottom slab's block
         if (!com.panda.promisedend.logic.VoidAnchor.isSafeGround(end, slabs)) bad.add("a floor of bottom slabs isn't safe");
         if (!bad.isEmpty()) helper.fail("safe footing: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Each outer biome's visit advancement goes to a player standing in that biome, through the game's own location
+     * check, and to no one standing elsewhere: a player on end highlands has none of them; in each biome in turn, that
+     * one more, and only that one. Each has a display and sits under {@code outer/enter_outer}, itself under
+     * {@code rim/root}; {@code OuterProgress.BIOMES} is exactly the biomes with one. A player in the End 1100 blocks out
+     * gets {@code outer/enter_outer}, one 500 out doesn't, nor one 1100 out in another level. With our terrain off, what
+     * each biome's terrain-off feature builds is in its marker tag, and a player out there 4 blocks from it gets that
+     * visit and no other, 5 blocks off none; with terrain on the same spot gives none (the biome criterion is the way
+     * then).
+     */
+    private static void biomeVisitsAward(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        var player = helper.makeMockServerPlayerInLevel();
+        List<String> bad = new ArrayList<>();
+        List<String> biomes = com.panda.promisedend.logic.OuterProgress.BIOMES;
+        var withVisits = server.getAdvancements().getAllAdvancements().stream().map(h -> h.id())
+                .filter(id -> id.getNamespace().equals(PromisedEnd.MODID) && id.getPath().startsWith("outer/visit_"))
+                .map(id -> id.getPath().substring("outer/visit_".length())).sorted().toList();
+        if (!withVisits.equals(biomes.stream().sorted().toList())) bad.add("OuterProgress.BIOMES " + biomes + " but visit advancements for " + withVisits);
+        List<net.minecraft.advancements.AdvancementHolder> visits = new ArrayList<>();
+        for (String biome : biomes) {
+            var adv = server.getAdvancements().get(PromisedEnd.id("outer/visit_" + biome));
+            if (adv == null) {
+                bad.add("no advancement outer/visit_" + biome);
+                continue;
+            }
+            visits.add(adv);
+            if (adv.value().display().isEmpty()) bad.add(adv.id() + " has no display, so the client never sees it");
+            if (!adv.value().parent().equals(java.util.Optional.of(com.panda.promisedend.logic.OuterProgress.ENTER_OUTER))) bad.add(adv.id() + " isn't under outer/enter_outer: " + adv.value().parent());
+        }
+        var enter = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.ENTER_OUTER);
+        if (enter == null) bad.add("no advancement outer/enter_outer");
+        else if (!enter.value().parent().equals(java.util.Optional.of(PromisedEnd.id("rim/root")))) bad.add("outer/enter_outer isn't under rim/root: " + enter.value().parent());
+        if (visits.size() == biomes.size()) {
+            java.util.function.Function<BlockPos, List<String>> standAt = at -> {
+                player.teleportTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5);
+                net.minecraft.advancements.triggers.CriteriaTriggers.LOCATION.trigger(player);
+                List<String> done = new ArrayList<>();
+                for (var adv : visits) if (player.getAdvancements().getOrStartProgress(adv).isDone()) done.add(adv.id().getPath());
+                return done;
+            };
+            BlockPos highlands = new BlockPos(5000, 120, 5000);
+            fillBiome(level, highlands, "minecraft:end_highlands");
+            if (!level.getBiome(highlands).is(net.minecraft.world.level.biome.Biomes.END_HIGHLANDS)) bad.add("fillbiome didn't set end_highlands at " + highlands);
+            List<String> none = standAt.apply(highlands);
+            if (!none.isEmpty()) bad.add("on end highlands: " + none);
+            for (int i = 0; i < biomes.size(); i++) {
+                BlockPos at = new BlockPos(5064 + 64 * i, 120, 5000);
+                fillBiome(level, at, "promisedend:" + biomes.get(i));
+                if (!level.getBiome(at).is(ResourceKey.create(Registries.BIOME, PromisedEnd.id(biomes.get(i))))) {
+                    bad.add("fillbiome didn't set " + biomes.get(i) + " at " + at);
+                    continue;
+                }
+                List<String> done = standAt.apply(at);
+                if (!done.equals(biomes.subList(0, i + 1).stream().map(b -> "outer/visit_" + b).toList())) bad.add("after standing in " + biomes.get(i) + ": " + done);
+            }
+        }
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) bad.add("no End level on the test server");
+        else if (enter != null && visits.size() == biomes.size()) {
+            List<net.minecraft.server.level.ServerPlayer> made = new ArrayList<>();
+            java.util.function.Supplier<net.minecraft.server.level.ServerPlayer> fresh = () -> {
+                var p = helper.makeMockServerPlayerInLevel();
+                made.add(p);
+                return p;
+            };
+            // one tick of the check, at a spot in a level; what of ours the player then has
+            java.util.function.BiFunction<net.minecraft.server.level.ServerPlayer, net.minecraft.world.level.portal.TeleportTransition, List<String>> tickAt = (p, to) -> {
+                to.newLevel().getChunk(BlockPos.containing(to.position()));
+                p.teleport(to);
+                p.tickCount = com.panda.promisedend.logic.OuterProgress.MARKER_INTERVAL * 7;
+                com.panda.promisedend.logic.OuterProgress.tick(p);
+                List<String> done = new ArrayList<>();
+                for (var adv : visits) if (p.getAdvancements().getOrStartProgress(adv).isDone()) done.add(adv.id().getPath());
+                if (p.getAdvancements().getOrStartProgress(enter).isDone()) done.add(enter.id().getPath());
+                return done;
+            };
+            java.util.function.BiFunction<net.minecraft.server.level.ServerLevel, BlockPos, net.minecraft.world.level.portal.TeleportTransition> to = (l, at) ->
+                    new net.minecraft.world.level.portal.TeleportTransition(l, net.minecraft.world.phys.Vec3.atBottomCenterOf(at),
+                            net.minecraft.world.phys.Vec3.ZERO, 0, 0, net.minecraft.world.level.portal.TeleportTransition.DO_NOTHING);
+            // by where they stand: 500 out in the End isn't the outer End, 1100 out is, 1100 out in another level isn't
+            var traveller = fresh.get();
+            List<String> near = tickAt.apply(traveller, to.apply(end, new BlockPos(500, 200, 0)));
+            if (!near.isEmpty()) bad.add("500 blocks out: " + near);
+            List<String> far = tickAt.apply(traveller, to.apply(end, new BlockPos(1100, 200, 0)));
+            if (!far.equals(List.of("outer/enter_outer"))) bad.add("1100 blocks out, with terrain on: " + far);
+            List<String> elsewhere = tickAt.apply(fresh.get(), to.apply(level, new BlockPos(1100, 200, 0)));
+            if (!elsewhere.isEmpty()) bad.add("1100 blocks out in the test level: " + elsewhere);
+            // with terrain off, each biome's marker is what its terrain-off feature builds: in its tag, and it earns that
+            // visit 4 blocks off (the check's reach) and not 5; with terrain on the same spot earns none
+            var random = net.minecraft.util.RandomSource.create(1);
+            var grove = (com.panda.promisedend.worldgen.ChorusGroveFeature) grove(level, "chorus_grove_fallback");
+            var pool = (com.panda.promisedend.worldgen.MirePoolFeature) grove(level, "mire_pool_fallback");
+            var spire = (com.panda.promisedend.worldgen.ResoniteSpireFeature) grove(level, "resonite_spire_fallback");
+            List<net.minecraft.world.level.block.state.BlockState> built = List.of(grove.trunk().getState(level, random, BlockPos.ZERO),
+                    pool.water().getState(level, random, BlockPos.ZERO), spire.budding().getState(level, random, BlockPos.ZERO));
+            var previous = com.panda.promisedend.EndConfig.current();
+            for (int i = 0; i < biomes.size(); i++) {
+                String biome = biomes.get(i);
+                var state = built.get(i);
+                if (!state.is(com.panda.promisedend.logic.OuterProgress.marker(biome))) bad.add(state.getBlock() + ", which the " + biome + "'s terrain-off feature builds, isn't in its visit marker tag");
+                BlockPos spot = new BlockPos(1200 + 32 * i, 200, 0);
+                // the chunks the check's cube touches (it reads none that isn't loaded)
+                for (int cx = (spot.getX() - 8) >> 4; cx <= (spot.getX() + 8) >> 4; cx++) {
+                    for (int cz = (spot.getZ() - 8) >> 4; cz <= (spot.getZ() + 8) >> 4; cz++) end.getChunk(cx, cz);
+                }
+                try {
+                    end.setBlock(spot.east(5), state, 2);
+                    com.panda.promisedend.EndConfig.use(new com.panda.promisedend.EndConfig.Source() {
+                        @Override public boolean terrainEnabled() { return false; }
+                        @Override public int edgeDistance() { return previous.edgeDistance(); }
+                        @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
+                        @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
+                        @Override public boolean dragonWrath() { return previous.dragonWrath(); }
+                        @Override public int maxWrath() { return previous.maxWrath(); }
+                    });
+                    var offPlayer = fresh.get();
+                    List<String> five = tickAt.apply(offPlayer, to.apply(end, spot));
+                    if (!five.equals(List.of("outer/enter_outer"))) bad.add("5 blocks from " + state.getBlock() + " with terrain off: " + five);
+                    end.setBlock(spot.east(5), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+                    end.setBlock(spot.east(4), state, 2);
+                    List<String> four = tickAt.apply(offPlayer, to.apply(end, spot));
+                    if (!four.equals(List.of("outer/visit_" + biome, "outer/enter_outer"))) bad.add("4 blocks from " + state.getBlock() + " with terrain off: " + four);
+                    com.panda.promisedend.EndConfig.use(previous);
+                    List<String> on = tickAt.apply(fresh.get(), to.apply(end, spot));
+                    if (!on.equals(List.of("outer/enter_outer"))) bad.add("4 blocks from " + state.getBlock() + " with terrain on: " + on);
+                } finally {
+                    com.panda.promisedend.EndConfig.use(previous);
+                    end.setBlock(spot.east(4), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+                    end.setBlock(spot.east(5), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+                }
+            }
+            made.forEach(p -> p.discard());
+        }
+        if (!bad.isEmpty()) helper.fail("biome visits: " + bad);
         helper.succeed();
     }
 
