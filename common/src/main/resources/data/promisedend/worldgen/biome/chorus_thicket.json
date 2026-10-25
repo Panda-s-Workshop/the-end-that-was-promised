@@ -20,9 +20,9 @@
       "argument": [
         {
           "particle": {
-            "type": "minecraft:portal"
+            "type": "promisedend:chorus_pollen"
           },
-          "probability": 0.004
+          "probability": 0.006
         }
       ],
       "modifier": "append"

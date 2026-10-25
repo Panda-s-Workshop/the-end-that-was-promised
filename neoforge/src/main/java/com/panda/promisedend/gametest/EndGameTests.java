@@ -871,6 +871,7 @@ public final class EndGameTests {
         var cluster = ModBlocks.RESONITE_CLUSTER.get();
         List<String> bad = new ArrayList<>();
         int y = level.getMaxY() - 60;
+        int fallenPieces = 0;
         for (int n = 0; n < 11; n++) {
             BlockPos centre = new BlockPos(6000 + n * 64, y, 2000);
             var ground = n == 10 ? net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState() : net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
@@ -882,8 +883,17 @@ public final class EndGameTests {
                 continue;
             }
             int top = -1, crystals = 0, buds = 0, clusters = 0, reach = 0;
-            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, 0, -16), centre.offset(16, 40, 16))) {
+            // from the floor's own layer, where the columns' feet and the sunk pieces are
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, -1, -16), centre.offset(16, 40, 16))) {
                 var state = level.getBlockState(p);
+                // a fallen piece: crystal at the floor past the columns' feet (they lean out only higher up), sunk in the
+                // floor or lying on it, never over air and never budding
+                double off = Math.hypot(p.getX() - centre.getX(), p.getZ() - centre.getZ());
+                if ((state.is(crystal) || state.is(budding)) && p.getY() <= y && off >= com.panda.promisedend.worldgen.ResoniteSpireFeature.FALLEN_FROM - 0.5) {
+                    fallenPieces++;
+                    if (p.getY() == y && level.getBlockState(p.below()).isAir()) bad.add("a fallen piece over air at " + p);
+                    if (state.is(budding)) bad.add("a budding fallen piece at " + p);
+                }
                 if (state.is(crystal) || state.is(budding) || state.is(cluster)) reach = Math.max(reach, Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())));
                 if (state.is(crystal) || state.is(budding)) {
                     crystals++;
@@ -904,6 +914,8 @@ public final class EndGameTests {
             if (reach > com.panda.promisedend.worldgen.ResoniteSpireFeature.REACH) bad.add("crystal " + reach + " blocks off at " + centre);
             clear(level, centre);
         }
+        PromisedEnd.LOGGER.info("[resonite_spires_grow] {} fallen blocks at the floor round ten formations", fallenPieces);
+        if (fallenPieces < 10) bad.add("only " + fallenPieces + " fallen blocks at the floor round ten formations");
         // the codec's height is the tallest column's height: 10, 30 and the codec's 32, each over three seeds
         var spire = (com.panda.promisedend.worldgen.ResoniteSpireFeature) feature;
         for (int h : new int[] {10, 30, 32}) {
@@ -1691,7 +1703,8 @@ public final class EndGameTests {
      * no ring), three pieces ring nothing in eight hits, and a gap over 3 s (61 ticks) restarts it (A, A, A, wait, A:
      * no ring). Every hit lands: the golem's hurt cooldown (26.3's damageCooldownTime) is cleared between hits. A
      * swing that doesn't land (the cooldown left on) isn't counted: A, A, miss, A rings nothing, the next A rings. A
-     * spear's stabs count the same: four on one golem, the 4th 2 more with Slowness II.
+     * spear's stabs count the same: four on one golem, the 4th 2 more with Slowness II. The armour's tooltip, read as
+     * this player, ends "4 of 4 pieces on" in dark aqua, and "3 of 4" in grey with the boots off.
      */
     private static void setBonusResonance(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1702,6 +1715,24 @@ public final class EndGameTests {
                 net.minecraft.world.entity.EquipmentSlot.LEGS, ModItems.RESONITE_LEGGINGS.get(),
                 net.minecraft.world.entity.EquipmentSlot.FEET, ModItems.RESONITE_BOOTS.get());
         set.forEach((slot, item) -> player.setItemSlot(slot, new ItemStack(item)));
+        // the tooltip's set count, as the client reads it for its own player
+        java.util.function.BiConsumer<Integer, net.minecraft.ChatFormatting> worn = (pieces, colour) -> {
+            var viewer = com.panda.promisedend.item.ResoniteArmourItem.viewer;
+            com.panda.promisedend.item.ResoniteArmourItem.viewer = () -> player;
+            List<net.minecraft.network.chat.Component> lines = new ArrayList<>();
+            ModItems.RESONITE_HELMET.get().appendHoverText(new ItemStack(ModItems.RESONITE_HELMET.get()), net.minecraft.world.item.Item.TooltipContext.EMPTY,
+                    net.minecraft.world.item.component.TooltipDisplay.DEFAULT, lines::add, net.minecraft.world.item.TooltipFlag.NORMAL);
+            com.panda.promisedend.item.ResoniteArmourItem.viewer = viewer;
+            var last = lines.isEmpty() ? null : lines.get(lines.size() - 1);
+            int n = com.panda.promisedend.item.ResonanceSet.piecesWorn(player);
+            if (n != pieces) bad.add(n + " pieces counted, not " + pieces);
+            if (last == null || !(last.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t)
+                    || !t.getKey().equals("tooltip.promisedend.resonite_armour.worn") || !java.util.Arrays.asList(t.getArgs()).equals(List.of(pieces, 4))
+                    || !net.minecraft.network.chat.TextColor.fromLegacyFormat(colour).equals(last.getStyle().getColor())) {
+                bad.add("with " + pieces + " pieces on the tooltip ends " + (last == null ? "with nothing" : last.getString() + " " + last.getStyle().getColor()));
+            }
+        };
+        worn.accept(4, net.minecraft.ChatFormatting.DARK_AQUA);
         java.util.function.Supplier<net.minecraft.world.entity.animal.golem.IronGolem> golem = () -> {
             var g = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityTypes.IRON_GOLEM, new BlockPos(2, 2, 2));
             g.setHealth(g.getMaxHealth());
@@ -1738,6 +1769,7 @@ public final class EndGameTests {
         if (Math.abs(after - d[0]) > 1e-3 || a.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS)) bad.add("a hit on another target didn't restart the count (" + after + ")");
         // three pieces: nothing in eight hits
         player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, ItemStack.EMPTY);
+        worn.accept(3, net.minecraft.ChatFormatting.GRAY);
         for (int k = 0; k < 8; k++) {
             double took = hit.applyAsDouble(a);
             if (Math.abs(took - d[0]) > 1e-3) {
@@ -1865,7 +1897,8 @@ public final class EndGameTests {
 
     /**
      * A grove on open end stone: 3-6 trunks 6-11 tall, each standing on end stone, at least two of them with limbs
-     * (lying timber above their foot), and chorus plants grown from the timber well above the ground (the canopy).
+     * (chorus wood above their foot, bark on every side), and chorus plants grown from the timber well above the ground
+     * (the canopy); no lying log anywhere (its end grain would face out).
      * Over ten seeds.
      */
     private static void chorusGroveGrows(GameTestHelper helper) {
@@ -1892,13 +1925,15 @@ public final class EndGameTests {
                     int h = 0;
                     while (level.getBlockState(p.above(h)).is(log)) h++;
                     if (h < 6 || h > 11) bad.add("a trunk " + h + " tall at " + p);
-                } else if (axis != null && axis != net.minecraft.core.Direction.Axis.Y && p.getY() > y + 1) {
+                } else if (axis != null && axis != net.minecraft.core.Direction.Axis.Y) {
+                    bad.add("a lying log at " + p);
+                } else if (state.is(ModBlocks.CHORUS_WOOD.get()) && p.getY() > y + 1) {
                     limbs++;
                 } else if ((state.is(net.minecraft.world.level.block.Blocks.CHORUS_PLANT) || state.is(net.minecraft.world.level.block.Blocks.CHORUS_FLOWER)) && p.getY() >= y + 6) {
                     canopy++;
                 }
             }
-            // upright timber at the foot is a trunk (a lying log there is a root)
+            // upright timber at the foot is a trunk (the roots there are wood)
             if (trunks < 3 || trunks > 6) bad.add(trunks + " trunks at " + centre);
             if (limbs < 2) bad.add("only " + limbs + " limb blocks at " + centre);
             if (canopy < 12) bad.add("only " + canopy + " canopy chorus at " + centre);

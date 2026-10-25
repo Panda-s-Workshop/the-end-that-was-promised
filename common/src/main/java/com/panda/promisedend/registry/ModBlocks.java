@@ -130,7 +130,7 @@ public final class ModBlocks {
                     .strength(-1.0F, 3600000.0F).pushReaction(PushReaction.IMMOVEABLE).noLootTable().sound(SoundType.EMPTY));
     public static final DeferredBlock<com.panda.promisedend.block.MireLilyBlock> MIRE_LILY = withHint(BLOCKS.registerBlock("mire_lily",
             com.panda.promisedend.block.MireLilyBlock::new, p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY).noCollision().instabreak()
-                    .sound(SoundType.LILY_PAD).lightLevel(s -> 7).pushReaction(PushReaction.POPPED)), 1);
+                    .sound(SoundType.LILY_PAD).lightLevel(s -> 7).pushReaction(PushReaction.POPPED)), 2);
     /** Lumen's lamp: a full light, as the sea lantern and glowstone, in a polished voidstone cage. */
     public static final DeferredBlock<Block> LUMEN_LAMP = simple("lumen_lamp",
             p -> p.mapColor(MapColor.SAND).strength(1.0F).sound(SoundType.GLASS).lightLevel(s -> 15));

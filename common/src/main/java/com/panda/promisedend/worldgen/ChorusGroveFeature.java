@@ -29,8 +29,9 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
 /**
  * A Chorus Thicket grove: a few chorus timber trees standing close, each a trunk with roots splayed at its foot and
  * limbs that climb out and up from its upper half, and vanilla's own chorus plant grown from the trunk's top and every
- * limb's tip (chorus timber is in {@code #minecraft:supports_chorus_plant}), so the canopies meet overhead. Fields are
- * its configuration ({@code worldgen/feature/chorus_grove.json}).
+ * limb's tip (chorus timber is in {@code #minecraft:supports_chorus_plant}), so the canopies meet overhead. The roots
+ * and limbs are {@code branch} (bark on every side, as vanilla's trees grow wood where a branch bends; the trunk when
+ * not given). Fields are its configuration ({@code worldgen/feature/chorus_grove.json}).
  *
  * <p>Everything stays within {@code radius + 3 + canopy_spread} blocks of the origin, inside the chunks a feature may
  * write to. A trunk needs {@code #promisedend:chorus_grove_ground} under it (not timber, so no tree stands on another's
@@ -39,11 +40,12 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
  * Where a structure has claimed a chunk the grove could reach (an End City in the Thicket), it builds nothing, so a
  * city put down later never cuts through a tree.
  */
-public record ChorusGroveFeature(BlockStateProvider trunk, IntProvider trees, int radius, IntProvider height, IntProvider limbs,
-                                 int canopySpread, boolean fallback) implements Feature {
+public record ChorusGroveFeature(BlockStateProvider trunk, java.util.Optional<BlockStateProvider> branch, IntProvider trees, int radius,
+                                 IntProvider height, IntProvider limbs, int canopySpread, boolean fallback) implements Feature {
     public static final TagKey<Block> GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("chorus_grove_ground"));
     public static final MapCodec<ChorusGroveFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             BlockStateProvider.DIRECT_CODEC.fieldOf("trunk").forGetter(ChorusGroveFeature::trunk),
+            BlockStateProvider.DIRECT_CODEC.optionalFieldOf("branch").forGetter(ChorusGroveFeature::branch),
             IntProviders.codec(1, 8).fieldOf("trees").forGetter(ChorusGroveFeature::trees),
             Codec.intRange(0, 6).fieldOf("radius").forGetter(ChorusGroveFeature::radius),
             IntProviders.codec(3, 16).fieldOf("height").forGetter(ChorusGroveFeature::height),
@@ -96,7 +98,7 @@ public record ChorusGroveFeature(BlockStateProvider trunk, IntProvider trees, in
         for (Direction side : Direction.Plane.HORIZONTAL) {
             BlockPos root = foot.relative(side);
             if (random.nextInt(3) == 0 && level.getBlockState(root).isAir() && level.getBlockState(root.below()).isFaceSturdy(level, root.below(), Direction.UP)) {
-                setBlock(level, root, log(level, random, root, side.getAxis()));
+                setBlock(level, root, wood(level, random, root, side.getAxis()));
             }
         }
         // limbs: each from a different side of the upper half, a stair of timber out and up, two or three blocks out
@@ -111,11 +113,11 @@ public record ChorusGroveFeature(BlockStateProvider trunk, IntProvider trees, in
             for (int step = 1; step <= length && whole; step++) {
                 at = at.relative(side);
                 if (!level.getBlockState(at).isAir()) whole = false;
-                else setBlock(level, at, log(level, random, at, side.getAxis()));
+                else setBlock(level, at, wood(level, random, at, side.getAxis()));
                 if (whole && step < length) {
                     at = at.above();
                     if (!level.getBlockState(at).isAir()) whole = false;
-                    else setBlock(level, at, log(level, random, at, Direction.Axis.Y));
+                    else setBlock(level, at, wood(level, random, at, Direction.Axis.Y));
                 }
             }
             if (whole && level.getBlockState(at.above()).isAir()) ChorusFlowerBlock.generatePlant(level, at.above(), random, canopySpread);
@@ -125,7 +127,15 @@ public record ChorusGroveFeature(BlockStateProvider trunk, IntProvider trees, in
     }
 
     private BlockState log(WorldGenLevel level, RandomSource random, BlockPos at, Direction.Axis axis) {
-        BlockState state = trunk.getState(level, random, at);
+        return along(trunk.getState(level, random, at), axis);
+    }
+
+    /** A root's or limb's block: {@code branch}, or the trunk's when none is given. */
+    private BlockState wood(WorldGenLevel level, RandomSource random, BlockPos at, Direction.Axis axis) {
+        return along(branch.orElse(trunk).getState(level, random, at), axis);
+    }
+
+    private static BlockState along(BlockState state, Direction.Axis axis) {
         return state.hasProperty(RotatedPillarBlock.AXIS) ? state.setValue(RotatedPillarBlock.AXIS, axis) : state;
     }
 }

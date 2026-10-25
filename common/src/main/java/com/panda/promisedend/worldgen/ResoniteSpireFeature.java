@@ -31,7 +31,11 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
  * A Resonant Spires formation: a few crystal columns of Resonite rising from one footing and leaning out
  * from it, the tallest {@code height} blocks (10-30), the others shorter. Each column is a six-sided prism that
  * narrows to a point. Some of its face blocks are Budding Resonite, and clusters grow on the open faces beside them
- * and here and there elsewhere. Fields are its configuration ({@code worldgen/feature/resonite_spire.json}).
+ * and here and there elsewhere. Round its foot lie a few fallen pieces, {@link #FALLEN_FROM}-{@link #FALLEN_TO} blocks
+ * out on its own ground: plain crystal, each either a broken-off column lying along x or z, two or three long, or a
+ * shard standing half-buried, two blocks over the ground and its root sunk into it (no budding block and no cluster, so the
+ * formation's yield is the same). A piece that would meet anything else is left out on its own; the formation stands
+ * or not by its columns alone. Fields are its configuration ({@code worldgen/feature/resonite_spire.json}).
  *
  * <p>Each column's footing must be {@code #promisedend:resonite_spire_ground} at the surface, within a block of the
  * first's, so a formation never stands in the air, hangs off a slope or stands on another's crystal. A formation that
@@ -51,6 +55,8 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
     public static final float BUDDING_CLUSTER_CHANCE = 0.25F;
     /** The farthest a formation writes from its origin, sideways: the codec's tallest (32) leaning column and a cluster. */
     public static final int REACH = 14;
+    /** How far from the origin the fallen pieces lie: past the columns' widest foot (2.5 off and 2.6 across). */
+    public static final float FALLEN_FROM = 6.0F, FALLEN_TO = 8.0F;
     public static final MapCodec<ResoniteSpireFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             BlockStateProvider.DIRECT_CODEC.fieldOf("crystal").forGetter(ResoniteSpireFeature::crystal),
             BlockStateProvider.DIRECT_CODEC.fieldOf("budding").forGetter(ResoniteSpireFeature::budding),
@@ -118,20 +124,54 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
         // keep out: a formation that would meet anything but air, its ground, a plant or Resonite, or stand under a roof
         // (an End City, the return gateway, a grove across a border), isn't made at all
         // nor in a chunk a structure has claimed, whose pieces may not be placed yet
-        if (StructureClaims.claimed(level, body)) return false;
         // another formation's crystal, budding blocks and clusters are open too: neighbouring spires grow into one clump
         Set<Block> ours = Set.of(crystal.getState(level, random, foot).getBlock(), budding.getState(level, random, foot).getBlock(),
                 cluster.getState(level, random, foot).getBlock());
         java.util.function.Predicate<BlockState> open = here -> here.isAir() || here.is(GROUND) || here.canBeReplaced() || ours.contains(here.getBlock());
-        for (BlockPos p : body) {
-            if (!open.test(level.getBlockState(p))) return false;
-            // and nothing over it but more of the same (a hillside's end stone is fine, an overhang of anything else isn't)
-            int surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, p).getY();
-            for (int up = p.getY() + 1; up < surface; up++) {
-                if (!open.test(level.getBlockState(p.atY(up)))) return false;
+        java.util.function.Predicate<Set<BlockPos>> clear = blocks -> {
+            if (StructureClaims.claimed(level, blocks)) return false;
+            for (BlockPos p : blocks) {
+                if (!open.test(level.getBlockState(p))) return false;
+                // and nothing over it but more of the same (a hillside's end stone is fine, an overhang of anything else isn't)
+                int surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, p).getY();
+                for (int up = p.getY() + 1; up < surface; up++) {
+                    if (!open.test(level.getBlockState(p.atY(up)))) return false;
+                }
             }
+            return true;
+        };
+        if (!clear.test(body)) return false;
+        // fallen pieces round the foot, each on ground within two blocks of the foot's height, each kept only if clear
+        Set<BlockPos> fallen = new LinkedHashSet<>();
+        int pieces = 2 + random.nextInt(3);
+        for (int i = 0; i < pieces; i++) {
+            float a = random.nextFloat() * Mth.TWO_PI, d = Mth.nextFloat(random, FALLEN_FROM, FALLEN_TO);
+            BlockPos top = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, foot.offset(Math.round(Mth.cos(a) * d), 0, Math.round(Mth.sin(a) * d)));
+            if (Math.abs(top.getY() - foot.getY()) > 2 || !level.getBlockState(top.below()).is(GROUND)) continue;
+            Set<BlockPos> piece = new LinkedHashSet<>();
+            if (random.nextInt(3) == 0) {
+                // a shard standing half-buried: two blocks over the ground, its root sunk into the ground's top
+                piece.add(top.below());
+                piece.add(top);
+                piece.add(top.above());
+            } else {
+                // a broken-off column lying along the axis it fell nearest to, on level ground all its length
+                Direction along = Math.abs(Mth.cos(a)) >= Math.abs(Mth.sin(a))
+                        ? (Mth.cos(a) > 0 ? Direction.EAST : Direction.WEST) : (Mth.sin(a) > 0 ? Direction.SOUTH : Direction.NORTH);
+                int length = 2 + random.nextInt(2);
+                for (int k = 0; k < length; k++) {
+                    BlockPos at = top.relative(along, k);
+                    if (level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, at).getY() != top.getY() || !level.getBlockState(at.below()).is(GROUND)) break;
+                    piece.add(at);
+                }
+                if (piece.size() < 2) continue;
+            }
+            piece.removeAll(body);
+            if (!piece.isEmpty() && clear.test(piece)) fallen.addAll(piece);
         }
-        for (BlockPos p : body) level.setBlock(p, crystal.getState(level, random, p), Block.UPDATE_CLIENTS);
+        Set<BlockPos> all = new LinkedHashSet<>(body);
+        all.addAll(fallen);
+        for (BlockPos p : all) level.setBlock(p, crystal.getState(level, random, p), Block.UPDATE_CLIENTS);
         // budding blocks on the faces, clusters on the open sides next to them and now and then anywhere
         List<BlockPos> faces = new ArrayList<>();
         for (BlockPos p : body) {

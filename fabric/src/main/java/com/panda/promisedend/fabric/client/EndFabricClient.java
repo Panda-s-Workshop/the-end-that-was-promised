@@ -16,7 +16,14 @@ public final class EndFabricClient implements ClientModInitializer {
                 net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(type, provider);
             }
         });
+        com.panda.promisedend.client.ModParticleProviders.register(new com.panda.promisedend.client.ModParticleProviders.Sink() {
+            @Override
+            public <T extends net.minecraft.core.particles.ParticleOptions> void sprites(net.minecraft.core.particles.ParticleType<T> type,
+                    com.panda.promisedend.client.ModParticleProviders.SpriteProvider<T> provider) {
+                net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry.getInstance().register(type, provider::create);
+            }
+        });
         com.panda.promisedend.PromisedEnd.openCodex = () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen());
-        com.panda.promisedend.client.UpdraftView.install();
+        com.panda.promisedend.client.ClientView.install();
     }
 }

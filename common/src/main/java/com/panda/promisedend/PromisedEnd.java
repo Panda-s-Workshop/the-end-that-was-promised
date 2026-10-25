@@ -5,6 +5,7 @@ import com.panda.promisedend.registry.ModBlockEntities;
 import com.panda.promisedend.registry.ModBlocks;
 import com.panda.promisedend.registry.ModEntities;
 import com.panda.promisedend.registry.ModItems;
+import com.panda.promisedend.registry.ModParticles;
 import com.panda.promisedend.registry.ModSounds;
 import com.panda.promisedend.registry.ModTabs;
 import com.panda.promisedend.registry.ModWorldgen;
@@ -19,7 +20,7 @@ public final class PromisedEnd {
 
     /** The classes whose static DeferredRegisters hold the mod's content. */
     private static final List<Class<?>> CONTENT = List.of(ModSounds.class, ModEntities.class, ModBlocks.class, ModBlockEntities.class, ModItems.class, ModTabs.class,
-            ModWorldgen.class);
+            ModWorldgen.class, ModParticles.class);
 
     private static boolean initialised;
 

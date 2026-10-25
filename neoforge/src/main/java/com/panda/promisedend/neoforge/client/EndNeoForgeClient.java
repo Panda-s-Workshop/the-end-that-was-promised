@@ -22,7 +22,15 @@ public final class EndNeoForgeClient {
                         e.registerEntityRenderer(type, provider);
                     }
                 }));
+        modBus.addListener((net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent e) ->
+                com.panda.promisedend.client.ModParticleProviders.register(new com.panda.promisedend.client.ModParticleProviders.Sink() {
+                    @Override
+                    public <T extends net.minecraft.core.particles.ParticleOptions> void sprites(net.minecraft.core.particles.ParticleType<T> type,
+                            com.panda.promisedend.client.ModParticleProviders.SpriteProvider<T> provider) {
+                        e.registerSpriteSet(type, provider::create);
+                    }
+                }));
         PromisedEnd.openCodex = () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen());
-        com.panda.promisedend.client.UpdraftView.install();
+        com.panda.promisedend.client.ClientView.install();
     }
 }

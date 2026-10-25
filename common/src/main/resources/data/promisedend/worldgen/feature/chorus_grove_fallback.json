@@ -6,6 +6,12 @@
       "axis": "y"
     }
   },
+  "branch": {
+    "id": "promisedend:chorus_wood",
+    "properties": {
+      "axis": "y"
+    }
+  },
   "trees": {
     "type": "minecraft:uniform",
     "min_inclusive": 3,

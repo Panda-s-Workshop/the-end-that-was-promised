@@ -52,7 +52,7 @@ public final class ModItems {
     public static final DeferredItem<HintItem> LUMEN = ITEMS.registerItem("lumen", p -> new HintItem(p, "lumen", 1));
 
     // ---- the Resonant Spires --------------------------------------------------------------------
-    public static final DeferredItem<HintItem> RESONITE_SHARD = ITEMS.registerItem("resonite_shard", p -> new HintItem(p, "resonite_shard", 2));
+    public static final DeferredItem<HintItem> RESONITE_SHARD = ITEMS.registerItem("resonite_shard", p -> new HintItem(p, "resonite_shard", 3));
 
     // ---- Resonite gear: the outer End's crystal tier; four armour pieces ring (item.ResonanceSet) -------------------
     public static final DeferredItem<HintItem> CHORUS_RESIN = ITEMS.registerItem("chorus_resin", p -> new HintItem(p, "chorus_resin", 1));
@@ -73,10 +73,10 @@ public final class ModItems {
     public static final ArmorMaterial RESONITE_ARMOUR = new ArmorMaterial(GearTiers.RESONITE_ARMOUR_DURABILITY,
             defence(GearTiers.RESONITE_ARMOUR), GearTiers.RESONITE_ARMOUR.enchantability(), SoundEvents.ARMOR_EQUIP_DIAMOND,
             GearTiers.RESONITE_ARMOUR.toughness(), 0.0F, ModTags.REPAIRS_RESONITE_ARMOR, RESONITE_ASSET);
-    public static final DeferredItem<HintItem> RESONITE_HELMET = armour("resonite_helmet", RESONITE_ARMOUR, ArmorType.HELMET);
-    public static final DeferredItem<HintItem> RESONITE_CHESTPLATE = armour("resonite_chestplate", RESONITE_ARMOUR, ArmorType.CHESTPLATE);
-    public static final DeferredItem<HintItem> RESONITE_LEGGINGS = armour("resonite_leggings", RESONITE_ARMOUR, ArmorType.LEGGINGS);
-    public static final DeferredItem<HintItem> RESONITE_BOOTS = armour("resonite_boots", RESONITE_ARMOUR, ArmorType.BOOTS);
+    public static final DeferredItem<com.panda.promisedend.item.ResoniteArmourItem> RESONITE_HELMET = armour("resonite_helmet", RESONITE_ARMOUR, ArmorType.HELMET);
+    public static final DeferredItem<com.panda.promisedend.item.ResoniteArmourItem> RESONITE_CHESTPLATE = armour("resonite_chestplate", RESONITE_ARMOUR, ArmorType.CHESTPLATE);
+    public static final DeferredItem<com.panda.promisedend.item.ResoniteArmourItem> RESONITE_LEGGINGS = armour("resonite_leggings", RESONITE_ARMOUR, ArmorType.LEGGINGS);
+    public static final DeferredItem<com.panda.promisedend.item.ResoniteArmourItem> RESONITE_BOOTS = armour("resonite_boots", RESONITE_ARMOUR, ArmorType.BOOTS);
 
     // ---- the Promise Codex ------------------------------------------------------------------------
     public static final DeferredItem<com.panda.promisedend.item.PromiseCodexItem> PROMISE_CODEX = ITEMS.registerItem("promise_codex",
@@ -86,9 +86,9 @@ public final class ModItems {
         return new ToolMaterial(incorrect, tier.durability(), tier.speed(), tier.damageBonus(), tier.enchantability(), repair);
     }
 
-    /** A Resonite armour piece: its tooltip tells the set bonus. */
-    private static DeferredItem<HintItem> armour(String name, ArmorMaterial material, ArmorType type) {
-        return ITEMS.registerItem(name, p -> new HintItem(p, "resonite_armour", 4), p -> p.humanoidArmor(material, type));
+    /** A Resonite armour piece: its tooltip tells the set bonus and how many pieces are on. */
+    private static DeferredItem<com.panda.promisedend.item.ResoniteArmourItem> armour(String name, ArmorMaterial material, ArmorType type) {
+        return ITEMS.registerItem(name, com.panda.promisedend.item.ResoniteArmourItem::new, p -> p.humanoidArmor(material, type));
     }
 
     /** Defence per slot; the body slot (a horse's or a wolf's) as diamond's 11, never worn by our armour. */
