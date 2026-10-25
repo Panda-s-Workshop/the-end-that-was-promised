@@ -128,5 +128,45 @@
         "pitch": 0.5
       }
     ]
+  },
+  "ambient.resonant_spires.additions": {
+    "subtitle": "subtitles.promisedend.resonant_spires.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.resonate",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "block.void_water.enter": {
+    "subtitle": "subtitles.promisedend.void_water.enter",
+    "sounds": [
+      {
+        "name": "minecraft:entity.player.splash",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "block.resonite_cluster.hum": {
+    "subtitle": "subtitles.promisedend.resonite_cluster.hum",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.resonate",
+        "type": "event",
+        "pitch": 0.5
+      }
+    ]
+  },
+  "block.resonite_cluster.chime": {
+    "subtitle": "subtitles.promisedend.resonite_cluster.chime",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.resonate",
+        "type": "event",
+        "pitch": 1.3
+      }
+    ]
   }
 }

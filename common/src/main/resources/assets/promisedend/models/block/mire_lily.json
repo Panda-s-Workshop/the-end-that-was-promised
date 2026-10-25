@@ -50,6 +50,7 @@
         8
       ],
       "shade": false,
+      "light_emission": 12,
       "rotation": {
         "origin": [
           8,
@@ -93,6 +94,7 @@
         8
       ],
       "shade": false,
+      "light_emission": 12,
       "rotation": {
         "origin": [
           8,

@@ -1,0 +1,28 @@
+{
+  "type": "promisedend:resonite_spire",
+  "crystal": {
+    "id": "promisedend:resonite_block"
+  },
+  "budding": {
+    "id": "promisedend:budding_resonite"
+  },
+  "cluster": {
+    "id": "promisedend:resonite_cluster",
+    "properties": {
+      "facing": "up",
+      "waterlogged": "false"
+    }
+  },
+  "height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 10,
+    "max_inclusive": 30
+  },
+  "columns": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 3,
+    "max_inclusive": 6
+  },
+  "budding_chance": 0.06,
+  "cluster_chance": 0.04
+}

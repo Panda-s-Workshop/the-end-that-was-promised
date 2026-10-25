@@ -89,11 +89,15 @@ public final class EndGameTests {
         FUNCTIONS.register("mire_lily_rules", () -> EndGameTests::mireLilyRules);
         FUNCTIONS.register("lumen_moss_drops", () -> EndGameTests::lumenMossDrops);
         FUNCTIONS.register("mire_pools_walled", () -> EndGameTests::mirePoolsWalled);
+        FUNCTIONS.register("resonite_spires_grow", () -> EndGameTests::resoniteSpiresGrow);
+        FUNCTIONS.register("resonite_cluster_chimes", () -> EndGameTests::resoniteClusterChimes);
+        FUNCTIONS.register("budding_resonite_grows", () -> EndGameTests::buddingResoniteGrows);
+        FUNCTIONS.register("resonite_drops", () -> EndGameTests::resoniteDrops);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
-            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240);
+            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -484,9 +488,11 @@ public final class EndGameTests {
 
     /**
      * Void-water: a pig dropped over a pool falls through its surface to the pool's floor (no collision) and has
-     * Slowness I there; a pig in the same pen on end stone, the control, stands a block higher with no Slowness. A
-     * player's block placed on the floor goes into the pool (replacing it), a Mire Lily used on its surface goes on top.
-     * It has no item.
+     * Slowness I there, still at tick 90 (past the first 40 ticks: it is topped up), and none 50 ticks after the pool
+     * is gone; a pig in the same pen on end stone, the control, stands a block higher with no Slowness. A player's block
+     * placed on the floor goes into the pool (replacing it), a Mire Lily used on its surface goes on top; the cursor finds
+     * the surface only with a lily in either hand. Flowing water and lava don't wash it away (it isn't in
+     * #minecraft:washed_away_by_fluids) and pistons don't move it. It has no item.
      */
     private static void voidWaterSlows(GameTestHelper helper) {
         var endStone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
@@ -518,21 +524,44 @@ public final class EndGameTests {
         player.gameMode.useItemOn(player, level, stone, hand, new net.minecraft.world.phys.BlockHitResult(
                 net.minecraft.world.phys.Vec3.atCenterOf(floor).add(0, 0.5, 0), net.minecraft.core.Direction.UP, floor, false));
         if (!level.getBlockState(floor.above()).is(net.minecraft.world.level.block.Blocks.END_STONE)) bad.add("end stone laid on the pool's floor left " + level.getBlockState(floor.above()));
-        helper.runAtTickTime(30, () -> {
+        // the cursor: the surface with a lily in either hand, nothing with an empty hand
+        var shape = ModBlocks.VOID_WATER.get().defaultBlockState();
+        player.setItemInHand(hand, ItemStack.EMPTY);
+        if (!shape.getShape(level, at, net.minecraft.world.phys.shapes.CollisionContext.of(player)).isEmpty()) bad.add("an empty hand sees the surface");
+        player.setItemInHand(hand, lily.copy());
+        if (shape.getShape(level, at, net.minecraft.world.phys.shapes.CollisionContext.of(player)).isEmpty()) bad.add("a lily in the main hand doesn't see the surface");
+        player.setItemInHand(hand, ItemStack.EMPTY);
+        player.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, lily.copy());
+        if (shape.getShape(level, at, net.minecraft.world.phys.shapes.CollisionContext.of(player)).isEmpty()) bad.add("a lily in the off hand doesn't see the surface");
+        if (shape.getPistonPushReaction() != net.minecraft.world.level.material.PushReaction.IMMOVEABLE) bad.add("pistons move void-water: " + shape.getPistonPushReaction());
+        // 26.3's fluids wash away only what is in #minecraft:washed_away_by_fluids (FlowingFluid.canHoldAnyFluid); short
+        // grass is, the control
+        var washed = net.minecraft.tags.BlockTags.WASHED_AWAY_BY_FLUIDS;
+        if (!net.minecraft.world.level.block.Blocks.SHORT_GRASS.defaultBlockState().is(washed)) bad.add("short grass isn't washed away, so this can't tell");
+        if (shape.is(washed) || shape.getBlock() instanceof net.minecraft.world.level.block.LiquidBlockContainer) bad.add("flowing water and lava wash void-water away");
+        helper.runAtTickTime(40, () -> {
             double wetY = wet.getY() - helper.absolutePos(pool).getY(), dryY = control.getY() - helper.absolutePos(dry).getY();
             if (Math.abs(wetY) > 0.01) bad.add("the pig in the pool stands at " + wetY + " (the pool's floor is 0)");
             if (Math.abs(dryY) > 0.01) bad.add("the control pig stands at " + dryY);
+        });
+        helper.runAtTickTime(90, () -> {
             var slow = wet.getEffect(net.minecraft.world.effect.MobEffects.SLOWNESS);
-            if (slow == null || slow.getAmplifier() != 0) bad.add("the pig in the pool has " + slow);
+            if (slow == null || slow.getAmplifier() != 0) bad.add("at tick 90 the pig in the pool has " + slow);
             if (control.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS)) bad.add("the control pig is slowed");
+            // the pool goes: nothing tops the Slowness up
+            helper.setBlock(pool, net.minecraft.world.level.block.Blocks.AIR);
+        });
+        helper.runAtTickTime(140, () -> {
+            if (wet.hasEffect(net.minecraft.world.effect.MobEffects.SLOWNESS)) bad.add("50 ticks out of the water the pig is still slowed");
             if (!bad.isEmpty()) helper.fail("void-water: " + bad);
             helper.succeed();
         });
     }
 
     /**
-     * The Mire Lily holds on void-water only (not end stone, Lumen Moss or vanilla water), gives light 7, and bone meal
-     * on it puts one more lily on open void-water within two blocks, and does nothing once there's none.
+     * The Mire Lily holds on void-water only (not end stone, Lumen Moss or vanilla water), gives light 7, and pops off,
+     * dropping itself, when its pool cell is filled. Bone meal on it puts one more lily on open void-water two blocks
+     * off (with only that ring open) and never three off, and does nothing once the ring is full.
      */
     private static void mireLilyRules(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -551,20 +580,37 @@ public final class EndGameTests {
             x += 2;
         }
         if (lily.defaultBlockState().getLightEmission() != 7) bad.add("a lily gives light " + lily.defaultBlockState().getLightEmission());
-        // a 3 by 3 pool walled in glass, a lily in the middle: bone meal fills it one lily at a time, then stops
-        BlockPos centre = helper.absolutePos(new BlockPos(5, 2, 4));
-        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-2, 0, -2), centre.offset(2, 0, 2))) {
-            boolean in = Math.abs(p.getX() - centre.getX()) <= 1 && Math.abs(p.getZ() - centre.getZ()) <= 1;
-            level.setBlock(p, in ? ModBlocks.VOID_WATER.get().defaultBlockState() : net.minecraft.world.level.block.Blocks.GLASS.defaultBlockState(), 2);
+        // filling a lily's cell pops it, and it drops
+        BlockPos cell = helper.absolutePos(new BlockPos(10, 2, 1));
+        level.setBlock(cell, ModBlocks.VOID_WATER.get().defaultBlockState(), 2);
+        level.setBlock(cell.above(), lily.defaultBlockState(), 2);
+        level.setBlock(cell, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
+        if (!level.getBlockState(cell.above()).isAir()) bad.add("a lily stays on its filled cell: " + level.getBlockState(cell.above()));
+        if (level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new net.minecraft.world.phys.AABB(cell.above()).inflate(1.5),
+                e -> e.getItem().is(lily.asItem())).isEmpty()) bad.add("a popped lily dropped nothing");
+        // a lily on void-water; round it a ring of end stone, then a ring of open void-water two off, then one three
+        // off, all walled in glass: bone meal fills the ring two off one lily at a time, then stops
+        BlockPos centre = helper.absolutePos(new BlockPos(5, 2, 6));
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-4, 0, -4), centre.offset(4, 0, 4))) {
+            int ring = Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ()));
+            var state = ring == 1 ? net.minecraft.world.level.block.Blocks.END_STONE : ring == 4 ? net.minecraft.world.level.block.Blocks.GLASS : ModBlocks.VOID_WATER.get();
+            level.setBlock(p, state.defaultBlockState(), 2);
+            level.setBlock(p.above(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
         }
         level.setBlock(centre.above(), lily.defaultBlockState(), 2);
-        for (int n = 1; n <= 9; n++) {
+        for (int n = 1; n <= 17; n++) {
             boolean grew = net.minecraft.world.item.BoneMealItem.growCrop(new ItemStack(net.minecraft.world.item.Items.BONE_MEAL), level, centre.above());
-            int lilies = 0;
-            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-2, 1, -2), centre.offset(2, 1, 2))) if (level.getBlockState(p).is(lily)) lilies++;
-            int want = Math.min(n + 1, 9);
-            if (lilies != want) bad.add("after " + n + " bone meal " + lilies + " lilies, not " + want);
-            if (grew != (n <= 8)) bad.add("bone meal " + n + (grew ? " took" : " didn't take"));
+            int two = 0, three = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-3, 1, -3), centre.offset(3, 1, 3))) {
+                if (!level.getBlockState(p).is(lily)) continue;
+                int ring = Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ()));
+                if (ring == 2) two++;
+                if (ring == 3) three++;
+            }
+            int want = Math.min(n, 16);
+            if (two != want) bad.add("after " + n + " bone meal " + two + " lilies two off, not " + want);
+            if (three != 0) bad.add("after " + n + " bone meal a lily three off");
+            if (grew != (n <= 16)) bad.add("bone meal " + n + (grew ? " took" : " didn't take"));
         }
         if (!bad.isEmpty()) helper.fail("Mire Lily: " + bad);
         helper.succeed();
@@ -587,7 +633,8 @@ public final class EndGameTests {
         var plain = new ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE);
         // tool, the fewest and the most Lumen in 400 rolls (p 0.2: 80 expected; p 0.7: 280)
         record Case(String name, ItemStack tool, int min, int max) {}
-        for (var c : List.of(new Case("a pickaxe", plain, 50, 115), new Case("Fortune III", fortune, 240, 320), new Case("Silk Touch", silk, 0, 0))) {
+        // the bounds are 2.5 standard deviations either side
+        for (var c : List.of(new Case("a pickaxe", plain, 60, 100), new Case("Fortune III", fortune, 255, 305), new Case("Silk Touch", silk, 0, 0))) {
             int lumen = 0;
             for (int i = 0; i < 400; i++) {
                 var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
@@ -673,6 +720,155 @@ public final class EndGameTests {
         if (lilies == 0) bad.add("no lilies in 20 pools");
         if (rims == 0) bad.add("no Lumen Moss rim in 20 pools");
         if (!bad.isEmpty()) helper.fail("Mire pools: " + bad);
+        helper.succeed();
+    }
+
+    // ---- the Resonant Spires ----
+
+    /**
+     * The spire feature as configured, over ten seeds on open end stone: a formation every time, its tallest column
+     * 10-30 blocks over the floor, budding Resonite in it, and every cluster standing on crystal (its facing away from a
+     * Resonite or budding block). On obsidian, which isn't spire ground, nothing.
+     */
+    private static void resoniteSpiresGrow(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var feature = grove(level, "resonite_spire");
+        var generator = level.getChunkSource().getGenerator();
+        var crystal = ModBlocks.RESONITE_BLOCK.get();
+        var budding = ModBlocks.BUDDING_RESONITE.get();
+        var cluster = ModBlocks.RESONITE_CLUSTER.get();
+        List<String> bad = new ArrayList<>();
+        int y = level.getMaxY() - 60;
+        for (int n = 0; n < 11; n++) {
+            BlockPos centre = new BlockPos(6000 + n * 64, y, 2000);
+            var ground = n == 10 ? net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState() : net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+            floor(level, centre, 14, ground);
+            boolean placed = feature.place(level, generator, net.minecraft.util.RandomSource.create(900 + n), centre);
+            if (n == 10) {
+                if (placed) bad.add("spires on obsidian");
+                clear(level, centre);
+                continue;
+            }
+            int top = -1, crystals = 0, buds = 0, clusters = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, 0, -16), centre.offset(16, 40, 16))) {
+                var state = level.getBlockState(p);
+                if (state.is(crystal) || state.is(budding)) {
+                    crystals++;
+                    if (state.is(budding)) buds++;
+                    top = Math.max(top, p.getY() - y + 1);
+                } else if (state.is(cluster)) {
+                    clusters++;
+                    var facing = state.getValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING);
+                    var base = level.getBlockState(p.relative(facing.getOpposite()));
+                    if (!base.is(crystal) && !base.is(budding)) bad.add("a cluster on " + base + " at " + p);
+                }
+            }
+            PromisedEnd.LOGGER.info("[resonite_spires_grow] {}: {} tall, {} crystal blocks, {} budding, {} clusters", centre, top, crystals, buds, clusters);
+            if (!placed) bad.add("nothing grew at " + centre);
+            if (top < 10 || top > 30) bad.add("the tallest column " + top + " tall at " + centre);
+            if (buds == 0) bad.add("no budding Resonite at " + centre);
+            if (clusters == 0) bad.add("no clusters at " + centre);
+            clear(level, centre);
+        }
+        if (!bad.isEmpty()) helper.fail("Resonite spires: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A survival player breaking a Resonite Cluster turns the Endermen within 12 blocks on them (one 8 blocks off) and
+     * not one further out (15.6 blocks, across the arena); a creative player's break draws none. The cluster's break
+     * hook is called as the game calls it before removing the block (the in-level mock player is always creative).
+     */
+    private static void resoniteClusterChimes(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var cluster = ModBlocks.RESONITE_CLUSTER.get().defaultBlockState();
+        BlockPos at = helper.absolutePos(new BlockPos(0, 2, 0)), also = helper.absolutePos(new BlockPos(0, 2, 3));
+        level.setBlock(at, cluster, 3);
+        level.setBlock(also, cluster, 3);
+        // held still (no AI), so the check reads where the chime found them
+        java.util.function.Function<BlockPos, net.minecraft.world.entity.monster.Enderman> enderman = rel -> {
+            var e = helper.spawn(net.minecraft.world.entity.EntityTypes.ENDERMAN, rel);
+            e.setNoAi(true);
+            return e;
+        };
+        var near = enderman.apply(new BlockPos(8, 2, 0));
+        var far = enderman.apply(new BlockPos(11, 2, 11));
+        var survivor = helper.makeMockServerPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        cluster.getBlock().playerWillDestroy(level, at, cluster, survivor);
+        level.removeBlock(at, false);
+        if (near.getTarget() != survivor) bad.add("the Enderman 8 blocks off targets " + near.getTarget());
+        if (far.getTarget() != null) bad.add("the Enderman 15.6 blocks off targets " + far.getTarget());
+        near.setTarget(null);
+        var creative = helper.makeMockServerPlayerInLevel();
+        cluster.getBlock().playerWillDestroy(level, also, cluster, creative);
+        level.removeBlock(also, false);
+        if (near.getTarget() != null) bad.add("a creative player's break drew the Enderman: " + near.getTarget());
+        if (!bad.isEmpty()) helper.fail("Resonite chime: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Budding Resonite grows a cluster on an open face (random ticks, seeded), facing out from it, and on no face that
+     * isn't open; it has no item and no loot table.
+     */
+    private static void buddingResoniteGrows(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var budding = ModBlocks.BUDDING_RESONITE.get();
+        var cluster = ModBlocks.RESONITE_CLUSTER.get();
+        List<String> bad = new ArrayList<>();
+        BlockPos at = helper.absolutePos(new BlockPos(3, 3, 3));
+        level.setBlock(at, budding.defaultBlockState(), 3);
+        // every face shut but the top
+        for (var d : net.minecraft.core.Direction.values()) {
+            if (d != net.minecraft.core.Direction.UP) level.setBlock(at.relative(d), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3);
+        }
+        level.setBlock(at.above(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        var random = net.minecraft.util.RandomSource.create(11);
+        for (int i = 0; i < 400 && !level.getBlockState(at.above()).is(cluster); i++) budding.defaultBlockState().randomTick(level, at, random);
+        var grown = level.getBlockState(at.above());
+        if (!grown.is(cluster)) bad.add("nothing grew on the open top in 400 random ticks");
+        else if (grown.getValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING) != net.minecraft.core.Direction.UP) bad.add("the cluster faces " + grown);
+        for (var d : net.minecraft.core.Direction.values()) {
+            if (d != net.minecraft.core.Direction.UP && !level.getBlockState(at.relative(d)).is(net.minecraft.world.level.block.Blocks.STONE)) bad.add("it grew into the " + d + " face");
+        }
+        if (budding.asItem() != net.minecraft.world.item.Items.AIR) bad.add("budding Resonite has an item");
+        if (budding.getLootTable().isPresent()) bad.add("budding Resonite has a loot table");
+        if (!bad.isEmpty()) helper.fail("budding Resonite: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A Resonite Cluster drops 4 shards to a pickaxe and 2 to a bare hand, itself to Silk Touch; four shards make a
+     * Resonite Block, which drops itself; Resonite rings as amethyst does (#minecraft:crystal_sound_blocks).
+     */
+    private static void resoniteDrops(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var cluster = ModBlocks.RESONITE_CLUSTER.get();
+        var table = level.getServer().reloadableRegistries().getLootTable(cluster.getLootTable().orElseThrow());
+        var silk = new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE);
+        silk.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
+        record Case(String name, ItemStack tool, net.minecraft.world.item.Item item, int count) {}
+        for (var c : List.of(new Case("a pickaxe", new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE), ModItems.RESONITE_SHARD.get(), 4),
+                new Case("a bare hand", ItemStack.EMPTY, ModItems.RESONITE_SHARD.get(), 2), new Case("Silk Touch", silk, cluster.asItem(), 1))) {
+            var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, c.tool())
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, cluster.defaultBlockState())
+                    .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
+            var drops = table.getRandomItems(params);
+            if (drops.size() != 1 || !drops.get(0).is(c.item()) || drops.get(0).getCount() != c.count()) bad.add("to " + c.name() + " a cluster drops " + drops);
+        }
+        var recipes = level.getServer().getRecipeManager();
+        var shard = new ItemStack(ModItems.RESONITE_SHARD.get());
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(2, 2, List.of(shard, shard.copy(), shard.copy(), shard.copy()));
+        var out = recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level).map(h -> h.value().assemble(input)).orElse(ItemStack.EMPTY);
+        if (!out.is(ModBlocks.RESONITE_BLOCK.get().asItem()) || out.getCount() != 1) bad.add("four shards make " + out);
+        var ringing = net.minecraft.tags.BlockTags.CRYSTAL_SOUND_BLOCKS;
+        if (!ModBlocks.RESONITE_BLOCK.get().defaultBlockState().is(ringing) || !ModBlocks.BUDDING_RESONITE.get().defaultBlockState().is(ringing))
+            bad.add("Resonite isn't in #minecraft:crystal_sound_blocks");
+        if (!bad.isEmpty()) helper.fail("Resonite drops: " + bad);
         helper.succeed();
     }
 

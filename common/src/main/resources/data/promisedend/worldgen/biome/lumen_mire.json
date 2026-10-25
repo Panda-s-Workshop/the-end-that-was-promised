@@ -22,14 +22,16 @@
           "particle": {
             "type": "minecraft:firefly"
           },
-          "probability": 0.002
+          "probability": 0.01
         }
       ],
       "modifier": "append"
     },
     "minecraft:audio/ambient_sounds": {
       "additions": {
-        "sound": "promisedend:ambient.lumen_mire.additions",
+        "sound": {
+          "sound_id": "promisedend:ambient.lumen_mire.additions"
+        },
         "tick_chance": 0.0111
       }
     }

@@ -29,7 +29,9 @@
     },
     "minecraft:audio/ambient_sounds": {
       "additions": {
-        "sound": "promisedend:ambient.chorus_thicket.additions",
+        "sound": {
+          "sound_id": "promisedend:ambient.chorus_thicket.additions"
+        },
         "tick_chance": 0.0111
       }
     }

@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": "promisedend:resonite_shard"
+  },
+  "result": {
+    "id": "promisedend:resonite_block",
+    "count": 1
+  }
+}

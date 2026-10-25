@@ -65,6 +65,7 @@ public final class ServerCheck {
         if (failure == null) failure = strips(end, centre.above(40));
         if (failure == null && terrain) failure = biome(end, "chorus_thicket", "Chorus Thicket", ModBlocks.CHORUS_LOG.get(), 30);
         if (failure == null && terrain) failure = biome(end, "lumen_mire", "Lumen Mire", ModBlocks.VOID_WATER.get(), 20);
+        if (failure == null && terrain) failure = biome(end, "resonant_spires", "Resonant Spires", ModBlocks.RESONITE_BLOCK.get(), 100);
         return failure != null ? failure : wrath(server);
     }
 
@@ -101,7 +102,7 @@ public final class ServerCheck {
         var key = net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id(id));
         var found = end.findClosestBiome3d(h -> h.is(key), new BlockPos(0, 64, 0), 6400, 32, 64);
         if (found == null) return "no " + name + " within 6400 blocks";
-        BlockPos at = found.getFirst();
+        BlockPos at = interior(end, key, found.getFirst());
         for (int cx = (at.getX() - 40) >> 4; cx <= (at.getX() + 40) >> 4; cx++) {
             for (int cz = (at.getZ() - 40) >> 4; cz <= (at.getZ() + 40) >> 4; cz++) end.getChunk(cx, cz);
         }
@@ -112,6 +113,24 @@ public final class ServerCheck {
         String what = block.getName().getString();
         PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} {} within 32 blocks", name, at, count, what);
         return count >= minimum ? null : "only " + count + " " + what + " in the " + name + " at " + at;
+    }
+
+    /**
+     * Where to look at a biome found by its nearest point: that point is on the biome's edge, so the middle of the
+     * biome round it instead. The biome is sampled every 8 blocks within 96 of {@code hit} (by the biome source, no
+     * chunks generated); the result is the matching sample nearest their centroid, at y 64.
+     */
+    public static BlockPos interior(net.minecraft.server.level.ServerLevel level, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, BlockPos hit) {
+        java.util.List<BlockPos> in = new java.util.ArrayList<>();
+        for (int dx = -96; dx <= 96; dx += 8) {
+            for (int dz = -96; dz <= 96; dz += 8) {
+                int x = hit.getX() + dx, z = hit.getZ() + dz;
+                if (level.getUncachedNoiseBiome(x >> 2, 16, z >> 2).is(key)) in.add(new BlockPos(x, 64, z));
+            }
+        }
+        if (in.isEmpty()) return hit;
+        double cx = in.stream().mapToInt(BlockPos::getX).average().orElseThrow(), cz = in.stream().mapToInt(BlockPos::getZ).average().orElseThrow();
+        return in.stream().min(java.util.Comparator.comparingDouble(p -> Math.hypot(p.getX() - cx, p.getZ() - cz))).orElseThrow();
     }
 
     /**

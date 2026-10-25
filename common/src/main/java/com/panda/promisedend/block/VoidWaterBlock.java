@@ -1,10 +1,13 @@
 package com.panda.promisedend.block;
 
 import com.panda.promisedend.PromisedEnd;
+import com.panda.promisedend.registry.ModSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -26,7 +29,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 /**
  * Void-water, the Lumen Mire's still pools. Not a fluid: a block drawn as one, that never flows and
  * has no bucket or item. You wade through it (no collision), and while you're in it you have Slowness I. As with
- * water, a block placed into it takes its place and the cursor goes through it, except for a player holding what grows
+ * water, a block placed into it takes its place and the cursor goes through it (flowing fluids don't: it isn't in
+ * {@code #minecraft:washed_away_by_fluids}), except for a player holding what grows
  * on it ({@code #promisedend:plants_on_void_water}, the Mire Lily), who sees its surface to plant on.
  */
 public class VoidWaterBlock extends Block {
@@ -39,14 +43,14 @@ public class VoidWaterBlock extends Block {
         super(properties);
     }
 
-    /** What a player plants on the surface, in the main hand. */
+    /** What a player plants on the surface, in either hand. */
     public static final TagKey<Item> PLANTS_ON = TagKey.create(Registries.ITEM, PromisedEnd.id("plants_on_void_water"));
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         // a tag, not the lily itself: Fabric builds every block's shape cache while blocks are still registering
         return context instanceof EntityCollisionContext e && e.getEntity() instanceof LivingEntity holder
-                && holder.getMainHandItem().is(PLANTS_ON) ? SURFACE : Shapes.empty();
+                && (holder.getMainHandItem().is(PLANTS_ON) || holder.getOffhandItem().is(PLANTS_ON)) ? SURFACE : Shapes.empty();
     }
 
     @Override
@@ -69,6 +73,11 @@ public class VoidWaterBlock extends Block {
     protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity, InsideBlockEffectApplier effects, boolean intersects) {
         if (level.isClientSide() || !(entity instanceof LivingEntity living)) return;
         MobEffectInstance slow = living.getEffect(MobEffects.SLOWNESS);
+        // stepping in (no Slowness yet, since it's topped up while you stay): a dull splash and the void's motes
+        if (slow == null && level instanceof ServerLevel server) {
+            server.playSound(null, entity.getX(), entity.getY(), entity.getZ(), ModSounds.VOID_WATER_ENTER.get(), SoundSource.BLOCKS, 0.6F, 1.0F);
+            server.sendParticles(ParticleTypes.REVERSE_PORTAL, entity.getX(), pos.getY() + 0.85, entity.getZ(), 8, 0.3, 0.05, 0.3, 0.02);
+        }
         if (slow == null || slow.getAmplifier() == 0 && slow.getDuration() < SLOW_TICKS / 2) {
             living.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, SLOW_TICKS, 0, true, true));
         }

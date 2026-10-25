@@ -121,13 +121,24 @@ public final class ModBlocks {
     /** End stone grown over, as Chorus Moss is; it pays Lumen when broken without Silk Touch (its loot table). */
     public static final DeferredBlock<Block> LUMEN_MOSS = simple("lumen_moss",
             p -> p.mapColor(MapColor.COLOR_YELLOW).strength(3.0F, 9.0F).sound(SoundType.NYLIUM).requiresCorrectToolForDrops());
-    /** A still pool, not a fluid: no item, nothing drops, a block placed into it replaces it. */
+    /** A still pool, not a fluid: no item, nothing drops, a block placed into it replaces it; pistons don't move it. */
     public static final DeferredBlock<com.panda.promisedend.block.VoidWaterBlock> VOID_WATER = BLOCKS.registerBlock("void_water",
             com.panda.promisedend.block.VoidWaterBlock::new, p -> p.mapColor(MapColor.COLOR_BLACK).replaceable().noCollision().noOcclusion()
-                    .strength(100.0F).pushReaction(PushReaction.POPPED).noLootTable().sound(SoundType.EMPTY));
+                    .strength(100.0F).pushReaction(PushReaction.IMMOVEABLE).noLootTable().sound(SoundType.EMPTY));
     public static final DeferredBlock<com.panda.promisedend.block.MireLilyBlock> MIRE_LILY = withItem(BLOCKS.registerBlock("mire_lily",
             com.panda.promisedend.block.MireLilyBlock::new, p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY).noCollision().instabreak()
                     .sound(SoundType.LILY_PAD).lightLevel(s -> 7).pushReaction(PushReaction.POPPED)));
+
+    // ---- the Resonant Spires: Resonite, amethyst's cousin from the outer End
+    public static final DeferredBlock<Block> RESONITE_BLOCK = simple("resonite_block",
+            p -> p.mapColor(MapColor.COLOR_CYAN).strength(1.5F).sound(SoundType.AMETHYST).requiresCorrectToolForDrops());
+    /** Grows Resonite Clusters on its open faces; no item, and it drops nothing, as budding amethyst. */
+    public static final DeferredBlock<com.panda.promisedend.block.BuddingResoniteBlock> BUDDING_RESONITE = BLOCKS.registerBlock("budding_resonite",
+            com.panda.promisedend.block.BuddingResoniteBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).randomTicks().strength(1.5F)
+                    .sound(SoundType.AMETHYST).requiresCorrectToolForDrops().pushReaction(PushReaction.POPPED).noLootTable());
+    public static final DeferredBlock<com.panda.promisedend.block.ResoniteClusterBlock> RESONITE_CLUSTER = withItem(BLOCKS.registerBlock("resonite_cluster",
+            com.panda.promisedend.block.ResoniteClusterBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).forceSolidOn().noOcclusion()
+                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(s -> 5).pushReaction(PushReaction.POPPED)));
 
     private ModBlocks() {}
 

@@ -22,9 +22,10 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> DRAGON_VOID_BREATH_GATHER = sound("entity.ender_dragon.void_breath_gather");
     public static final Supplier<SoundEvent> DRAGON_VOID_BREATH = sound("entity.ender_dragon.void_breath");
 
-    // biome ambience (the biomes' minecraft:audio/ambient_sounds)
-    public static final Supplier<SoundEvent> AMBIENT_CHORUS_THICKET = sound("ambient.chorus_thicket.additions");
-    public static final Supplier<SoundEvent> AMBIENT_LUMEN_MIRE = sound("ambient.lumen_mire.additions");
+    public static final Supplier<SoundEvent> VOID_WATER_ENTER = sound("block.void_water.enter");
+    // Resonite: a cluster's hum when you're near, and the chime when one breaks
+    public static final Supplier<SoundEvent> RESONITE_HUM = sound("block.resonite_cluster.hum");
+    public static final Supplier<SoundEvent> RESONITE_CHIME = sound("block.resonite_cluster.chime");
 
     private static Supplier<SoundEvent> sound(String name) {
         return SOUNDS.register(name, SoundEvent::createVariableRangeEvent);

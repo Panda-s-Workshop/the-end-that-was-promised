@@ -45,6 +45,9 @@ public final class ModItems {
     // ---- the Lumen Mire ---------------------------------------------------------------------------
     public static final DeferredItem<HintItem> LUMEN = ITEMS.registerItem("lumen", p -> new HintItem(p, "lumen", 1));
 
+    // ---- the Resonant Spires --------------------------------------------------------------------
+    public static final DeferredItem<HintItem> RESONITE_SHARD = ITEMS.registerItem("resonite_shard", p -> new HintItem(p, "resonite_shard", 1));
+
     // ---- the Promise Codex ------------------------------------------------------------------------
     public static final DeferredItem<com.panda.promisedend.item.PromiseCodexItem> PROMISE_CODEX = ITEMS.registerItem("promise_codex",
             com.panda.promisedend.item.PromiseCodexItem::new, p -> p.stacksTo(1));
