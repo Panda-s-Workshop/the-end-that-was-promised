@@ -897,7 +897,7 @@ public final class EndGameTests {
         var spire = (com.panda.promisedend.worldgen.ResoniteSpireFeature) feature;
         for (int h : new int[] {10, 30, 32}) {
             var fixed = new com.panda.promisedend.worldgen.ResoniteSpireFeature(spire.crystal(), spire.budding(), spire.cluster(),
-                    net.minecraft.util.valueproviders.ConstantInt.of(h), spire.columns(), spire.buddingChance(), spire.clusterChance());
+                    net.minecraft.util.valueproviders.ConstantInt.of(h), spire.columns(), spire.buddingChance(), spire.clusterChance(), false);
             for (int k = 0; k < 3; k++) {
                 BlockPos centre = new BlockPos(6000 + (16 + k) * 64, y, 2000 + h * 64);
                 floor(level, centre, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
@@ -1116,8 +1116,9 @@ public final class EndGameTests {
      * A gateway's exit search (vanilla's tallest full block within a radius) passes over a Resonite column 20 tall and
      * finds an end-stone pillar 3 tall beside it; with the column made of end stone instead, it finds the column's top.
      * The gateway's own search (bedrock allowed, radius 16) finds the pillar beside the Resonite column too, so the
-     * gateway stands 10 over the ground there, in a pearl's reach of the exit; with Resonite leaning into the gateway's
-     * frame over the pillar it keeps vanilla's answer, the column's top, so the frame never bites into a spire.
+     * gateway stands 10 over the ground there, in a pearl's reach of the exit; with a cluster in the gateway's frame over
+     * the pillar it goes over the next tallest ground with a clear frame (the floor), and with every frame crowded (a 3
+     * by 3 floor between two spires, searched 1 out) it keeps vanilla's answer, a spire's top.
      */
     private static void gatewayExitsBesideSpires(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1140,11 +1141,26 @@ public final class EndGameTests {
                 BlockPos perch = (BlockPos) search.invoke(null, level, centre, 16, true);
                 if (!want.equals(perch)) bad.add("beside a column of " + block + " the gateway's search found " + perch + ", not " + want);
             }
-            // a spire leaning into the frame over the pillar: the gateway keeps vanilla's perch, over the spire
+            // a cluster in the gateway's frame over the pillar: the gateway goes over the next tallest ground whose frame
+            // is clear, the floor beside, not over the pillar (it would break the cluster) nor back over the spire
             for (int k = 0; k < 20; k++) level.setBlock(centre.offset(2, k, 0), ModBlocks.RESONITE_BLOCK.get().defaultBlockState(), 2);
-            for (int k = 0; k < 3; k++) level.setBlock(pillar.offset(1, 9 + k, 0), ModBlocks.RESONITE_BLOCK.get().defaultBlockState(), 2);
+            level.setBlock(pillar.offset(1, 10, 0), ModBlocks.RESONITE_CLUSTER.get().defaultBlockState(), 2);
             BlockPos crowded = (BlockPos) search.invoke(null, level, centre, 16, true);
-            if (!column.equals(crowded)) bad.add("with a spire in the gateway's frame over the pillar the search found " + crowded + ", not the spire's top");
+            if (crowded.getY() != centre.getY() - 1 || !level.getBlockState(crowded).is(net.minecraft.world.level.block.Blocks.END_STONE))
+                bad.add("with a cluster in the gateway's frame over the pillar the search found " + crowded + ", not the floor beside");
+            for (BlockPos q : BlockPos.betweenClosed(crowded.above(8).offset(-1, 0, -1), crowded.above(12).offset(1, 0, 1))) {
+                if (!level.getBlockState(q).isAir()) bad.add("the gateway's frame over " + crowded + " holds " + level.getBlockState(q));
+            }
+            // every frame crowded: a 3 by 3 floor between two Resonite columns, searched 1 out; vanilla's perch stands
+            BlockPos small = centre.offset(0, 0, -12);
+            for (BlockPos p : BlockPos.betweenClosed(small.offset(-1, -1, -1), small.offset(1, -1, 1))) level.setBlock(p, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+            for (int k = 0; k < 20; k++) {
+                level.setBlock(small.offset(-1, k, 0), ModBlocks.RESONITE_BLOCK.get().defaultBlockState(), 2);
+                level.setBlock(small.offset(1, k, 0), ModBlocks.RESONITE_BLOCK.get().defaultBlockState(), 2);
+            }
+            BlockPos hemmed = (BlockPos) search.invoke(null, level, small, 1, true);
+            if (!small.offset(-1, 19, 0).equals(hemmed)) bad.add("with every frame crowded the search found " + hemmed + ", not vanilla's, the first spire's top");
+            for (BlockPos p : BlockPos.betweenClosed(small.offset(-1, -1, -1), small.offset(1, 20, 1))) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
         } catch (ReflectiveOperationException e) {
             bad.add("no exit search: " + e);
         }
@@ -2556,8 +2572,9 @@ public final class EndGameTests {
      * the Rim's content falls back to whatever End biomes fill the same ring, so Voidstone, outposts, the Codex and the
      * anchor stay obtainable: the outposts are still found near spawn, and the debris copy sits on every biome in
      * {@code #promisedend:rim_fallback}, which takes in each biome of {@code #minecraft:is_end} and {@code #c:is_end}.
-     * The Mire's pools go on vanilla's midlands ({@code #promisedend:mire_fallback}): with terrain off one builds in the
-     * End, moss round it; with terrain on the copy builds nothing.
+     * The Mire's pools go on vanilla's midlands ({@code #promisedend:mire_fallback}) and the Spires' formations on its
+     * highlands ({@code #promisedend:spire_fallback}): with terrain off each builds in the End (a pool with moss round it
+     * and a Lily on it; Resonite with budding Resonite in it), and neither outside the End; with terrain on nothing.
      */
     private static void terrainOffFallsBack(GameTestHelper helper) {
         var access = helper.getLevel().registryAccess();
@@ -2581,6 +2598,18 @@ public final class EndGameTests {
             bad.addAll(outpostSurvey(helper, "terrain off"));
             String pools = fallbackPools(helper);
             if (pools != null) bad.add(pools);
+            String spires = fallbackSpires(helper);
+            if (spires != null) bad.add(spires);
+            // outside the End nothing, even with terrain off: the copies are for the End's own biomes
+            BlockPos away = helper.absolutePos(new BlockPos(1, 2, 1)).offset(0, 40, 0);
+            var test = helper.getLevel();
+            floor(test, away, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            floor(test, away.below(), 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            for (String name : List.of("mire_pool_fallback", "resonite_spire_fallback")) {
+                if (grove(test, name).place(test, test.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(700), away))
+                    bad.add(name + " built outside the End");
+            }
+            clear(test, away);
         } finally {
             com.panda.promisedend.EndConfig.use(previous);
         }
@@ -2602,6 +2631,20 @@ public final class EndGameTests {
             biomes.getTagOrEmpty(tag).forEach(b -> {
                 if (!b.is(fallbackTag)) bad.add(b.unwrapKey().map(k -> k.identifier().toString()).orElse("?") + " is in #" + tag.location() + " but not in the fallback");
             });
+        }
+        // the Spires' formations on vanilla's highlands, through the same loader hook; with terrain on nothing
+        var spires = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("resonite_spire_fallback")));
+        var highlands = biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.END_HIGHLANDS);
+        if (!highlands.is(net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("spire_fallback")))) bad.add("end_highlands isn't in #promisedend:spire_fallback");
+        if (highlands.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(spires)))
+            bad.add("resonite_spire_fallback isn't among end_highlands' features (the loader's biome modifier didn't apply)");
+        if (com.panda.promisedend.EndConfig.terrainEnabled()) {
+            var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+            BlockPos at = new BlockPos(9200, end.getMaxY() - 60, 9000);
+            floor(end, at, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            if (spires.value().feature().value().place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(990), at))
+                bad.add("the terrain-off spires built with terrain on");
+            clear(end, at);
         }
         // the Mire's pools on vanilla's midlands, through the same loader hook; with terrain on the copy builds nothing
         var pools = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("mire_pool_fallback")));
@@ -2638,16 +2681,41 @@ public final class EndGameTests {
         floor(end, at, 12, endStone);
         floor(end, at.below(), 12, endStone);
         boolean placed = pools.place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(700), at);
-        int water = 0, moss = 0;
+        int water = 0, moss = 0, lilies = 0;
         for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, -3, -16), at.offset(16, 3, 16))) {
             var state = end.getBlockState(p);
             if (state.is(ModBlocks.VOID_WATER.get())) water++;
             else if (state.is(ModBlocks.LUMEN_MOSS.get())) moss++;
+            else if (state.is(ModBlocks.MIRE_LILY.get())) lilies++;
         }
         clear(end, at);
-        PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Mire's fallback pool: {} void-water, {} Lumen Moss", water, moss);
-        if (!placed || water < com.panda.promisedend.worldgen.MirePoolFeature.MIN_CELLS || moss == 0)
-            return "the Mire's fallback pool with terrain off: placed " + placed + ", " + water + " void-water, " + moss + " Lumen Moss";
+        PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Mire's fallback pool: {} void-water, {} Lumen Moss, {} Mire Lilies", water, moss, lilies);
+        if (!placed || water < com.panda.promisedend.worldgen.MirePoolFeature.MIN_CELLS || moss == 0 || lilies == 0)
+            return "the Mire's fallback pool with terrain off: placed " + placed + ", " + water + " void-water, " + moss + " Lumen Moss, " + lilies + " Mire Lilies";
+        return null;
+    }
+
+    /**
+     * With terrain off, the Spires' fallback formation in the End: on open end stone high in the End's sky, a formation
+     * of Resonite with budding Resonite in it (the only Resonite there is then). Null when it holds.
+     */
+    private static String fallbackSpires(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) return "no End level";
+        var spires = end.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE)
+                .getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("resonite_spire_fallback"))).value().feature().value();
+        BlockPos at = new BlockPos(9300, end.getMaxY() - 60, 9000);
+        floor(end, at, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+        boolean placed = spires.place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(990), at);
+        int crystal = 0, budding = 0;
+        for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, 0, -16), at.offset(16, 40, 16))) {
+            var state = end.getBlockState(p);
+            if (state.is(ModBlocks.RESONITE_BLOCK.get())) crystal++;
+            else if (state.is(ModBlocks.BUDDING_RESONITE.get())) budding++;
+        }
+        clear(end, at);
+        PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Spires' fallback formation: {} Resonite Block, {} budding", crystal, budding);
+        if (!placed || crystal < 50 || budding == 0) return "the Spires' fallback formation with terrain off: placed " + placed + ", " + crystal + " Resonite, " + budding + " budding";
         return null;
     }
 

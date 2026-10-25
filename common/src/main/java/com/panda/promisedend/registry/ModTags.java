@@ -19,7 +19,7 @@ public final class ModTags {
      * players build bridges and paths from whose tops aren't full faces.
      */
     public static final TagKey<Block> VOID_SAFE_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("void_safe_ground"));
-    /** Blocks an outer gateway's exit never stands on, and its gateway stands over only if no other ground will do (the spires' Resonite): TheEndGatewayBlockEntityMixin. */
+    /** Blocks an outer gateway and its exit keep off while other ground is in reach (the spires' Resonite): TheEndGatewayBlockEntityMixin. */
     public static final TagKey<Block> NOT_A_GATEWAY_EXIT = TagKey.create(Registries.BLOCK, PromisedEnd.id("not_a_gateway_exit"));
 
     /** The Ancients' constructs: they never turn on each other or on the dragon they guard. */

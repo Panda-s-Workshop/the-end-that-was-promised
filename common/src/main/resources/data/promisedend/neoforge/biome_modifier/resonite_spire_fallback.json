@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#promisedend:spire_fallback",
+  "features": "promisedend:resonite_spire_fallback",
+  "step": "vegetal_decoration"
+}

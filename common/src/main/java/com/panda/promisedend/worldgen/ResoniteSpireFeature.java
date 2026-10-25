@@ -2,6 +2,7 @@ package com.panda.promisedend.worldgen;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
+import com.panda.promisedend.EndConfig;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.panda.promisedend.PromisedEnd;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.valueproviders.IntProvider;
 import net.minecraft.util.valueproviders.IntProviders;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
@@ -38,9 +40,12 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
  * structures, the return gateway and a grove across a border. Sideways it stays within {@link #REACH} blocks of
  * the origin (2.5 off, then a lean of up to 0.45 a block over at most 0.75 of the codec's tallest 32, and a cluster),
  * inside the chunks a feature may write to.
+ *
+ * <p>{@code fallback} marks the sparser copy on {@code #promisedend:spire_fallback} (vanilla's highlands), which builds
+ * only in the End with our terrain off: there the Spires never generate, and it is the only Resonite.
  */
 public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvider budding, BlockStateProvider cluster,
-                                   IntProvider height, IntProvider columns, float buddingChance, float clusterChance) implements Feature {
+                                   IntProvider height, IntProvider columns, float buddingChance, float clusterChance, boolean fallback) implements Feature {
     public static final TagKey<Block> GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("resonite_spire_ground"));
     /** The chance of a cluster on each open side of a budding block at generation. */
     public static final float BUDDING_CLUSTER_CHANCE = 0.25F;
@@ -53,7 +58,8 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
             IntProviders.codec(4, 32).fieldOf("height").forGetter(ResoniteSpireFeature::height),
             IntProviders.codec(1, 8).fieldOf("columns").forGetter(ResoniteSpireFeature::columns),
             Codec.floatRange(0, 1).fieldOf("budding_chance").forGetter(ResoniteSpireFeature::buddingChance),
-            Codec.floatRange(0, 1).fieldOf("cluster_chance").forGetter(ResoniteSpireFeature::clusterChance)
+            Codec.floatRange(0, 1).fieldOf("cluster_chance").forGetter(ResoniteSpireFeature::clusterChance),
+            Codec.BOOL.optionalFieldOf("fallback", false).forGetter(ResoniteSpireFeature::fallback)
     ).apply(i, ResoniteSpireFeature::new));
 
     @Override
@@ -63,6 +69,8 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
 
     @Override
     public boolean place(WorldGenLevel level, ChunkGenerator generator, RandomSource random, BlockPos origin) {
+        // the copy on vanilla's highlands is for packs with our terrain off, where the Spires never generate
+        if (fallback && (EndConfig.terrainEnabled() || level.getLevel().dimension() != Level.END)) return false;
         BlockPos foot = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, origin);
         if (!level.getBlockState(foot.below()).is(GROUND)) return false;
         int tallest = height.sample(random);
