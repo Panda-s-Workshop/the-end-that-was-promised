@@ -22,12 +22,14 @@ import org.spongepowered.asm.mixin.injection.At;
 abstract class TheEndGatewayBlockEntityMixin {
     @ModifyReturnValue(method = "findTallestBlock", at = @At("RETURN"))
     private static BlockPos promisedend$notOnASpire(BlockPos tallest, BlockGetter level, BlockPos centre, int radius, boolean allowBedrock) {
-        if (tallest == null || !level.getBlockState(tallest).is(ModTags.NOT_A_GATEWAY_EXIT)) return tallest;
+        // only the exit's search (the one that doesn't take bedrock): the gateway itself still goes 10 over everything
+        // within 16, spires included, so its box never bites into one
+        if (allowBedrock || tallest == null || !level.getBlockState(tallest).is(ModTags.NOT_A_GATEWAY_EXIT)) return tallest;
         BlockPos best = null;
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                // vanilla's own search skips the centre column unless bedrock is allowed (the exit search's: the gateway's own)
-                if (dx == 0 && dz == 0 && !allowBedrock) continue;
+                // vanilla's exit search skips the centre column, the gateway's own
+                if (dx == 0 && dz == 0) continue;
                 BlockPos top = promisedend$top(level, centre.offset(dx, 0, dz), allowBedrock);
                 if (top == null || level.getBlockState(top).is(ModTags.NOT_A_GATEWAY_EXIT)) continue;
                 if (best == null || top.getY() > best.getY()) best = top;

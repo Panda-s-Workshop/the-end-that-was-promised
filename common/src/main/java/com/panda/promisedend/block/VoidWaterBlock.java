@@ -73,14 +73,14 @@ public class VoidWaterBlock extends Block {
     protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity, InsideBlockEffectApplier effects, boolean intersects) {
         if (level.isClientSide() || !(entity instanceof LivingEntity living)) return;
         MobEffectInstance slow = living.getEffect(MobEffects.SLOWNESS);
+        if (slow != null && !(slow.getAmplifier() == 0 && slow.getDuration() < SLOW_TICKS / 2)) return;
+        boolean took = living.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, SLOW_TICKS, 0, true, true));
         // stepping in: a dull splash and the void's motes, when the pool's Slowness starts (none yet: it is topped up
-        // while you stay, so this is once a stay); someone already slowed by something else walks in quietly
-        if (slow == null && level instanceof ServerLevel server) {
+        // while you stay, so this is once a stay); someone already slowed by something else walks in quietly, and one
+        // that can't be slowed (a mod's) makes no splash at all rather than one a tick
+        if (slow == null && took && level instanceof ServerLevel server) {
             server.playSound(null, entity.getX(), entity.getY(), entity.getZ(), ModSounds.VOID_WATER_ENTER.get(), SoundSource.BLOCKS, 0.6F, 1.0F);
             server.sendParticles(ParticleTypes.REVERSE_PORTAL, entity.getX(), pos.getY() + 0.85, entity.getZ(), 8, 0.3, 0.05, 0.3, 0.02);
-        }
-        if (slow == null || slow.getAmplifier() == 0 && slow.getDuration() < SLOW_TICKS / 2) {
-            living.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, SLOW_TICKS, 0, true, true));
         }
     }
 

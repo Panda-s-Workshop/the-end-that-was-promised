@@ -60,7 +60,12 @@ public class ResoniteClusterBlock extends AmethystClusterBlock {
         level.addParticle(ParticleTypes.GLOW, pos.getX() + random.nextDouble(), pos.getY() + random.nextDouble(), pos.getZ() + random.nextDouble(), 0, 0.02, 0);
     }
 
-    /** The server's block break starts ({@code player}) and ends ({@code null}): see ServerPlayerGameModeMixin. */
+    /** The player whose break is under way, or null: see ServerPlayerGameModeMixin. */
+    public static Player breaker() {
+        return BREAKER.get();
+    }
+
+    /** The server's block break starts ({@code player}) and ends (the one before it, or {@code null}): see ServerPlayerGameModeMixin. */
     public static void breaking(Player player) {
         if (player == null) BREAKER.remove();
         else BREAKER.set(player);
@@ -69,15 +74,21 @@ public class ResoniteClusterBlock extends AmethystClusterBlock {
     @Override
     protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
         super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
+        chime(level, pos, chimeTarget(level, pos));
+    }
+
+    /**
+     * Whom a cluster going at {@code pos} now draws onto: the player whose break is under way, if they are a person in
+     * survival or adventure (none for a creative or spectating one); with no break under way, or a machine's fake
+     * player's, the nearest player in survival or adventure within the radius.
+     */
+    public static Player chimeTarget(ServerLevel level, BlockPos pos) {
         Player breaker = BREAKER.get();
-        Player target;
         if (breaker != null && !com.panda.promisedend.platform.Services.PLATFORM.isFakePlayer(breaker)) {
-            target = EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(breaker) ? breaker : null;
-        } else {
-            Vec3 at = Vec3.atCenterOf(pos);
-            target = level.getNearestPlayer(at.x, at.y, at.z, CHIME_RADIUS, EntitySelector.NO_CREATIVE_OR_SPECTATOR);
+            return EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(breaker) ? breaker : null;
         }
-        chime(level, pos, target);
+        Vec3 at = Vec3.atCenterOf(pos);
+        return level.getNearestPlayer(at.x, at.y, at.z, CHIME_RADIUS, EntitySelector.NO_CREATIVE_OR_SPECTATOR);
     }
 
     /** The chime: its sound and a ring of glints, and the nearest hearers within the radius take {@code target} (if any). */

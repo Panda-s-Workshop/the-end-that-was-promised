@@ -84,9 +84,10 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
             }
             int lastX = 0, lastZ = 0;
             // the column goes a block into the ground, so it never shows a gap at its foot
+            // it narrows to a needle a block wide, and its tip is its h-th block, so the codec's height is the height seen
             for (int dy = -1; dy < h; dy++) {
                 float t = Math.max(0, dy) / (float) h;
-                float r = radius * (1.0F - t * t);
+                float r = Math.max(0.5F, radius * (1.0F - t * t));
                 float cx = bx + Mth.cos(angle) * lean * dy, cz = bz + Mth.sin(angle) * lean * dy;
                 int reach = Mth.ceil(r);
                 for (int dx = -reach; dx <= reach; dx++) {
@@ -103,10 +104,7 @@ public record ResoniteSpireFeature(BlockStateProvider crystal, BlockStateProvide
                 }
                 lastX = Mth.floor(cx);
                 lastZ = Mth.floor(cz);
-                if (r < 0.5F) {
-                    body.add(base.offset(Mth.floor(cx) - Mth.floor(bx), dy, Mth.floor(cz) - Mth.floor(bz)));
-                    break;
-                }
+                if (dy == h - 1) body.add(base.offset(Mth.floor(cx) - Mth.floor(bx), dy, Mth.floor(cz) - Mth.floor(bz)));
             }
         }
         // keep out: a formation that would meet anything but air, its ground, a plant or Resonite, or stand under a roof

@@ -640,7 +640,7 @@ public final class EndGameTests {
 
     /**
      * Lumen Moss drops end stone and, one time in five, a Lumen (0.3, 0.45 and 0.7 with Fortune I-III), over 400 seeded rolls
-     * each; with Silk Touch the moss alone. Endermen pick it up.
+     * each; with Silk Touch the moss alone. Endermen don't pick it up (it walls the pools).
      */
     private static void lumenMossDrops(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -681,7 +681,8 @@ public final class EndGameTests {
             PromisedEnd.LOGGER.info("[lumen_moss_drops] {}: {} Lumen in 400", c.name(), lumen);
             if (lumen < c.min() || lumen > c.max()) bad.add("with " + c.name() + " " + lumen + " Lumen in 400 (" + c.min() + "-" + c.max() + ")");
         }
-        if (!moss.defaultBlockState().is(net.minecraft.tags.BlockTags.ENDERMAN_HOLDABLE)) bad.add("endermen can't pick it up");
+        if (moss.defaultBlockState().is(net.minecraft.tags.BlockTags.ENDERMAN_HOLDABLE)) bad.add("endermen pick it up, out of the pools' walls");
+        if (!ModBlocks.CHORUS_MOSS.get().defaultBlockState().is(net.minecraft.tags.BlockTags.ENDERMAN_HOLDABLE)) bad.add("Chorus Moss isn't holdable either, so this can't tell");
         if (!bad.isEmpty()) helper.fail("Lumen Moss: " + bad);
         helper.succeed();
     }
@@ -875,6 +876,26 @@ public final class EndGameTests {
             if (reach > com.panda.promisedend.worldgen.ResoniteSpireFeature.REACH) bad.add("crystal " + reach + " blocks off at " + centre);
             clear(level, centre);
         }
+        // the codec's height is the tallest column's height: 10, 30 and the codec's 32, each over three seeds
+        var spire = (com.panda.promisedend.worldgen.ResoniteSpireFeature) feature;
+        for (int h : new int[] {10, 30, 32}) {
+            var fixed = new com.panda.promisedend.worldgen.ResoniteSpireFeature(spire.crystal(), spire.budding(), spire.cluster(),
+                    net.minecraft.util.valueproviders.ConstantInt.of(h), spire.columns(), spire.buddingChance(), spire.clusterChance());
+            for (int k = 0; k < 3; k++) {
+                BlockPos centre = new BlockPos(6000 + (16 + k) * 64, y, 2000 + h * 64);
+                floor(level, centre, 14, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+                fixed.place(level, generator, net.minecraft.util.RandomSource.create(990 + k), centre);
+                int top = -1, reach = 0;
+                for (BlockPos p : BlockPos.betweenClosed(centre.offset(-16, 0, -16), centre.offset(16, 40, 16))) {
+                    var state = level.getBlockState(p);
+                    if (state.is(crystal) || state.is(budding)) top = Math.max(top, p.getY() - y + 1);
+                    if (state.is(crystal) || state.is(budding) || state.is(cluster)) reach = Math.max(reach, Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())));
+                }
+                if (top != h) bad.add("height " + h + " grew a spire " + top + " tall (seed " + k + ")");
+                if (reach > com.panda.promisedend.worldgen.ResoniteSpireFeature.REACH) bad.add("height " + h + ": crystal " + reach + " blocks off");
+                clear(level, centre);
+            }
+        }
         // keep out: a purpur ring round the origin (the formation meets it), then a purpur overhang 34 up, over the
         // tallest spire, from a block east of the origin (the formation is under it), then an End City's claim on the
         // origin's chunk with nothing yet built (the chunk's structure reference, as a city's own chunks have before
@@ -914,8 +935,9 @@ public final class EndGameTests {
      * The chime draws the nearest three Endermen within 12 blocks (4, 6 and 8 off) onto the player, not a fourth 10 off
      * (the cap), not one 15.6 off (the radius), and not a pig 3 off (not in #promisedend:hears_resonite). A survival
      * player's real break (the server's destroyBlock) of a cluster, and of the block a cluster stands on, draws onto that
-     * player, and a creative player's real break 2 blocks off rings and draws none. A survival player's real break in a
-     * world is the `biomes` scenario's `ring` step.
+     * player; a machine's fake player in survival is no breaker (and no real player is near, so none is drawn); a
+     * creative player's real break 2 blocks off rings and draws none. A survival player's real break in a world is the
+     * `biomes` scenario's `ring` step.
      */
     private static void resoniteClusterChimes(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -963,6 +985,24 @@ public final class EndGameTests {
             }
             within.forEach(e -> e.setTarget(null));
         }
+        // a machine's fake player in survival breaks one: it isn't the breaker, and with no real survival player near, none
+        // is drawn (taken as the breaker it would draw three onto itself)
+        level.setBlock(also, cluster, 3);
+        var machine = net.neoforged.neoforge.common.util.FakePlayerFactory.getMinecraft(level);
+        machine.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        machine.gameMode.destroyBlock(also);
+        // the choice itself, inside a break as the server brackets it: the fake player isn't taken (vanilla's targeting
+        // refuses one anyway, so the Endermen above can't tell), a survival player is
+        com.panda.promisedend.block.ResoniteClusterBlock.breaking(machine);
+        var forMachine = com.panda.promisedend.block.ResoniteClusterBlock.chimeTarget(level, also);
+        com.panda.promisedend.block.ResoniteClusterBlock.breaking(survivor);
+        var forSurvivor = com.panda.promisedend.block.ResoniteClusterBlock.chimeTarget(level, also);
+        com.panda.promisedend.block.ResoniteClusterBlock.breaking(null);
+        if (forMachine != null) bad.add("a fake player's break draws onto " + forMachine);
+        if (forSurvivor != survivor) bad.add("a survival player's break draws onto " + forSurvivor);
+        if (!level.getBlockState(also).isAir()) bad.add("the fake player's break left " + level.getBlockState(also));
+        for (var e : within) if (e.getTarget() != null) bad.add("a fake player's break drew an Enderman onto " + e.getTarget());
+        within.forEach(e -> e.setTarget(null));
         // a creative player 2 blocks off breaks one for real (the server's own destroyBlock)
         level.setBlock(also, cluster, 3);
         var creative = helper.makeMockServerPlayerInLevel();
@@ -1035,6 +1075,14 @@ public final class EndGameTests {
             var drops = table.getRandomItems(params);
             if (drops.size() != 1 || !drops.get(0).is(c.item()) || drops.get(0).getCount() != c.count()) bad.add("to " + c.name() + " a cluster drops " + drops);
         }
+        var block = ModBlocks.RESONITE_BLOCK.get();
+        var blockDrops = level.getServer().reloadableRegistries().getLootTable(block.getLootTable().orElseThrow()).getRandomItems(
+                new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE))
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, block.defaultBlockState())
+                        .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK));
+        if (blockDrops.size() != 1 || !blockDrops.get(0).is(block.asItem()) || blockDrops.get(0).getCount() != 1) bad.add("a Resonite Block drops " + blockDrops);
         var recipes = level.getServer().getRecipeManager();
         var shard = new ItemStack(ModItems.RESONITE_SHARD.get());
         var input = net.minecraft.world.item.crafting.CraftingInput.of(2, 2, List.of(shard, shard.copy(), shard.copy(), shard.copy()));
@@ -1050,6 +1098,8 @@ public final class EndGameTests {
     /**
      * A gateway's exit search (vanilla's tallest full block within a radius) passes over a Resonite column 20 tall and
      * finds an end-stone pillar 3 tall beside it; with the column made of end stone instead, it finds the column's top.
+     * The gateway's own search (bedrock allowed, radius 16) is left as vanilla's: it finds the column's top either way,
+     * so the gateway goes 10 over the spire, not into it.
      */
     private static void gatewayExitsBesideSpires(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1067,6 +1117,9 @@ public final class EndGameTests {
                 BlockPos found = (BlockPos) search.invoke(null, level, centre, 5, false);
                 BlockPos want = block == net.minecraft.world.level.block.Blocks.END_STONE ? column : pillar;
                 if (!want.equals(found)) bad.add("beside a column of " + block + " the exit search found " + found + ", not " + want);
+                // the gateway's own search (radius 16, bedrock allowed) is vanilla's: over everything, the column too
+                BlockPos perch = (BlockPos) search.invoke(null, level, centre, 16, true);
+                if (!column.equals(perch)) bad.add("beside a column of " + block + " the gateway's search found " + perch + ", not the column's top");
             }
         } catch (ReflectiveOperationException e) {
             bad.add("no exit search: " + e);
