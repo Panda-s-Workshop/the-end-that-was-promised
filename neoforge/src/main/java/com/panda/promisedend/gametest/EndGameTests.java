@@ -1209,6 +1209,8 @@ public final class EndGameTests {
      * on a crafted vent rises above its start within 40 ticks, never faster than 0.8 a tick, and an item there rises
      * too; a stand on a platform 17 over a crafted vent (its column is 16) stays put; a roof 7 over a vent stops the
      * column at 6, and the stand under it never gets its head past the roof; a stand 20 over an ancient vent (32) rises.
+     * The entities go in once every column is entity-ticking: a chunk just forced can take a few ticks to get there,
+     * and an entity added before then doesn't move at all.
      */
     private static void updraftLiftsEntity(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -1222,30 +1224,49 @@ public final class EndGameTests {
         level.setBlock(deep, ancient, 3);
         level.setBlock(platformed.above(18), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
         level.setBlock(roofed.above(7), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
-        java.util.function.BiFunction<BlockPos, Integer, net.minecraft.world.entity.decoration.ArmorStand> stand = (vent, over) -> {
-            var s = new net.minecraft.world.entity.decoration.ArmorStand(level, vent.getX() + 0.5, vent.getY() + 1 + over, vent.getZ() + 0.5);
-            level.addFreshEntity(s);
-            return s;
-        };
-        var a = stand.apply(onVent, 0);
-        var b = stand.apply(platformed, 18);
-        var c = stand.apply(roofed, 0);
-        var d = stand.apply(deep, 20);
-        var e = new net.minecraft.world.entity.item.ItemEntity(level, item.getX() + 0.5, item.getY() + 1, item.getZ() + 0.5, new ItemStack(net.minecraft.world.item.Items.STICK));
-        e.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
-        e.setNeverPickUp();
-        level.addFreshEntity(e);
-        double[] start = {a.getY(), b.getY(), c.getY(), d.getY(), e.getY()};
+        List<BlockPos> columns = List.of(onVent.above(), platformed.above(19), roofed.above(), deep.above(21), item.above());
+        List<net.minecraft.world.entity.Entity> made = new ArrayList<>();
+        double[] start = new double[5];
         double[] fastest = {0};
         double[] highestHead = {0};
-        for (int t = 1; t <= 40; t++) {
+        int[] began = {-1};
+        for (int t = 1; t <= 190; t++) {
             int tick = t;
             helper.runAtTickTime(t, () -> {
+                if (began[0] < 0) {
+                    if (!columns.stream().allMatch(level::isPositionEntityTicking)) {
+                        if (tick == 150) {
+                            release.run();
+                            helper.fail("the vents' chunks weren't entity-ticking by tick 150");
+                        }
+                        return;
+                    }
+                    began[0] = tick;
+                    for (int i = 0; i < 4; i++) {
+                        BlockPos at = columns.get(i);
+                        made.add(new net.minecraft.world.entity.decoration.ArmorStand(level, at.getX() + 0.5, at.getY(), at.getZ() + 0.5));
+                    }
+                    BlockPos at = columns.get(4);
+                    var stick = new net.minecraft.world.entity.item.ItemEntity(level, at.getX() + 0.5, at.getY(), at.getZ() + 0.5, new ItemStack(net.minecraft.world.item.Items.STICK));
+                    stick.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+                    stick.setNeverPickUp();
+                    made.add(stick);
+                    for (int i = 0; i < 5; i++) {
+                        level.addFreshEntity(made.get(i));
+                        start[i] = made.get(i).getY();
+                    }
+                    return;
+                }
+                var a = made.get(0);
+                var b = made.get(1);
+                var c = made.get(2);
+                var d = made.get(3);
+                var e = made.get(4);
                 fastest[0] = Math.max(fastest[0], a.getDeltaMovement().y);
                 highestHead[0] = Math.max(highestHead[0], c.getY() + c.getBbHeight());
-                if (tick < 40) return;
-                PromisedEnd.LOGGER.info("[updraft_lifts_entity] rose {} (stand), {} (item), {} (20 over an ancient vent); the fastest {}; on the platform {}; under the roof the head reached {} (roof at {})",
-                        a.getY() - start[0], e.getY() - start[4], d.getY() - start[3], fastest[0], b.getY() - start[1], highestHead[0], roofed.getY() + 7);
+                if (tick != began[0] + 40) return;
+                PromisedEnd.LOGGER.info("[updraft_lifts_entity] from tick {}: rose {} (stand), {} (item), {} (20 over an ancient vent); the fastest {}; on the platform {}; under the roof the head reached {} (roof at {})",
+                        began[0], a.getY() - start[0], e.getY() - start[4], d.getY() - start[3], fastest[0], b.getY() - start[1], highestHead[0], roofed.getY() + 7);
                 if (a.getY() <= start[0] + 1) bad.add("a stand on a crafted vent rose only " + (a.getY() - start[0]) + " in 40 ticks");
                 if (fastest[0] > com.panda.promisedend.logic.Updraft.CAP + 1e-6) bad.add("a stand rose at " + fastest[0] + " a tick, over 0.8");
                 if (e.getY() <= start[4] + 1) bad.add("an item on a crafted vent rose only " + (e.getY() - start[4]));
@@ -1254,8 +1275,7 @@ public final class EndGameTests {
                 if (!(level.getBlockEntity(roofed) instanceof com.panda.promisedend.block.UpdraftVentBlockEntity vent) || vent.height() != 6)
                     bad.add("the roofed vent's column isn't 6: " + level.getBlockEntity(roofed));
                 if (d.getY() <= start[3] + 1) bad.add("a stand 20 over an ancient vent rose only " + (d.getY() - start[3]));
-                for (var s : List.of(a, b, c, d)) s.discard();
-                e.discard();
+                made.forEach(net.minecraft.world.entity.Entity::discard);
                 for (BlockPos p : List.of(onVent, platformed, roofed, deep, item, platformed.above(18), roofed.above(7)))
                     level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
                 release.run();
