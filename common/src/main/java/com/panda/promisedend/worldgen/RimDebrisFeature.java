@@ -56,12 +56,12 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
     public enum Wreck { NONE, PILLAR, CORNER, CHISELED }
 
     /**
-     * Shapes by weight: caps 4 in 11, tilted 3, split 2, shards 2. An island 8 across isn't split (4 in 9 caps, 3
-     * tilted, 2 shards): one of its halves would be a sliver.
+     * Shapes by weight: caps 4 in 11, tilted 3, split 2, shards 2. An island under 13 across isn't split (4 in 9 caps,
+     * 3 tilted, 2 shards): one of its halves would be a sliver.
      */
     public static Shape shape(RandomSource random, int radius) {
         if (radius < 4) return Shape.CAP;
-        if (radius < 5) {
+        if (radius < 6) {
             int roll = random.nextInt(9);
             return roll < 4 ? Shape.CAP : roll < 7 ? Shape.TILTED : Shape.SHARDS;
         }
@@ -103,8 +103,8 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
         island(level, random, origin, radius, Math.cos(tiltAngle) * tilt, Math.sin(tiltAngle) * tilt, own);
         if (shape == Shape.SPLIT) split(level, random, origin, radius, own);
         // the wreck before the shards, so it lies on the island's own top and never on a shard
-        if (wreck != Wreck.NONE) wreck(level, random, origin, radius, wreck);
-        if (shape == Shape.SHARDS) shards(level, random, origin, radius);
+        if (wreck != Wreck.NONE) wreck(level, random, origin, radius, wreck, own);
+        if (shape == Shape.SHARDS) shards(level, random, origin, radius, own);
         int shards = random.nextInt(4);
         for (int i = 0; i < shards; i++) {
             double angle = random.nextDouble() * Math.PI * 2;
@@ -119,8 +119,9 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
     /**
      * A lens: a slightly domed top a block or two thick, then rings shrinking with depth into a jagged point. A tilt of
      * ({@code tx}, {@code tz}) lifts each column by that many blocks per block out from the middle, so the whole lens
-     * leans as one piece; its crust is then a block thicker, so where two columns step apart they still share a face
-     * and no rim block hangs on by an edge. What it places goes into {@code own}, when given.
+     * leans as one piece; its crust is then a block thicker (drawn as the stone under it, so the island keeps its
+     * share of Voidstone), so where two columns step apart they still share a face and no rim block hangs on by an
+     * edge. What it places goes into {@code own}, when given.
      */
     private void island(WorldGenLevel level, RandomSource random, BlockPos centre, int radius, double tx, double tz, java.util.Set<BlockPos> own) {
         boolean tilted = tx != 0 || tz != 0;
@@ -150,7 +151,7 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
                     setBlock(level, pos, seam ? ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState() : material(salt, pos, dy));
                     if (own != null) own.add(pos);
                     if (tilted && dy >= 0 && level.getBlockState(pos.below()).isAir()) {
-                        setBlock(level, pos.below(), material(salt, pos.below(), dy));
+                        setBlock(level, pos.below(), material(salt, pos.below(), dy - 1));
                         if (own != null) own.add(pos.below());
                     }
                 }
@@ -193,24 +194,29 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
         }
     }
 
-    /** One to three Voidstone shards thrust up through the top, 3-6 tall, the first two blocks wide at its foot. */
-    private static void shards(WorldGenLevel level, RandomSource random, BlockPos centre, int radius) {
+    /**
+     * One to three Voidstone shards thrust up through the top, 3-6 tall, the first two blocks wide at its foot where
+     * the top is there to stand on.
+     */
+    private static void shards(WorldGenLevel level, RandomSource random, BlockPos centre, int radius, java.util.Set<BlockPos> own) {
         var voidstone = ModBlocks.VOIDSTONE_SET.base().get().defaultBlockState();
         int count = 1 + random.nextInt(3);
         for (int i = 0; i < count; i++) {
             double a = random.nextDouble() * Math.PI * 2, d = random.nextDouble() * radius * 0.5;
             int x = centre.getX() + (int) Math.round(Math.cos(a) * d), z = centre.getZ() + (int) Math.round(Math.sin(a) * d);
-            BlockPos foot = top(level, x, z, centre.getY());
+            BlockPos foot = top(level, own, x, z, centre.getY());
             if (foot == null) continue;
             int tall = 3 + random.nextInt(4);
-            boolean wide = i == 0;
+            // the first is two wide, on each of the three columns beside its foot that has the top at the foot's height
+            java.util.List<BlockPos> wide = new java.util.ArrayList<>();
+            if (i == 0) {
+                for (BlockPos side : java.util.List.of(foot.offset(1, 0, 0), foot.offset(0, 0, 1), foot.offset(1, 0, 1))) {
+                    if (!level.getBlockState(side).isAir() && level.getBlockState(side.above()).isAir()) wide.add(side);
+                }
+            }
             for (int dy = 1; dy <= tall; dy++) {
                 setIfAir(level, foot.above(dy), voidstone);
-                if (wide && dy <= tall / 2) {
-                    setIfAir(level, foot.offset(1, dy, 0), voidstone);
-                    setIfAir(level, foot.offset(0, dy, 1), voidstone);
-                    setIfAir(level, foot.offset(1, dy, 1), voidstone);
-                }
+                if (dy <= tall / 2) for (BlockPos side : wide) setIfAir(level, side.above(dy), voidstone);
             }
         }
     }
@@ -219,15 +225,16 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
      * A piece of the Ancients' building lying on the top near the middle: a purpur pillar toppled on its side, 3-5
      * long, with its broken stump upright at one end; an L of Voidstone brick two high whose upper course has
      * crumbled to stairs and slabs; or a chiseled Voidstone block with a brick slab fallen beside it. Each block rests
-     * on its own column's top, so none hangs over a drop; where a column has no top, that block is gone.
+     * on its own column's top, the island's own stone ({@code own}), so none hangs over a drop or lands on a
+     * neighbour; where a column has no top, that block is gone. The pillar lies level, broken off where the top drops.
      */
-    private static void wreck(WorldGenLevel level, RandomSource random, BlockPos centre, int radius, Wreck kind) {
+    private static void wreck(WorldGenLevel level, RandomSource random, BlockPos centre, int radius, Wreck kind, java.util.Set<BlockPos> own) {
         // on pale end stone near the middle where there is some, so the dark brick and Voidstone read against it, not
         // lost on a seam: up to six tries, else the last top found
         BlockPos ground = null;
         for (int tries = 0; tries < 6; tries++) {
             double a = random.nextDouble() * Math.PI * 2, d = random.nextDouble() * radius * 0.35;
-            BlockPos found = top(level, centre.getX() + (int) Math.round(Math.cos(a) * d), centre.getZ() + (int) Math.round(Math.sin(a) * d), centre.getY());
+            BlockPos found = top(level, own, centre.getX() + (int) Math.round(Math.cos(a) * d), centre.getZ() + (int) Math.round(Math.sin(a) * d), centre.getY());
             if (found == null) continue;
             ground = found;
             if (level.getBlockState(found).is(Blocks.END_STONE)) break;
@@ -238,13 +245,25 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
         var bricks = ModBlocks.VOIDSTONE_BRICK_SET;
         switch (kind) {
             case PILLAR -> {
-                var axis = alongX ? net.minecraft.core.Direction.Axis.X : net.minecraft.core.Direction.Axis.Z;
+                // it fell whichever of the four ways the top runs level the furthest (the drawn one first, on a tie)
                 int length = 3 + random.nextInt(3);
-                for (int i = 1; i <= length; i++) {
-                    BlockPos p = alongX ? at.offset(i, 0, 0) : at.offset(0, 0, i);
-                    if (top(level, p.getX(), p.getZ(), centre.getY()) == null) break;
-                    setIfAir(level, top(level, p.getX(), p.getZ(), centre.getY()).above(),
-                            Blocks.PURPUR_PILLAR.defaultBlockState().setValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS, axis));
+                var first = alongX ? net.minecraft.core.Direction.EAST : net.minecraft.core.Direction.SOUTH;
+                var fell = first;
+                int best = -1;
+                for (var d : java.util.List.of(first, first.getOpposite(), first.getClockWise(), first.getCounterClockWise())) {
+                    int run = 0;
+                    while (run < length) {
+                        BlockPos under = top(level, own, at.getX() + d.getStepX() * (run + 1), at.getZ() + d.getStepZ() * (run + 1), centre.getY());
+                        if (under == null || under.getY() != ground.getY()) break;
+                        run++;
+                    }
+                    if (run > best) {
+                        best = run;
+                        fell = d;
+                    }
+                }
+                for (int i = 1; i <= best; i++) {
+                    setIfAir(level, at.relative(fell, i), Blocks.PURPUR_PILLAR.defaultBlockState().setValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS, fell.getAxis()));
                 }
                 setIfAir(level, at, Blocks.PURPUR_PILLAR.defaultBlockState());
             }
@@ -252,39 +271,42 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
                 var brick = bricks.base().get().defaultBlockState();
                 var stairs = bricks.stairs().get().defaultBlockState();
                 for (int i = 0; i < 3; i++) {
-                    BlockPos p = seat(level, alongX ? at.offset(i, 0, 0) : at.offset(0, 0, i), centre.getY());
+                    BlockPos p = seat(level, own, alongX ? at.offset(i, 0, 0) : at.offset(0, 0, i), centre.getY());
                     // the upper course only over a lower one
                     if (p != null && setIfAir(level, p, brick) && i < 2) setIfAir(level, p.above(), i == 0 ? brick : stairs);
                 }
                 for (int i = 1; i < 3; i++) {
-                    BlockPos p = seat(level, alongX ? at.offset(0, 0, i) : at.offset(i, 0, 0), centre.getY());
+                    BlockPos p = seat(level, own, alongX ? at.offset(0, 0, i) : at.offset(i, 0, 0), centre.getY());
                     if (p != null) setIfAir(level, p, i == 2 ? bricks.slab().get().defaultBlockState() : brick);
                 }
             }
             case CHISELED -> {
                 setIfAir(level, at, ModBlocks.CHISELED_VOIDSTONE.get().defaultBlockState());
                 BlockPos beside = alongX ? at.offset(1, 0, 0) : at.offset(0, 0, 1);
-                BlockPos slabGround = top(level, beside.getX(), beside.getZ(), centre.getY());
+                BlockPos slabGround = top(level, own, beside.getX(), beside.getZ(), centre.getY());
                 if (slabGround != null) setIfAir(level, slabGround.above(), bricks.slab().get().defaultBlockState());
             }
             default -> { }
         }
     }
 
-    /** The island's top block in a column, looking down from a little over the island; null over the void. */
-    private static BlockPos top(WorldGenLevel level, int x, int z, int y) {
+    /**
+     * The island's top block in a column, looking down from a little over the island: the first block there, if it is
+     * the island's own stone ({@code own}); null over the void, or where the first is something else (a wreck, another
+     * island's stone).
+     */
+    private static BlockPos top(WorldGenLevel level, java.util.Set<BlockPos> own, int x, int z, int y) {
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos(x, y + 12, z);
         for (int i = 0; i < 40; i++, at.move(0, -1, 0)) {
-            var state = level.getBlockState(at);
-            if (state.is(Blocks.END_STONE) || state.is(ModBlocks.VOIDSTONE_SET.base().get())) return at.immutable();
-            if (!state.isAir()) return null;
+            if (level.getBlockState(at).isAir()) continue;
+            return own.contains(at) ? at.immutable() : null;
         }
         return null;
     }
 
     /** The place over the island's top in {@code pos}'s column, or null over the void. */
-    private static BlockPos seat(WorldGenLevel level, BlockPos pos, int y) {
-        BlockPos top = top(level, pos.getX(), pos.getZ(), y);
+    private static BlockPos seat(WorldGenLevel level, java.util.Set<BlockPos> own, BlockPos pos, int y) {
+        BlockPos top = top(level, own, pos.getX(), pos.getZ(), y);
         return top == null ? null : top.above();
     }
 

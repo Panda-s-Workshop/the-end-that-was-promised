@@ -3405,8 +3405,11 @@ public final class EndGameTests {
      * the islands are built 300 blocks out, high in the test level's sky. Then each shape and each wreck from the first
      * seed that plans it: a tilted top spans 3 or more blocks of height, a split island's second piece is at least
      * 30 % of its first (a cap's loose shards are far smaller), shards stand 3 or more over a level top, and each
-     * wreck leaves its own blocks (no wreck, none of them). Over 1100 plans the shapes come 4:3:2:2 and a wreck on one
-     * island in six of 8 or more across, within 4 points.
+     * wreck leaves its own blocks (no wreck, none of them), each resting on something; three seeds for each wreck.
+     * Every island holds together: no piece of it, joined face to face, under 8 blocks (so no crumb, and no rim block
+     * held only by an edge); nothing beside an untilted island stands over its dome; each shape's islands are 62 % or
+     * more Voidstone, and all of them 66-75 %. Over 3000 plans the shapes come 4:3:2:2 (4:3:0:2 under 13 across, which
+     * aren't split) and a wreck on one island in six of 8 or more across, within 2.5 points.
      */
     private static void rimIslandsGenerate(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -3426,6 +3429,8 @@ public final class EndGameTests {
         java.util.Set<Integer> radii = new java.util.TreeSet<>();
         var wantShapes = java.util.EnumSet.allOf(com.panda.promisedend.worldgen.RimDebrisFeature.Shape.class);
         var wantWrecks = java.util.EnumSet.allOf(com.panda.promisedend.worldgen.RimDebrisFeature.Wreck.class);
+        // three of each wreck: one seed alone can miss what goes wrong on another
+        java.util.Map<com.panda.promisedend.worldgen.RimDebrisFeature.Wreck, Integer> wreckSeeds = new java.util.EnumMap<>(com.panda.promisedend.worldgen.RimDebrisFeature.Wreck.class);
         int[] shapeCount = new int[4];
         // what each shape's share should be: 4:3:2:2 of 11, or 4:3:0:2 of 9 on an island 8 across (none split)
         double[] expected = new double[4];
@@ -3434,14 +3439,15 @@ public final class EndGameTests {
             var plan = rim.plan(net.minecraft.util.RandomSource.create(mix.applyAsLong(k)));
             radii.add(plan.radius());
             if (plan.radius() >= 4) {
-                double[] w = plan.radius() < 5 ? new double[] {4 / 9.0, 3 / 9.0, 0, 2 / 9.0} : new double[] {4 / 11.0, 3 / 11.0, 2 / 11.0, 2 / 11.0};
+                double[] w = plan.radius() < 6 ? new double[] {4 / 9.0, 3 / 9.0, 0, 2 / 9.0} : new double[] {4 / 11.0, 3 / 11.0, 2 / 11.0, 2 / 11.0};
                 for (int i = 0; i < 4; i++) expected[i] += w[i];
-                if (plan.radius() < 5 && plan.shape() == com.panda.promisedend.worldgen.RimDebrisFeature.Shape.SPLIT) bad.add("an island 8 across was split");
+                if (plan.radius() < 6 && plan.shape() == com.panda.promisedend.worldgen.RimDebrisFeature.Shape.SPLIT) bad.add("an island under 13 across was split");
                 shapeCount[plan.shape().ordinal()]++;
                 wreckable++;
                 if (plan.wreck() != com.panda.promisedend.worldgen.RimDebrisFeature.Wreck.NONE) wrecked++;
             }
-            if (wantShapes.remove(plan.shape()) | wantWrecks.remove(plan.wreck())) seeds.add(mix.applyAsLong(k));
+            boolean moreWreck = plan.wreck() != com.panda.promisedend.worldgen.RimDebrisFeature.Wreck.NONE && wreckSeeds.merge(plan.wreck(), 1, Integer::sum) <= 3;
+            if (wantShapes.remove(plan.shape()) | wantWrecks.remove(plan.wreck()) | moreWreck) seeds.add(mix.applyAsLong(k));
         }
         int planned = java.util.Arrays.stream(shapeCount).sum();
         for (int i = 0; i < 4; i++) {
@@ -3451,6 +3457,7 @@ public final class EndGameTests {
         if (radii.size() < 4) bad.add("the plans' radii don't vary: " + radii);
         if (!wantShapes.isEmpty() || !wantWrecks.isEmpty()) bad.add("no seed planned " + wantShapes + " " + wantWrecks);
         List<String> traits = new ArrayList<>();
+        java.util.Map<com.panda.promisedend.worldgen.RimDebrisFeature.Shape, int[]> shapeShare = new java.util.EnumMap<>(com.panda.promisedend.worldgen.RimDebrisFeature.Shape.class);
         for (int n = 0; n < seeds.size(); n++) {
             long seed = seeds.get(n);
             var plan = rim.plan(net.minecraft.util.RandomSource.create(seed));
@@ -3460,12 +3467,17 @@ public final class EndGameTests {
             if (!feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(seed), centre)) bad.add("nothing placed at " + centre);
             int high = 0, pillars = 0, bricks = 0, chiseled = 0;
             List<BlockPos> unsupported = new ArrayList<>(), raised = new ArrayList<>();
+            java.util.Set<BlockPos> built = new java.util.HashSet<>();
+            int islandVoidstone = 0, islandStone = 0;
             java.util.Map<Long, Integer> tops = new java.util.HashMap<>();
             java.util.Set<BlockPos> stone = new java.util.HashSet<>();
             for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 10, 16))) {
                 var state = level.getBlockState(pos);
                 if (state.isAir()) continue;
+                built.add(pos.immutable());
                 boolean isVoidstone = state.is(ModBlocks.VOIDSTONE_SET.base().get()), isEndStone = state.is(net.minecraft.world.level.block.Blocks.END_STONE);
+                if (isVoidstone) islandVoidstone++;
+                if (isVoidstone || isEndStone) islandStone++;
                 if (n < 12 && isVoidstone) voidstone++;
                 else if (n < 12 && isEndStone) endStone++;
                 if (state.is(net.minecraft.world.level.block.Blocks.PURPUR_PILLAR)) pillars++;
@@ -3537,13 +3549,41 @@ public final class EndGameTests {
                 case NONE -> { if (pillars + bricks + chiseled > 0) bad.add(seed + " no wreck, yet wreck blocks"); }
             }
             if (!unsupported.isEmpty()) bad.add(seed + " " + plan.wreck() + ": wreck blocks over air at " + unsupported);
+            // everything built, joined face to face: no piece under 8 blocks
+            List<Integer> crumbs = new ArrayList<>();
+            java.util.Set<BlockPos> joined = new java.util.HashSet<>();
+            for (BlockPos start : built) {
+                if (!joined.add(start)) continue;
+                int size = 0;
+                java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>(List.of(start));
+                while (!queue.isEmpty()) {
+                    BlockPos q = queue.poll();
+                    size++;
+                    for (var d : net.minecraft.core.Direction.values()) {
+                        BlockPos r = q.relative(d);
+                        if (built.contains(r) && joined.add(r)) queue.add(r);
+                    }
+                }
+                if (size < 8) crumbs.add(size);
+            }
+            if (!crumbs.isEmpty()) bad.add(seed + " " + plan.shape() + ": pieces under 8 blocks " + crumbs);
+            shapeShare.computeIfAbsent(plan.shape(), s -> new int[2]);
+            shapeShare.get(plan.shape())[0] += islandVoidstone;
+            shapeShare.get(plan.shape())[1] += islandStone;
             if (!raised.isEmpty()) bad.add(seed + " " + plan.shape() + ": stone beside the island over its top at " + raised);
             for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-16, -16, -16), centre.offset(16, 10, 16))) level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
         }
         PromisedEnd.LOGGER.info("rim island shapes over 3000 plans {} (of {}), wrecks {} of {}; built: {}", java.util.Arrays.toString(shapeCount), planned, wrecked, wreckable, traits);
         if (voidstone == 0) bad.add("no Voidstone in the islands");
         double share = voidstone / (double) Math.max(1, voidstone + endStone);
-        if (share < 0.62 || share > 0.80) bad.add("islands should be about 70 % Voidstone: " + voidstone + " voidstone, " + endStone + " end stone");
+        if (share < 0.66 || share > 0.75) bad.add("islands should be about 70 % Voidstone: " + voidstone + " voidstone, " + endStone + " end stone");
+        List<String> byShape = new ArrayList<>();
+        shapeShare.forEach((shape, c) -> {
+            double s = c[0] / (double) Math.max(1, c[1]);
+            byShape.add(shape + String.format(java.util.Locale.ROOT, " %.1f %%", 100 * s));
+            if (s < 0.62) bad.add(shape + " islands are only " + Math.round(100 * s) + " % Voidstone");
+        });
+        PromisedEnd.LOGGER.info("rim islands by shape: {}", byShape);
         if (below == 0) bad.add("the islands have no tapering underside");
         if (widths.stream().anyMatch(w -> w < 6 || w > 18)) bad.add("islands outside 6–18 across: " + widths);
         PromisedEnd.LOGGER.info("rim islands: {} voidstone / {} end stone, widths {}", voidstone, endStone, widths);
