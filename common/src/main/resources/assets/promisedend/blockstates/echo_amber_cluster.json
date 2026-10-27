@@ -1,0 +1,56 @@
+{
+  "variants": {
+    "facing=down,lit=false": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 180
+    },
+    "facing=down,lit=true": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 180
+    },
+    "facing=east,lit=false": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,lit=true": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north,lit=false": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 90
+    },
+    "facing=north,lit=true": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 90
+    },
+    "facing=south,lit=false": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,lit=true": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up,lit=false": {
+      "model": "promisedend:block/echo_amber_cluster"
+    },
+    "facing=up,lit=true": {
+      "model": "promisedend:block/echo_amber_cluster"
+    },
+    "facing=west,lit=false": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,lit=true": {
+      "model": "promisedend:block/echo_amber_cluster",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

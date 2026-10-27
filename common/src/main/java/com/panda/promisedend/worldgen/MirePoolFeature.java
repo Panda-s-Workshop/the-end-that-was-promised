@@ -23,6 +23,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -122,14 +123,17 @@ public record MirePoolFeature(BlockStateProvider water, IntProvider radius, floa
         for (BlockPos cell : cells) {
             level.setBlock(cell, water.getState(level, random, cell), Block.UPDATE_CLIENTS);
             // a column a block higher: its top is cut away over the water
-            if (!level.getBlockState(cell.above()).isAir()) level.setBlock(cell.above(), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+            if (!level.getBlockState(cell.above()).isAir()) Plants.clear(level, cell.above());
+            // and the grass on a top cut away, so none is left hanging
+            BlockState over = level.getBlockState(cell.above(2));
+            if (!over.isAir() && Plants.open(over)) Plants.clear(level, cell.above(2));
         }
         for (BlockPos cell : cells) {
             if (random.nextFloat() < lilyChance) level.setBlock(cell.above(), lily.getState(level, random, cell.above()), Block.UPDATE_CLIENTS);
             for (Direction d : Direction.Plane.HORIZONTAL) {
                 BlockPos n = cell.relative(d);
                 // only ground open to the sky: never moss buried in a bank
-                if (!cells.contains(n) && level.getBlockState(n).is(GROUND) && level.getBlockState(n.above()).isAir() && random.nextFloat() < rimChance) {
+                if (!cells.contains(n) && level.getBlockState(n).is(GROUND) && Plants.open(level.getBlockState(n.above())) && random.nextFloat() < rimChance) {
                     level.setBlock(n, rim.getState(level, random, n), Block.UPDATE_CLIENTS);
                 }
             }
@@ -145,10 +149,11 @@ public record MirePoolFeature(BlockStateProvider water, IntProvider radius, floa
         int surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, cell).getY() - 1;
         if (surface != y && surface != y + 1) return false;
         if (!level.getBlockState(cell).is(GROUND) || !level.getBlockState(cell.below()).isFaceSturdy(level, cell.below(), Direction.UP)) return false;
-        if (surface == y) return level.getBlockState(cell.above()).isAir();
+        // air or ground cover over it (Void Grass, cleared when the pool is made)
+        if (surface == y) return Plants.open(level.getBlockState(cell.above()));
         // the block cut away must not be the wall of a higher pool already there, or that pool would face the air
         BlockPos top = cell.above();
         if (Direction.Plane.HORIZONTAL.stream().anyMatch(d -> level.getBlockState(top.relative(d)).is(pool))) return false;
-        return level.getBlockState(top).is(GROUND) && level.getBlockState(cell.above(2)).isAir();
+        return level.getBlockState(top).is(GROUND) && Plants.open(level.getBlockState(cell.above(2)));
     }
 }

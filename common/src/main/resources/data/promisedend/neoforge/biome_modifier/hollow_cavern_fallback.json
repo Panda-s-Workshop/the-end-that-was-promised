@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#promisedend:hollow_fallback",
+  "features": "promisedend:hollow_cavern_fallback",
+  "step": "local_modifications"
+}

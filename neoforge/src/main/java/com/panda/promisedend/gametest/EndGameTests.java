@@ -98,6 +98,10 @@ public final class EndGameTests {
         FUNCTIONS.register("voidscar_islands", () -> EndGameTests::voidscarIslands);
         FUNCTIONS.register("purpur_reef_grows", () -> EndGameTests::purpurReefGrows);
         FUNCTIONS.register("ancient_purpur_set", () -> EndGameTests::ancientPurpurSet);
+        FUNCTIONS.register("hollow_cavern_carves", () -> EndGameTests::hollowCavernCarves);
+        FUNCTIONS.register("echo_amber_flares", () -> EndGameTests::echoAmberFlares);
+        FUNCTIONS.register("cave_dark_held_off", () -> EndGameTests::caveDarkHeldOff);
+        FUNCTIONS.register("void_grass_rules", () -> EndGameTests::voidGrassRules);
         FUNCTIONS.register("crumbling_edges_line_islands", () -> EndGameTests::crumblingEdgesLineIslands);
         FUNCTIONS.register("crumbling_voidstone_falls", () -> EndGameTests::crumblingVoidstoneFalls);
         FUNCTIONS.register("voidsteel_ore_drops", () -> EndGameTests::voidsteelOreDrops);
@@ -119,7 +123,7 @@ public final class EndGameTests {
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
             "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460,
-            "updraft_lifts_entity", 360);
+            "updraft_lifts_entity", 360, "echo_amber_flares", 180);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -873,6 +877,317 @@ public final class EndGameTests {
         if (colonies * 100 < seeds * 10 || colonies * 100 > seeds * 45) bad.add(colonies + " colonies in " + seeds + " reefs");
         if (!bad.isEmpty()) helper.fail("purpur reef: " + bad);
         helper.succeed();
+    }
+
+    /**
+     * A Hollow Highlands cavern, as the Highlands configure it, in an island of end stone 41 across and 26 deep high in
+     * the test level's sky, in 24 seeds. Each carves 200-1400 blocks of air; the island's top three layers are broken
+     * only by its sinkhole (1-5 columns, the shaft's) and its bottom two not at all; nothing changes past
+     * HollowCavernFeature.REACH blocks from its spot (its lining round the sinkhole is roof still). Over the seeds, about three in five of the cavern's walls are
+     * Voidstone (0.45-0.75) and there are 2-15 Echo Amber Clusters a cavern, each standing on a wall it may stand on.
+     * With a purpur block inside where the hollow would be (off the columns it samples), or in an island only 8 deep,
+     * nothing is carved. In 4 islands with a notch cut out of their underside, whether or not a cavern is made, no
+     * column is broken through at its bottom (it never opens to the void).
+     */
+    private static void hollowCavernCarves(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var cavern = grove(level, "hollow_cavern");
+        var stone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        var amber = ModBlocks.ECHO_AMBER_CLUSTER.get();
+        var voidstone = ModBlocks.VOIDSTONE_SET.base().get();
+        int reach = com.panda.promisedend.worldgen.HollowCavernFeature.REACH, seeds = 24, half = 20;
+        int clusters = 0, linedWalls = 0, bareWalls = 0, notchedPlaced = 0;
+        for (int seed = 0; seed < seeds + 6; seed++) {
+            boolean blocked = seed == seeds, thin = seed == seeds + 1, notched = seed >= seeds + 2;
+            int deep = thin ? 8 : 26;
+            BlockPos top = new BlockPos(9600 + 64 * seed, level.getMaxY() - 50, 10400), at = top.below(deep);
+            // the bottom of each column, as built: a notch 8 high under one side of the notched islands
+            java.util.function.BiFunction<Integer, Integer, Integer> bottom = (dx, dz) -> top.getY() - deep + 1
+                    + (notched && dx >= 2 && dx <= 9 && Math.abs(dz) <= 4 ? 8 : 0);
+            for (BlockPos p : BlockPos.betweenClosed(top.offset(-half, -deep + 1, -half), top.offset(half, 0, half))) {
+                if (p.getY() >= bottom.apply(p.getX() - top.getX(), p.getZ() - top.getZ())) level.setBlock(p, stone, 2);
+            }
+            BlockPos purpur = top.offset(3, -8, 2);
+            if (blocked) level.setBlock(purpur, net.minecraft.world.level.block.Blocks.PURPUR_BLOCK.defaultBlockState(), 2);
+            boolean placed = cavern.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer(800 + seed)), at);
+            int air = 0, far = 0, here = 0, lined = 0, bare = 0;
+            java.util.Set<Long> roofBroken = new java.util.HashSet<>(), floorBroken = new java.util.HashSet<>();
+            for (BlockPos p : BlockPos.betweenClosed(top.offset(-half, -deep + 1, -half), top.offset(half, 0, half))) {
+                int dx = p.getX() - top.getX(), dz = p.getZ() - top.getZ(), floor = bottom.apply(dx, dz);
+                if (p.getY() < floor) continue;
+                var state = level.getBlockState(p);
+                if (!state.isAir()) {
+                    // a wall: island next to air inside the island's box
+                    boolean wall = false;
+                    for (var d : net.minecraft.core.Direction.values()) {
+                        BlockPos q = p.relative(d);
+                        int qx = q.getX() - top.getX(), qz = q.getZ() - top.getZ();
+                        if (Math.abs(qx) <= half && Math.abs(qz) <= half && q.getY() <= top.getY() && q.getY() >= bottom.apply(qx, qz)
+                                && level.getBlockState(q).isAir()) wall = true;
+                    }
+                    if (wall && state.is(voidstone)) lined++;
+                    if (wall && state.is(net.minecraft.world.level.block.Blocks.END_STONE)) bare++;
+                }
+                boolean changed = !state.is(net.minecraft.world.level.block.Blocks.END_STONE) && !(blocked && p.equals(purpur));
+                if (!changed) continue;
+                if (Math.max(Math.abs(dx), Math.abs(dz)) > reach) far++;
+                // a hole in the roof: air (its lining round the sinkhole is the roof still)
+                if (p.getY() > top.getY() - 3 && state.isAir()) roofBroken.add(BlockPos.asLong(p.getX(), 0, p.getZ()));
+                if (p.getY() < floor + 2) floorBroken.add(BlockPos.asLong(p.getX(), 0, p.getZ()));
+                if (state.isAir()) air++;
+                if (state.is(amber)) {
+                    here++;
+                    if (!state.canSurvive(level, p)) bad.add("seed " + seed + ": a cluster at " + p + " on " + level.getBlockState(p.relative(state.getValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING).getOpposite())));
+                }
+            }
+            PromisedEnd.LOGGER.info("[hollow_cavern_carves] seed {}{}: placed {}, {} air, {} columns broken at the top, {} at the bottom, {} clusters, {} of {} walls lined, {} past its reach",
+                    seed, blocked ? " (purpur inside)" : thin ? " (8 deep)" : notched ? " (notched)" : "", placed, air, roofBroken.size(), floorBroken.size(), here, lined, lined + bare, far);
+            if (blocked || thin) {
+                if (placed || air != 0) bad.add((blocked ? "with purpur inside" : "8 deep") + ": placed " + placed + ", " + air + " air");
+                if (blocked && !level.getBlockState(purpur).is(net.minecraft.world.level.block.Blocks.PURPUR_BLOCK)) bad.add("the purpur was carved");
+            } else if (notched) {
+                if (placed) notchedPlaced++;
+                if (!floorBroken.isEmpty()) bad.add("seed " + seed + " (notched): " + floorBroken.size() + " columns broken at the bottom");
+                if (roofBroken.size() > 5) bad.add("seed " + seed + " (notched): " + roofBroken.size() + " columns broken at the top");
+            } else {
+                if (!placed || air < 200 || air > 1400) bad.add("seed " + seed + ": placed " + placed + ", " + air + " air");
+                if (roofBroken.isEmpty() || roofBroken.size() > 5) bad.add("seed " + seed + ": " + roofBroken.size() + " columns broken at the top (the sinkhole is 1-5)");
+                if (!floorBroken.isEmpty()) bad.add("seed " + seed + ": " + floorBroken.size() + " columns broken in the island's bottom two layers");
+                if (far != 0) bad.add("seed " + seed + ": " + far + " blocks past its reach of " + reach);
+                clusters += here;
+                linedWalls += lined;
+                bareWalls += bare;
+            }
+            for (BlockPos p : BlockPos.betweenClosed(top.offset(-half, -deep, -half), top.offset(half, 1, half))) {
+                if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
+        float share = linedWalls / (float) Math.max(1, linedWalls + bareWalls), each = clusters / (float) seeds;
+        PromisedEnd.LOGGER.info("[hollow_cavern_carves] over {} seeds: {} Echo Amber Clusters ({} a cavern), {} of the walls lined; {} of 4 notched islands carved",
+                seeds, clusters, each, share, notchedPlaced);
+        if (each < 2 || each > 15) bad.add(each + " clusters a cavern, outside 2-15");
+        if (share < 0.45F || share > 0.75F) bad.add(share + " of the walls lined, outside 0.45-0.75");
+        if (!bad.isEmpty()) helper.fail("hollow cavern: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Hollow Highlands' dark. Where: in the End, a point made hollow_highlands under a roof of end stone is in the
+     * caves' dark, over the roof isn't, made vanilla's highlands it isn't, and the test level (not the End) isn't. How dark: in the test level
+     * (the End's light engine doesn't run with no player there), in a box of end stone with no light the middle is
+     * shrouded; under a dim Echo Amber Cluster 3 off (5) still; under a flared one (11) not (over the roof is the End's
+     * case: the arena has its own blocks over it). It is
+     * for survival and adventure players, not creative or spectating ones.
+     */
+    private static void caveDarkHeldOff(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) {
+            helper.fail("no End level");
+            return;
+        }
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var stone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        // where: in one tick, as the End's chunks are only held for it
+        BlockPos centre = new BlockPos(10248, end.getMaxY() - 60, 9224);
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-2, 2, -2), centre.offset(2, 2, 2))) end.setBlock(p, stone, 2);
+        fillBiome(end, centre, "minecraft:end_highlands");
+        if (com.panda.promisedend.logic.CaveDark.dark(end, centre)) bad.add("dark under a roof in vanilla's highlands");
+        fillBiome(end, centre, "promisedend:hollow_highlands");
+        if (!com.panda.promisedend.logic.CaveDark.dark(end, centre)) bad.add("no dark in the Hollow Highlands under a roof (biome "
+                + end.getBiome(centre).getRegisteredName() + ", surface " + end.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, centre.getX(), centre.getZ()) + ")");
+        if (com.panda.promisedend.logic.CaveDark.dark(end, centre.above(3))) bad.add("dark over the roof");
+        for (BlockPos p : BlockPos.betweenClosed(centre.offset(-2, 2, -2), centre.offset(2, 2, 2))) end.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        // how dark: a box of end stone in the test level, the middle of it its eyes
+        for (BlockPos r : BlockPos.betweenClosed(new BlockPos(1, 1, 1), new BlockPos(7, 6, 7))) {
+            boolean inside = r.getX() > 1 && r.getX() < 7 && r.getZ() > 1 && r.getZ() < 7 && r.getY() > 1 && r.getY() < 6;
+            level.setBlock(helper.absolutePos(r), inside ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState() : stone, 3);
+        }
+        BlockPos eyes = helper.absolutePos(new BlockPos(4, 3, 4)), lamp = helper.absolutePos(new BlockPos(4, 5, 5));
+        if (com.panda.promisedend.logic.CaveDark.dark(level, eyes)) bad.add("dark outside the End");
+        var amber = ModBlocks.ECHO_AMBER_CLUSTER.get().defaultBlockState().setValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING, net.minecraft.core.Direction.DOWN);
+        var lit = com.panda.promisedend.block.EchoAmberClusterBlock.LIT;
+        var shrouded = new boolean[3];
+        helper.runAtTickTime(10, () -> {
+            shrouded[0] = com.panda.promisedend.logic.CaveDark.shrouded(level, eyes);
+            level.setBlock(lamp, amber, 3);
+        });
+        helper.runAtTickTime(25, () -> {
+            shrouded[1] = com.panda.promisedend.logic.CaveDark.shrouded(level, eyes);
+            level.setBlock(lamp, amber.setValue(lit, true), 3);
+        });
+        helper.runAtTickTime(40, () -> {
+            shrouded[2] = com.panda.promisedend.logic.CaveDark.shrouded(level, eyes);
+            int light = level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, eyes);
+            if (!shrouded[0]) bad.add("not shrouded in the box with no light");
+            if (!shrouded[1]) bad.add("a dim cluster held the dark off");
+            if (shrouded[2]) bad.add("a flared cluster didn't hold the dark off (block light " + light + ")");
+            for (var mode : List.of(net.minecraft.world.level.GameType.SURVIVAL, net.minecraft.world.level.GameType.ADVENTURE,
+                    net.minecraft.world.level.GameType.CREATIVE, net.minecraft.world.level.GameType.SPECTATOR)) {
+                boolean affected = com.panda.promisedend.logic.CaveDark.affects(helper.makeMockPlayer(mode));
+                if (affected != (mode == net.minecraft.world.level.GameType.SURVIVAL || mode == net.minecraft.world.level.GameType.ADVENTURE)) {
+                    bad.add("a " + mode.getName() + " player " + (affected ? "is" : "isn't") + " in the dark");
+                }
+            }
+            if (!bad.isEmpty()) helper.fail("cave dark: " + bad);
+            else helper.succeed();
+        });
+    }
+
+    /**
+     * Void Grass: it stands on end stone, Chorus Moss and Lumen Moss, not on stone or grass; bone meal grows it into Tall
+     * Void Grass, both halves; it is replaceable. Shears take one, a hand nothing; the tall one's lower half gives two
+     * to shears, its upper half nothing (so a tall one is two, not four). A grove and a pool still grow on ground
+     * covered in it, short and tall, and leave no half of a tall one alone.
+     */
+    private static void voidGrassRules(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var grass = ModBlocks.VOID_GRASS.get();
+        var tall = ModBlocks.TALL_VOID_GRASS.get();
+        var grounds = new java.util.LinkedHashMap<net.minecraft.world.level.block.Block, Boolean>();
+        grounds.put(net.minecraft.world.level.block.Blocks.END_STONE, true);
+        grounds.put(ModBlocks.CHORUS_MOSS.get(), true);
+        grounds.put(ModBlocks.LUMEN_MOSS.get(), true);
+        grounds.put(net.minecraft.world.level.block.Blocks.STONE, false);
+        grounds.put(net.minecraft.world.level.block.Blocks.GRASS_BLOCK, false);
+        int x = 1;
+        for (var e : grounds.entrySet()) {
+            BlockPos at = helper.absolutePos(new BlockPos(x, 2, 1));
+            level.setBlock(at.below(), e.getKey().defaultBlockState(), 3);
+            if (grass.defaultBlockState().canSurvive(level, at) != e.getValue()) bad.add("on " + e.getKey().getName().getString() + (e.getValue() ? " it can't stand" : " it stands"));
+            x++;
+        }
+        BlockPos at = helper.absolutePos(new BlockPos(1, 2, 3));
+        level.setBlock(at.below(), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
+        level.setBlock(at, grass.defaultBlockState(), 3);
+        if (!grass.defaultBlockState().canBeReplaced()) bad.add("not replaceable");
+        var meal = (net.minecraft.world.level.block.BonemealableBlock) grass;
+        if (!meal.isValidBonemealTarget(level, at, level.getBlockState(at), net.minecraft.world.level.block.BonemealSource.INTERACTION)) bad.add("bone meal can't grow it");
+        meal.performBonemeal(level, level.getRandom(), at, level.getBlockState(at), net.minecraft.world.level.block.BonemealSource.INTERACTION);
+        var half = net.minecraft.world.level.block.DoublePlantBlock.HALF;
+        if (!level.getBlockState(at).is(tall) || level.getBlockState(at).getValue(half) != net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER
+                || !level.getBlockState(at.above()).is(tall)) bad.add("bone meal gave " + level.getBlockState(at) + " under " + level.getBlockState(at.above()));
+        var shears = new ItemStack(net.minecraft.world.item.Items.SHEARS);
+        java.util.function.BiFunction<net.minecraft.world.level.block.state.BlockState, ItemStack, Integer> drops = (state, tool) -> level.getServer().reloadableRegistries()
+                .getLootTable(state.getBlock().getLootTable().orElseThrow()).getRandomItems(new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, tool)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, state)
+                        .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK)).stream()
+                .filter(st -> st.is(grass.asItem())).mapToInt(ItemStack::getCount).sum();
+        var lower = tall.defaultBlockState().setValue(half, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER);
+        var upper = tall.defaultBlockState().setValue(half, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER);
+        int[] got = {drops.apply(grass.defaultBlockState(), shears), drops.apply(grass.defaultBlockState(), ItemStack.EMPTY),
+                drops.apply(lower, shears), drops.apply(upper, shears), drops.apply(lower, ItemStack.EMPTY)};
+        int[] want = {1, 0, 2, 0, 0};
+        if (!java.util.Arrays.equals(got, want)) bad.add("drops (short to shears, to a hand; tall lower, upper to shears; lower to a hand) " + java.util.Arrays.toString(got) + ", not " + java.util.Arrays.toString(want));
+        // ground cover keeps nothing out: a grove and a pool on end stone under grass, short and tall, still grow, and
+        // no half of a tall one is left alone (the grass a neighbouring chunk laid comes before a chunk's own features)
+        BlockPos centre = new BlockPos(2000, level.getMaxY() - 60, 2640);
+        var lowerState = tall.defaultBlockState().setValue(half, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER);
+        var upperState = tall.defaultBlockState().setValue(half, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER);
+        String[] kinds = {"chorus_grove", "mire_pool"};
+        for (int k = 0; k < kinds.length; k++) {
+            BlockPos c = centre.offset(64 * k, 0, 0);
+            // the pool wants ground two deep
+            for (BlockPos p : BlockPos.betweenClosed(c.offset(-12, -2, -12), c.offset(12, -1, 12))) level.setBlock(p, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+            for (BlockPos p : BlockPos.betweenClosed(c.offset(-12, 0, -12), c.offset(12, 0, 12))) {
+                if ((p.getX() + p.getZ()) % 3 == 0) {
+                    level.setBlock(p, lowerState, 2);
+                    level.setBlock(p.above(), upperState, 2);
+                } else level.setBlock(p, grass.defaultBlockState(), 2);
+            }
+            int made = 0;
+            for (int seed = 0; seed < 4; seed++) {
+                if (grove(level, kinds[k]).place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer(640 + seed)), c)) made++;
+            }
+            int lone = 0, built = 0;
+            for (BlockPos p : BlockPos.betweenClosed(c.offset(-16, -2, -16), c.offset(16, 30, 16))) {
+                var st = level.getBlockState(p);
+                if (st.is(ModBlocks.CHORUS_LOG.get()) || st.is(ModBlocks.VOID_WATER.get())) built++;
+                if (st.is(tall) && !level.getBlockState(st.getValue(half) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? p.above() : p.below()).is(tall)) lone++;
+            }
+            PromisedEnd.LOGGER.info("[void_grass_rules] a {} on grass: {} of 4 made, {} blocks of it, {} lone halves", kinds[k], made, built, lone);
+            if (made == 0 || built == 0) bad.add("no " + kinds[k] + " on grass (" + made + " of 4)");
+            if (lone != 0) bad.add(lone + " lone halves of tall grass round a " + kinds[k]);
+            clear(level, c);
+        }
+        if (!bad.isEmpty()) helper.fail("void grass: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * An Echo Amber Cluster on end stone: light 5; a survival player's hit, step or use flares it to 11, a sneaking step
+     * doesn't; 100 ticks after the last touch it is dim again. It drops two Echo Amber to a pickaxe (more on average
+     * with Fortune III, over 100 rolls), one to a hand, itself to Silk Touch; a pickaxe takes it.
+     */
+    private static void echoAmberFlares(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var block = ModBlocks.ECHO_AMBER_CLUSTER.get();
+        List<String> bad = new ArrayList<>();
+        var walker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var sneaker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        sneaker.setShiftKeyDown(true);
+        var lit = com.panda.promisedend.block.EchoAmberClusterBlock.LIT;
+        List<BlockPos> spots = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            BlockPos at = helper.absolutePos(new BlockPos(1 + 2 * i, 3, 2));
+            level.setBlock(at.below(), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 3);
+            level.setBlock(at, block.defaultBlockState(), 3);
+            spots.add(at);
+        }
+        if (level.getBlockState(spots.get(0)).getLightEmission() != 5) bad.add("dim light " + level.getBlockState(spots.get(0)).getLightEmission());
+        level.getBlockState(spots.get(0)).attack(level, spots.get(0), walker);
+        block.stepOn(level, spots.get(1), level.getBlockState(spots.get(1)), walker);
+        block.stepOn(level, spots.get(2), level.getBlockState(spots.get(2)), sneaker);
+        level.getBlockState(spots.get(3)).useItemOn(ItemStack.EMPTY, level, walker, net.minecraft.world.InteractionHand.MAIN_HAND,
+                new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(spots.get(3)), net.minecraft.core.Direction.UP, spots.get(3), false));
+        for (int i = 0; i < 4; i++) {
+            var state = level.getBlockState(spots.get(i));
+            boolean flares = i != 2;
+            if (state.getValue(lit) != flares) bad.add(List.of("a hit", "a step", "a sneaking step", "a use").get(i) + (flares ? " didn't flare it" : " flared it"));
+            if (flares && state.getLightEmission() != 11) bad.add("flared light " + state.getLightEmission());
+        }
+        var table = level.getServer().reloadableRegistries().getLootTable(block.getLootTable().orElseThrow());
+        var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        var silk = new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE);
+        silk.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
+        var fortune = new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE);
+        fortune.enchant(enchantments.getOrThrow(net.minecraft.world.item.enchantment.Enchantments.FORTUNE), 3);
+        java.util.function.BiFunction<ItemStack, Integer, List<ItemStack>> roll = (tool, i) -> table.getRandomItems(new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, tool)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, block.defaultBlockState())
+                .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK), net.minecraft.util.Mth.murmurHash3Mixer(8100 + i));
+        int fortuned = 0;
+        for (int i = 0; i < 100; i++) {
+            var pick = roll.apply(new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE), i);
+            var hand = roll.apply(ItemStack.EMPTY, i);
+            var kept = roll.apply(silk, i);
+            if (pick.size() != 1 || !pick.get(0).is(ModItems.ECHO_AMBER.get()) || pick.get(0).getCount() != 2) bad.add("a pickaxe's roll " + i + " gave " + pick);
+            if (hand.size() != 1 || !hand.get(0).is(ModItems.ECHO_AMBER.get()) || hand.get(0).getCount() != 1) bad.add("a hand's roll " + i + " gave " + hand);
+            if (kept.size() != 1 || !kept.get(0).is(block.asItem())) bad.add("Silk Touch's roll " + i + " gave " + kept);
+            fortuned += roll.apply(fortune, i).stream().mapToInt(ItemStack::getCount).sum();
+            if (bad.size() > 3) break;
+        }
+        PromisedEnd.LOGGER.info("[echo_amber_flares] Fortune III: {} Echo Amber in 100 breaks", fortuned);
+        if (fortuned <= 250) bad.add("Fortune III gave only " + fortuned + " in 100 breaks");
+        if (!new ItemStack(net.minecraft.world.item.Items.WOODEN_PICKAXE).isCorrectToolForDrops(block.defaultBlockState())
+                && block.defaultBlockState().requiresCorrectToolForDrops()) bad.add("a wooden pickaxe can't take it");
+        if (!block.defaultBlockState().is(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE)) bad.add("not mineable with a pickaxe");
+        // touch the first again at 50: it stays lit past its first 100
+        helper.runAtTickTime(50, () -> level.getBlockState(spots.get(0)).attack(level, spots.get(0), walker));
+        helper.runAtTickTime(120, () -> {
+            if (!level.getBlockState(spots.get(0)).getValue(lit)) bad.add("touched again at 50, it was dim at 120");
+            if (level.getBlockState(spots.get(1)).getValue(lit)) bad.add("still lit 120 ticks after a step");
+        });
+        helper.runAtTickTime(160, () -> {
+            if (level.getBlockState(spots.get(0)).getValue(lit)) bad.add("still lit 110 ticks after its last touch");
+            if (!bad.isEmpty()) helper.fail("Echo Amber Cluster: " + bad);
+            helper.succeed();
+        });
     }
 
     /**
@@ -2508,7 +2823,10 @@ public final class EndGameTests {
         helper.succeed();
     }
 
-    /** Every block of ours drops something when mined with the right tool (its loot table rolls a stack). */
+    /**
+     * Every block of ours drops something when mined with the right tool (its loot table rolls a stack): a netherite
+     * pickaxe, or shears for the grass that only shears keep, as vanilla's.
+     */
     private static void everyBlockDrops(GameTestHelper helper) {
         var level = helper.getLevel();
         List<String> bad = new ArrayList<>();
@@ -2519,7 +2837,8 @@ public final class EndGameTests {
             var table = level.getServer().reloadableRegistries().getLootTable(key.get());
             var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
                     .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
-                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.NETHERITE_PICKAXE))
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, new net.minecraft.world.item.ItemStack(
+                            block == ModBlocks.VOID_GRASS.get() || block == ModBlocks.TALL_VOID_GRASS.get() ? net.minecraft.world.item.Items.SHEARS : net.minecraft.world.item.Items.NETHERITE_PICKAXE))
                     .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, block.defaultBlockState())
                     .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
             if (table.getRandomItems(params).isEmpty()) bad.add(h.getId().getPath());
@@ -2807,10 +3126,11 @@ public final class EndGameTests {
             var blossom = (net.minecraft.world.level.levelgen.feature.SimpleBlockFeature) grove(level, "drift_blossom_fallback");
             var scar = (com.panda.promisedend.worldgen.RiftScarFeature) grove(level, "rift_scar_fallback");
             var reef = (com.panda.promisedend.worldgen.PurpurReefFeature) grove(level, "purpur_reef_fallback");
+            var cavern = (com.panda.promisedend.worldgen.HollowCavernFeature) grove(level, "hollow_cavern_fallback");
             List<net.minecraft.world.level.block.state.BlockState> built = List.of(grove.trunk().getState(level, random, BlockPos.ZERO),
                     pool.water().getState(level, random, BlockPos.ZERO), spire.budding().getState(level, random, BlockPos.ZERO),
                     blossom.toPlace().value().getState(level, random, BlockPos.ZERO), scar.ore().getState(level, random, BlockPos.ZERO),
-                    reef.coral().getState(level, random, BlockPos.ZERO));
+                    reef.coral().getState(level, random, BlockPos.ZERO), cavern.cluster().getState(level, random, BlockPos.ZERO));
             var previous = com.panda.promisedend.EndConfig.current();
             for (int i = 0; i < biomes.size(); i++) {
                 String biome = biomes.get(i);
@@ -3954,6 +4274,8 @@ public final class EndGameTests {
             if (scars != null) bad.add(scars);
             String reefs = fallbackReefs(helper);
             if (reefs != null) bad.add(reefs);
+            String hollows = fallbackHollows(helper);
+            if (hollows != null) bad.add(hollows);
             // outside the End nothing, even with terrain off: the copies are for the End's own biomes
             BlockPos away = helper.absolutePos(new BlockPos(1, 2, 1)).offset(0, 40, 0);
             var test = helper.getLevel();
@@ -4029,6 +4351,20 @@ public final class EndGameTests {
             if (grove(end, "rift_scar_fallback").place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(501), at))
                 bad.add("the terrain-off scar built with terrain on");
             clearDeep(end, at);
+        }
+        // the Hollow Highlands' caverns in vanilla's highlands, through the same loader hook
+        var hollows = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("hollow_cavern_fallback")));
+        var hollowLands = biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.END_HIGHLANDS);
+        if (!hollowLands.is(net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("hollow_fallback")))) bad.add("end_highlands isn't in #promisedend:hollow_fallback");
+        if (hollowLands.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(hollows)))
+            bad.add("hollow_cavern_fallback isn't among end_highlands' features (the loader's biome modifier didn't apply)");
+        if (com.panda.promisedend.EndConfig.terrainEnabled()) {
+            var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+            BlockPos top = new BlockPos(9900, end.getMaxY() - 50, 9600);
+            for (BlockPos p : BlockPos.betweenClosed(top.offset(-16, -25, -16), top.offset(16, 0, 16))) end.setBlock(p, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+            if (grove(end, "hollow_cavern_fallback").place(end, end.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(801), top.below(26)))
+                bad.add("the terrain-off cavern carved with terrain on");
+            for (BlockPos p : BlockPos.betweenClosed(top.offset(-16, -26, -16), top.offset(16, 1, 16))) end.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
         }
         // the Reefs' growths on vanilla's midlands, through the same loader hook
         var reefs = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("purpur_reef_fallback")));
@@ -4195,6 +4531,42 @@ public final class EndGameTests {
             PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Reefs' fallback in {}: {} reefs in 6 seeds, {} Ancient Purpur", level.dimension().identifier(), placed, coral);
             if (level == end && (placed == 0 || coral == 0)) result = "the Reefs' fallback with terrain off: " + placed + " reefs in 6 seeds, " + coral + " Ancient Purpur";
             if (level != end && placed != 0) result = "the Reefs' fallback built outside the End";
+        }
+        return result;
+    }
+
+    /**
+     * With terrain off, the Hollow Highlands' fallback in the End, run as worldgen runs it (its rarity and biome check
+     * included): in an island of end stone 49 across and 26 deep high in the End's sky, made end_highlands, caverns
+     * with Echo Amber in 6 seeds; the same in the test level, outside the End, none. Null when it holds.
+     */
+    private static String fallbackHollows(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) return "no End level";
+        String result = null;
+        for (var level : List.of(end, helper.getLevel())) {
+            var cavern = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("hollow_cavern_fallback")));
+            BlockPos top = new BlockPos(10056, level.getMaxY() - 50, 9000), corner = new BlockPos(10048, level.getMinY(), 8992);
+            fillBiome(level, top, "minecraft:end_highlands");
+            fillBiome(level, top.below(20), "minecraft:end_highlands");
+            // and where its placement's biome check reads it, the bottom of the world
+            fillBiome(level, new BlockPos(top.getX(), level.getMinY() + 8, top.getZ()), "minecraft:end_highlands");
+            int placed = 0, air = 0, amber = 0;
+            for (int seed = 0; seed < 6; seed++) {
+                for (BlockPos p : BlockPos.betweenClosed(top.offset(-24, -25, -24), top.offset(24, 0, 24))) level.setBlock(p, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+                placed += placeAsWorldgen(level, cavern, 970 + seed, corner);
+                for (BlockPos p : BlockPos.betweenClosed(top.offset(-24, -25, -24), top.offset(24, 0, 24))) {
+                    var state = level.getBlockState(p);
+                    if (state.isAir()) air++;
+                    if (state.is(ModBlocks.ECHO_AMBER_CLUSTER.get())) amber++;
+                }
+            }
+            for (BlockPos p : BlockPos.betweenClosed(top.offset(-24, -26, -24), top.offset(24, 1, 24))) {
+                if (!level.getBlockState(p).isAir()) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            }
+            PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Highlands' fallback in {}: {} caverns in 6 seeds, {} air, {} Echo Amber", level.dimension().identifier(), placed, air, amber);
+            if (level == end && (placed == 0 || amber == 0)) result = "the Highlands' fallback with terrain off: " + placed + " caverns in 6 seeds, " + amber + " Echo Amber";
+            if (level != end && placed != 0) result = "the Highlands' fallback carved outside the End";
         }
         return result;
     }

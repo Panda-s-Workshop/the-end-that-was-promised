@@ -30,6 +30,7 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> UPDRAFT_WIND = sound("block.updraft_vent.wind");
     // Crumbling Voidstone cracking under a step
     public static final Supplier<SoundEvent> CRUMBLING_VOIDSTONE_CRACK = sound("block.crumbling_voidstone.crack");
+    public static final Supplier<SoundEvent> ECHO_AMBER_FLARE = sound("block.echo_amber_cluster.flare");
 
     private static Supplier<SoundEvent> sound(String name) {
         return SOUNDS.register(name, SoundEvent::createVariableRangeEvent);

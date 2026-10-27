@@ -60,7 +60,9 @@
     [],
     [
       "promisedend:skyfall_updraft_vent",
-      "promisedend:drift_blossom_patch"
+      "promisedend:drift_blossom_patch",
+      "promisedend:skyfall_archipelago_void_grass",
+      "promisedend:skyfall_archipelago_tall_void_grass"
     ]
   ],
   "has_precipitation": false,

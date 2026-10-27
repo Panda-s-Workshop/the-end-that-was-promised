@@ -29,6 +29,8 @@ public final class ModParticleProviders {
                 new Mote(level, x, y, z, sprites, PETAL));
         sink.sprites(ModParticles.RIFT_MOTE.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
                 new Mote(level, x, y, z, sprites, RIFT));
+        sink.sprites(ModParticles.AMBER_MOTE.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
+                new Mote(level, x, y, z, sprites, AMBER));
     }
 
     private ModParticleProviders() {}
@@ -40,6 +42,8 @@ public final class ModParticleProviders {
     static final Motion PETAL = new Motion(-0.01, 0.004F, 0.003, 0.012, 60, 50, 0.07F, 0.04F);
     /** Rising, not falling: a start upward and gravity the other way, slower than the others sink. */
     static final Motion RIFT = new Motion(0.012, -0.003F, 0.001, 0.0, 60, 50, 0.05F, 0.03F);
+    /** Amber's motes hang in the cavern air, barely sinking: a slow start down, little gravity, a wide sway. */
+    static final Motion AMBER = new Motion(-0.002, 0.0005F, 0.002, 0.0, 70, 50, 0.04F, 0.03F);
 
     /**
      * A mote: drifts down slowly, swaying, and fades in and out. It carries its own light: a leaf-like particle takes

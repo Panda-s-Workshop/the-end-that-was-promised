@@ -19,6 +19,7 @@ public final class ModParticles {
 
     /** A rift mote: magenta, rising slowly out of the Voidscar's rift scars, glowing faintly. */
     public static final Supplier<SimpleParticleType> RIFT_MOTE = PARTICLES.register("rift_mote", () -> new SimpleParticleType(false));
+    public static final Supplier<SimpleParticleType> AMBER_MOTE = PARTICLES.register("amber_mote", () -> new SimpleParticleType(false));
 
     private ModParticles() {}
 }

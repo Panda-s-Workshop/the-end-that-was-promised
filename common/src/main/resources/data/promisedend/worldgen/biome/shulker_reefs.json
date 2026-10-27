@@ -52,7 +52,9 @@
     [],
     [],
     [
-      "promisedend:purpur_reef"
+      "promisedend:purpur_reef",
+      "promisedend:shulker_reefs_void_grass",
+      "promisedend:shulker_reefs_tall_void_grass"
     ]
   ],
   "has_precipitation": false,

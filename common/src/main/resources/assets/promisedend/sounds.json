@@ -172,6 +172,17 @@
       }
     ]
   },
+  "ambient.hollow_highlands.additions": {
+    "subtitle": "subtitles.promisedend.hollow_highlands.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.pointed_dripstone.fall",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 0.5
+      }
+    ]
+  },
   "block.void_water.enter": {
     "subtitle": "subtitles.promisedend.void_water.enter",
     "sounds": [
@@ -219,6 +230,16 @@
         "name": "minecraft:block.pointed_dripstone.break",
         "type": "event",
         "pitch": 0.6
+      }
+    ]
+  },
+  "block.echo_amber_cluster.flare": {
+    "subtitle": "subtitles.promisedend.echo_amber_cluster.flare",
+    "sounds": [
+      {
+        "name": "minecraft:block.copper_bulb.turn_on",
+        "type": "event",
+        "pitch": 0.7
       }
     ]
   }

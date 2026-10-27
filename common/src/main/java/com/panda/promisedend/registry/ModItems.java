@@ -60,6 +60,7 @@ public final class ModItems {
     public static final DeferredItem<HintItem> DRIFT_SILK = ITEMS.registerItem("drift_silk", p -> new HintItem(p, "drift_silk", 2));
     /** The Voidscar Wastes': from the Voidsteel Scrap Ore in the rift walls. */
     public static final DeferredItem<HintItem> VOIDSTEEL_SCRAP = ITEMS.registerItem("voidsteel_scrap", p -> new HintItem(p, "voidsteel_scrap", 2));
+    public static final DeferredItem<HintItem> ECHO_AMBER = ITEMS.registerItem("echo_amber", p -> new HintItem(p, "echo_amber", 2));
     public static final DeferredItem<Item> RESONITE_INGOT = ITEMS.registerSimpleItem("resonite_ingot");
     public static final ToolMaterial RESONITE = material(GearTiers.RESONITE, BlockTags.INCORRECT_FOR_DIAMOND_TOOL, ModTags.RESONITE_TOOL_MATERIALS);
     public static final DeferredItem<Item> RESONITE_SWORD = ITEMS.registerSimpleItem("resonite_sword",

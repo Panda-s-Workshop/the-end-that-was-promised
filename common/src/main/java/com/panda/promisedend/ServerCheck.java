@@ -83,6 +83,7 @@ public final class ServerCheck {
         if (failure == null && terrain) failure = biome(end, net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("voidscar_wastes")), "Voidscar Wastes' edges",
                 ModBlocks.CRUMBLING_VOIDSTONE.get(), 20, 64);
         if (failure == null && terrain) failure = biome(end, "shulker_reefs", "Shulker Reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 150);
+        if (failure == null && terrain) failure = biome(end, "hollow_highlands", "Hollow Highlands", ModBlocks.ECHO_AMBER_CLUSTER.get(), 5);
         // terrain off: the fallbacks on vanilla's biomes, the Thicket's groves and the Spires' formations on its highlands, the Mire's pools on its midlands
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback groves", ModBlocks.CHORUS_LOG.get(), 10, 64);
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback pools", ModBlocks.VOID_WATER.get(), 8, 64);
@@ -93,6 +94,8 @@ public final class ServerCheck {
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_BARRENS, "barrens' fallback scars", ModBlocks.VOIDSTEEL_SCRAP_ORE.get(), 3, 64);
         // and the Reefs' growths on its midlands
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 20, 64);
+        // and the Hollow Highlands' caverns in its highlands
+        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback caverns", ModBlocks.ECHO_AMBER_CLUSTER.get(), 3, 64);
         return failure != null ? failure : wrath(server);
     }
 

@@ -179,6 +179,21 @@ public final class ModBlocks {
             RotatedPillarBlock::new, ANCIENT_PURPUR_CUT));
     public static final DeferredBlock<Block> ANCIENT_PURPUR_TILES = simple("ancient_purpur_tiles", ANCIENT_PURPUR_CUT);
 
+    // ---- Void Grass: the outer End's ground cover, short and tall, as vanilla's grass
+    public static final DeferredBlock<com.panda.promisedend.block.VoidGrassBlock> VOID_GRASS = withHint(BLOCKS.registerBlock("void_grass",
+            com.panda.promisedend.block.VoidGrassBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).replaceable().noCollision().instabreak()
+                    .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XYZ).pushReaction(PushReaction.POPPED)), 1);
+    public static final DeferredBlock<com.panda.promisedend.block.VoidGrassBlock.Tall> TALL_VOID_GRASS = withItem(BLOCKS.registerBlock("tall_void_grass",
+            com.panda.promisedend.block.VoidGrassBlock.Tall::new, p -> p.mapColor(MapColor.COLOR_PURPLE).replaceable().noCollision().instabreak()
+                    .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ).pushReaction(PushReaction.POPPED)));
+
+    // ---- the Hollow Highlands: caverns in the big islands, Echo Amber on their walls
+    /** Amethyst's cluster in amber: it lights the dark (5), and flares (11) when touched. */
+    public static final DeferredBlock<com.panda.promisedend.block.EchoAmberClusterBlock> ECHO_AMBER_CLUSTER = withHint(BLOCKS.registerBlock("echo_amber_cluster",
+            com.panda.promisedend.block.EchoAmberClusterBlock::new, p -> p.mapColor(MapColor.COLOR_ORANGE).forceSolidOn().noOcclusion()
+                    .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(com.panda.promisedend.block.EchoAmberClusterBlock::light)
+                    .pushReaction(PushReaction.POPPED)), 2);
+
     private ModBlocks() {}
 
     /** Every block item, in registration order: the creative tab lists them. */

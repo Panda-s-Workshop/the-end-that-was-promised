@@ -50,6 +50,7 @@ public final class PromisedEnd {
     /** Before the server loads its levels: the End's region picker needs this world's seed. */
     public static void onServerStarting(net.minecraft.server.MinecraftServer server) {
         com.panda.promisedend.worldgen.EndBiomes.setSeed(server.getWorldGenSettings().options().seed());
+        com.panda.promisedend.block.EchoAmberClusterBlock.forget();
     }
 
     /** At the end of every server tick (both loaders). */
@@ -64,6 +65,7 @@ public final class PromisedEnd {
         com.panda.promisedend.logic.VoidAnchor.tick(player);
         com.panda.promisedend.logic.RimProgress.tick(player);
         com.panda.promisedend.logic.OuterProgress.tick(player);
+        com.panda.promisedend.logic.CaveDark.tick(player);
     }
 
     public static Identifier id(String path) {

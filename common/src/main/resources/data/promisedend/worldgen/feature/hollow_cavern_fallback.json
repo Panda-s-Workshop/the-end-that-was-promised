@@ -1,0 +1,27 @@
+{
+  "type": "promisedend:hollow_cavern",
+  "lining": {
+    "id": "promisedend:voidstone"
+  },
+  "cluster": {
+    "id": "promisedend:echo_amber_cluster",
+    "properties": {
+      "facing": "up",
+      "lit": "false",
+      "waterlogged": "false"
+    }
+  },
+  "radius": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 6,
+    "max_inclusive": 9
+  },
+  "height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 5,
+    "max_inclusive": 8
+  },
+  "lining_chance": 0.6,
+  "cluster_chance": 0.02,
+  "fallback": true
+}

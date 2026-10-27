@@ -92,12 +92,15 @@ public record ChorusGroveFeature(BlockStateProvider trunk, java.util.Optional<Bl
         if (!level.getBlockState(foot.below()).is(GROUND)) return false;
         int h = height.sample(random);
         for (int dy = 0; dy < h + 2; dy++) {
-            if (!level.getBlockState(foot.above(dy)).isAir()) return false;
+            // air, or ground cover (Void Grass), which the tree takes as vanilla's take grass
+            if (!Plants.open(level.getBlockState(foot.above(dy)))) return false;
         }
+        for (int dy = 0; dy < h + 2; dy++) Plants.clear(level, foot.above(dy));
         for (int dy = 0; dy < h; dy++) setBlock(level, foot.above(dy), log(level, random, foot.above(dy), Direction.Axis.Y));
         for (Direction side : Direction.Plane.HORIZONTAL) {
             BlockPos root = foot.relative(side);
-            if (random.nextInt(3) == 0 && level.getBlockState(root).isAir() && level.getBlockState(root.below()).isFaceSturdy(level, root.below(), Direction.UP)) {
+            if (random.nextInt(3) == 0 && Plants.open(level.getBlockState(root)) && level.getBlockState(root.below()).isFaceSturdy(level, root.below(), Direction.UP)) {
+                Plants.clear(level, root);
                 setBlock(level, root, wood(level, random, root, side.getAxis()));
             }
         }

@@ -53,7 +53,9 @@
     [],
     [
       "promisedend:lumen_moss_patch",
-      "promisedend:mire_pool"
+      "promisedend:mire_pool",
+      "promisedend:lumen_mire_void_grass",
+      "promisedend:lumen_mire_tall_void_grass"
     ]
   ],
   "has_precipitation": false,

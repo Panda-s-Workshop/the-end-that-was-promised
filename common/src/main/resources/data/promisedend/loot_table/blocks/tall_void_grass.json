@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "condition": {
+        "type": "minecraft:match_block",
+        "blocks": "promisedend:tall_void_grass",
+        "state": {
+          "half": "lower"
+        }
+      },
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "condition": "minecraft:tool/can_shear",
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": 2
+          },
+          "name": "promisedend:void_grass"
+        }
+      ]
+    }
+  ],
+  "random_sequence": "promisedend:blocks/tall_void_grass"
+}

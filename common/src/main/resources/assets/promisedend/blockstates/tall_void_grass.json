@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "half=lower": {
+      "model": "promisedend:block/tall_void_grass_bottom"
+    },
+    "half=upper": {
+      "model": "promisedend:block/tall_void_grass_top"
+    }
+  }
+}
