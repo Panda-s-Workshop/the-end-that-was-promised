@@ -183,6 +183,39 @@
       }
     ]
   },
+  "ambient.chorus_canopy.additions": {
+    "subtitle": "subtitles.promisedend.chorus_canopy.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.azalea_leaves.break",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 0.5
+      }
+    ]
+  },
+  "ambient.void_fungus_barrens.additions": {
+    "subtitle": "subtitles.promisedend.void_fungus_barrens.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.fungus.place",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 0.5
+      }
+    ]
+  },
+  "ambient.hanging_gardens.additions": {
+    "subtitle": "subtitles.promisedend.hanging_gardens.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.cave_vines.step",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 0.5
+      }
+    ]
+  },
   "ambient.hollow_highlands.additions": {
     "subtitle": "subtitles.promisedend.hollow_highlands.additions",
     "sounds": [

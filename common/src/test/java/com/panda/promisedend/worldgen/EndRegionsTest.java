@@ -128,9 +128,11 @@ class EndRegionsTest {
 
     /**
      * Over a 20,000-sample grid, with vanilla's terrain classes in the real End's mix (GameTest {@code outer_end_shares}:
-     * highlands 17.9 %, midlands 25.9 %, barrens 11.0 %, small islands 45.2 %), each outer biome of ours is 3-30 % of the
-     * outer End (a highland biome with a theme to itself is about 4 %, DECISIONS 66) and vanilla's own keep 20-30 %. Over five seeds: one seed's 600 or so regions leave each theme's share
-     * a couple of points either way.
+     * highlands 17.9 %, midlands 25.9 %, barrens 11.0 %, small islands 45.2 %), each outer biome of ours is 2-30 % of the
+     * outer End and within a point and a half of what the theme weights give it (the weight times its class's share,
+     * summed over the themes it is in), and vanilla's own keep 20-30 %. The smallest is a barrens biome with a theme to
+     * itself, about 2 %. Over five seeds: one seed's 600 or so regions leave each theme's share a couple of points
+     * either way.
      */
     @Test
     void outerSharesMatchTheDesign() {
@@ -151,14 +153,25 @@ class EndRegionsTest {
             }
         }
         assertTrue(samples >= 100_000, "only " + samples + " samples");
+        Map<Terrain, Double> classShare = Map.of(Terrain.HIGHLANDS, 0.179, Terrain.MIDLANDS, 0.259, Terrain.BARRENS, 0.110, Terrain.ISLANDS, 0.452);
+        Map<Biome, Double> expected = new EnumMap<>(Biome.class);
+        for (EndRegions.Theme theme : EndRegions.Theme.values()) {
+            for (var c : classShare.entrySet()) expected.merge(theme.biome(c.getKey()), theme.weight / 100.0 * c.getValue(), Double::sum);
+        }
         int vanilla = 0;
-        for (var e : count.entrySet()) {
-            double share = (double) e.getValue() / samples;
-            if (e.getKey().vanilla()) {
-                vanilla += e.getValue();
+        for (var e : count.entrySet()) if (e.getKey().vanilla()) vanilla += e.getValue();
+        // every outer biome of ours, so one left out of every theme fails here; the Rim and the Edge are the inner
+        // and the far End, not the outer
+        for (Biome biome : Biome.values()) {
+            if (biome.vanilla() || biome == Biome.SHATTERED_RIM || biome == Biome.UNFINISHED_EDGE) {
+                assertTrue(biome.vanilla() || !count.containsKey(biome), biome + " turned up in the outer End");
                 continue;
             }
-            assertTrue(share >= 0.03 && share <= 0.30, e.getKey() + " is " + Math.round(share * 1000) / 10.0 + " % of the outer End");
+            double share = (double) count.getOrDefault(biome, 0) / samples;
+            String said = biome + " is " + Math.round(share * 1000) / 10.0 + " % of the outer End";
+            assertTrue(share >= 0.02 && share <= 0.30, said);
+            double want = expected.getOrDefault(biome, 0.0);
+            assertTrue(Math.abs(share - want) <= 0.015, said + ", the weights give " + Math.round(want * 1000) / 10.0 + " %");
         }
         double v = (double) vanilla / samples;
         assertTrue(v >= 0.20 && v <= 0.30, "vanilla keeps " + Math.round(v * 1000) / 10.0 + " %");

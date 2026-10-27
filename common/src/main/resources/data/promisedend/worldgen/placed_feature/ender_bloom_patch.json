@@ -2,6 +2,10 @@
   "feature": "promisedend:ender_bloom",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "ender_bloom_patch"
+    },
+    {
       "type": "minecraft:count",
       "count": 4
     },

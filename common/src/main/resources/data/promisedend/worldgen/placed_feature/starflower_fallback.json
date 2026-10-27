@@ -2,11 +2,16 @@
   "feature": "promisedend:starflower",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "starflower_fallback"
+    },
+    {
       "type": "promisedend:terrain_off"
     },
     {
-      "type": "minecraft:count",
-      "count": 1
+      "type": "promisedend:chunk_chance",
+      "chance": 2,
+      "salt": "starflower_fallback"
     },
     {
       "type": "minecraft:in_square"

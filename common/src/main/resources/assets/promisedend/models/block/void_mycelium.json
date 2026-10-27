@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "bottom": "minecraft:block/end_stone",
+    "side": "promisedend:block/void_mycelium_side",
+    "top": "promisedend:block/void_mycelium"
+  }
+}

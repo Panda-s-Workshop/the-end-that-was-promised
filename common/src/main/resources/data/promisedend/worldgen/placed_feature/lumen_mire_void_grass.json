@@ -2,6 +2,10 @@
   "feature": "promisedend:void_grass",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "lumen_mire_void_grass"
+    },
+    {
       "type": "minecraft:count",
       "count": 4
     },

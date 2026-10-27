@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#promisedend:canopy_fallback",
+  "features": [
+    "promisedend:chorus_canopy_tree_fallback",
+    "promisedend:chorus_vines_fallback"
+  ],
+  "step": "vegetal_decoration"
+}

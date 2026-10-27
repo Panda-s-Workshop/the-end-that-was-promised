@@ -2,6 +2,10 @@
   "feature": "promisedend:rim_debris",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "rim_debris"
+    },
+    {
       "type": "promisedend:chunk_chance",
       "chance": 5,
       "salt": "rim_debris"

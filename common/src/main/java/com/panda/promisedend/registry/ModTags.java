@@ -30,6 +30,12 @@ public final class ModTags {
     public static final TagKey<Block> DRIFT_BLOSSOM_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("drift_blossom_ground"));
     /** What Void Grass grows on: end stone and the End's mosses (VoidGrassBlock). */
     public static final TagKey<Block> VOID_GRASS_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("void_grass_ground"));
+    /** What a Void Mushroom grows on: Void Mycelium. */
+    public static final TagKey<Block> VOID_MUSHROOM_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("void_mushroom_ground"));
+    /** What a Chorus Vine hangs from: the chorus leaves and timber. */
+    public static final TagKey<Block> CHORUS_VINE_ANCHOR = TagKey.create(Registries.BLOCK, PromisedEnd.id("chorus_vine_anchor"));
+    /** What a Void Berry Vine hangs from: end stone and the End's mosses, the islets' undersides. */
+    public static final TagKey<Block> VOID_BERRY_VINE_ANCHOR = TagKey.create(Registries.BLOCK, PromisedEnd.id("void_berry_vine_anchor"));
     /** The ground an ancient Updraft Vent is sunk into on an island's edge: UpdraftVentFeature. */
     public static final TagKey<Block> UPDRAFT_VENT_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("updraft_vent_ground"));
     /** Blocks an outer gateway and its exit keep off while other ground is in reach (the spires' Resonite): TheEndGatewayBlockEntityMixin. */

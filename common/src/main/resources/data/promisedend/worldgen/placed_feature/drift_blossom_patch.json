@@ -2,6 +2,10 @@
   "feature": "promisedend:drift_blossom",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "drift_blossom_patch"
+    },
+    {
       "type": "minecraft:count",
       "count": 6
     },

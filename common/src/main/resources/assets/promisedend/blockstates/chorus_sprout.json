@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "stage=0": {
+      "model": "promisedend:block/chorus_sprout"
+    },
+    "stage=1": {
+      "model": "promisedend:block/chorus_sprout"
+    }
+  }
+}

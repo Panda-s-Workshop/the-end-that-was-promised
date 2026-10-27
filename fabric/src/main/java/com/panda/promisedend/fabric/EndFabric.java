@@ -90,6 +90,17 @@ public final class EndFabric implements ModInitializer {
                     GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(flower)));
         }
 
+        // and the rest of the Wilds: the Canopy's trees on #promisedend:canopy_fallback (vanilla's highlands), the
+        // Barrens' mycelium and mushrooms on #promisedend:fungus_fallback (its barrens), the Gardens' vines on
+        // #promisedend:garden_fallback (its small islands)
+        String[][] wilds = {{"canopy_fallback", "chorus_canopy_tree_fallback"}, {"canopy_fallback", "chorus_vines_fallback"},
+                {"fungus_fallback", "void_mycelium_fallback"}, {"fungus_fallback", "void_mushroom_fallback"},
+                {"garden_fallback", "void_berry_vines_fallback"}};
+        for (String[] w : wilds) {
+            BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id(w[0]))),
+                    GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(w[1])));
+        }
+
         ServerLifecycleEvents.SERVER_STARTING.register(PromisedEnd::onServerStarting);
         ServerLifecycleEvents.SERVER_STARTED.register(com.panda.promisedend.ServerCheck::onServerStarted);
         ServerTickEvents.END_SERVER_TICK.register(PromisedEnd::onServerTick);

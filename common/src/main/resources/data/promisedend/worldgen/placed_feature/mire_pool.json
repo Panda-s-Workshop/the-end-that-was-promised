@@ -2,6 +2,10 @@
   "feature": "promisedend:mire_pool",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "mire_pool"
+    },
+    {
       "type": "minecraft:count",
       "count": {
         "type": "minecraft:uniform",

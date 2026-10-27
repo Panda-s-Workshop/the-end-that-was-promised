@@ -1,0 +1,22 @@
+{
+  "feature": "promisedend:chorus_vines",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "chorus_vines_fallback"
+    },
+    {
+      "type": "promisedend:terrain_off"
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

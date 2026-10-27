@@ -1,0 +1,43 @@
+{
+  "feature": "promisedend:chorus_canopy_tree",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "chorus_canopy_tree_fallback"
+    },
+    {
+      "type": "promisedend:terrain_off"
+    },
+    {
+      "type": "promisedend:chunk_chance",
+      "chance": 3,
+      "salt": "chorus_canopy_tree_fallback"
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "minecraft:biome"
+    },
+    {
+      "type": "minecraft:block_predicate_filter",
+      "predicate": {
+        "type": "minecraft:matching_block_tag",
+        "offset": [
+          0,
+          -1,
+          0
+        ],
+        "tag": "promisedend:void_grass_ground"
+      }
+    },
+    {
+      "type": "promisedend:unclaimed",
+      "reach": 8
+    }
+  ]
+}

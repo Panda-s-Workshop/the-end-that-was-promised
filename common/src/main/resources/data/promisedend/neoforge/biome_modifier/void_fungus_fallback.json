@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#promisedend:fungus_fallback",
+  "features": [
+    "promisedend:void_mycelium_fallback",
+    "promisedend:void_mushroom_fallback"
+  ],
+  "step": "vegetal_decoration"
+}

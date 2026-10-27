@@ -2,6 +2,10 @@
   "feature": "promisedend:chorus_moss_patch",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "chorus_moss_patch"
+    },
+    {
       "type": "minecraft:count",
       "count": 6
     },

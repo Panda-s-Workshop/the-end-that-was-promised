@@ -2,11 +2,16 @@
   "feature": "promisedend:ender_bloom",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "ender_bloom_fallback"
+    },
+    {
       "type": "promisedend:terrain_off"
     },
     {
-      "type": "minecraft:count",
-      "count": 1
+      "type": "promisedend:chunk_chance",
+      "chance": 2,
+      "salt": "ender_bloom_fallback"
     },
     {
       "type": "minecraft:in_square"

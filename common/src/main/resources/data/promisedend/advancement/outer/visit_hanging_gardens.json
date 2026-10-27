@@ -1,0 +1,43 @@
+{
+  "parent": "promisedend:outer/enter_outer",
+  "criteria": {
+    "visited": {
+      "trigger": "minecraft:location",
+      "conditions": {
+        "player": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:location": {
+              "biomes": "#promisedend:visit/hanging_gardens"
+            }
+          }
+        }
+      }
+    },
+    "in_fallback": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:void_berries"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.visit_hanging_gardens.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.visit_hanging_gardens.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "visited",
+      "in_fallback"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

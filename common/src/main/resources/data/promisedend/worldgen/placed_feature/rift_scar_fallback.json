@@ -2,6 +2,10 @@
   "feature": "promisedend:rift_scar_fallback",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "rift_scar_fallback"
+    },
+    {
       "type": "promisedend:chunk_chance",
       "chance": 4,
       "salt": "rift_scar_fallback"

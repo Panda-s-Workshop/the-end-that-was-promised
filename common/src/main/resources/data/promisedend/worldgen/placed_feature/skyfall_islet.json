@@ -2,6 +2,10 @@
   "feature": "minecraft:end_island",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "skyfall_islet"
+    },
+    {
       "type": "minecraft:count",
       "count": {
         "type": "minecraft:weighted_list",

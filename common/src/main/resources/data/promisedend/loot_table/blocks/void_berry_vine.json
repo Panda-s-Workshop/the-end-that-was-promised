@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "condition": {
+        "type": "minecraft:match_block",
+        "blocks": "promisedend:void_berry_vine",
+        "state": {
+          "berries": "true"
+        }
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:void_berries"
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "random_sequence": "promisedend:blocks/void_berry_vine"
+}

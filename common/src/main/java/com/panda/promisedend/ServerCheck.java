@@ -85,6 +85,9 @@ public final class ServerCheck {
         if (failure == null && terrain) failure = biome(end, "shulker_reefs", "Shulker Reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 150);
         if (failure == null && terrain) failure = biome(end, "hollow_highlands", "Hollow Highlands", ModBlocks.ECHO_AMBER_CLUSTER.get(), 5);
         if (failure == null && terrain) failure = biome(end, "bloom_meadows", "Bloom Meadows", ModBlocks.ENDER_BLOOM.get(), 15);
+        if (failure == null && terrain) failure = biome(end, "chorus_canopy", "Chorus Canopy", ModBlocks.CHORUS_LEAVES.get(), 2000);
+        if (failure == null && terrain) failure = biome(end, "void_fungus_barrens", "Void Fungus Barrens", ModBlocks.VOID_MUSHROOM_BLOCK.get(), 50);
+        if (failure == null && terrain) failure = biome(end, "hanging_gardens", "Hanging Gardens", ModBlocks.VOID_BERRY_VINE.get(), 250);
         // terrain off: the fallbacks on vanilla's biomes, the Thicket's groves and the Spires' formations on its highlands, the Mire's pools on its midlands
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback groves", ModBlocks.CHORUS_LOG.get(), 10, 64);
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback pools", ModBlocks.VOID_WATER.get(), 8, 64);
@@ -99,6 +102,11 @@ public final class ServerCheck {
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback caverns", ModBlocks.ECHO_AMBER_CLUSTER.get(), 3, 64);
         // and Bloom Meadows' flowers on its midlands
         if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback blooms", ModBlocks.ENDER_BLOOM.get(), 3, 64);
+        // and the rest of the Wilds: the Canopy's trees on its highlands, the Barrens' mycelium, the Gardens' vines; each at least about a
+        // quarter of the fewest seen (on either loader), so a fall in density shows
+        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback canopy", ModBlocks.CHORUS_LEAVES.get(), 300, 64);
+        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_BARRENS, "barrens' fallback mycelium", ModBlocks.VOID_MYCELIUM.get(), 200, 64);
+        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback vines", ModBlocks.VOID_BERRY_VINE.get(), 130, 64);
         return failure != null ? failure : wrath(server);
     }
 
@@ -169,18 +177,27 @@ public final class ServerCheck {
 
     /**
      * A place in the biome to count at: the middle ({@link #interior}) of the biome nearest the centre and of the biome
-     * nearest a point 1500 out along each axis, whichever holds the most land in the biome in the box round it. The
-     * first with land on a quarter of the box was once taken, but on some seeds that was a sliver of the Lumen Mire, too
-     * little for its pools to be sure of (world seed 5: 27 of 81 samples, 21 Void-water). Null when there is no such
-     * biome within 6400 blocks.
+     * nearest a point 1500 and 3000 out in each of eight directions, whichever holds the most land in the biome in the
+     * box round it. The first with land on a quarter of the box was once taken, but on some seeds that was a sliver of
+     * the Lumen Mire, too little for its pools to be sure of (world seed 5: 27 of 81 samples, 21 Void-water); and the four
+     * axis points alone left the harness's seed with a Voidscar a fifth of the box, too few chunks for its scars to be
+     * sure of (25 of 121 samples, no scar). Null when there is no such biome within 6400 blocks.
      */
     public static BlockPos spot(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, int radius) {
         BlockPos best = null;
         int bestLand = -1;
-        for (BlockPos from : java.util.List.of(new BlockPos(0, 64, 0), new BlockPos(1500, 64, 0), new BlockPos(0, 64, 1500), new BlockPos(-1500, 64, 0), new BlockPos(0, 64, -1500))) {
+        java.util.List<BlockPos> froms = new java.util.ArrayList<>(java.util.List.of(new BlockPos(0, 64, 0)));
+        for (int r : new int[] {1500, 3000}) {
+            for (int deg = 0; deg < 360; deg += 45) {
+                froms.add(new BlockPos((int) Math.round(r * Math.cos(Math.toRadians(deg))), 64, (int) Math.round(r * Math.sin(Math.toRadians(deg)))));
+            }
+        }
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        for (BlockPos from : froms) {
             var found = end.findClosestBiome3d(h -> h.is(key), from, 6400, 32, 64);
             if (found == null) continue;
             BlockPos at = interior(end, key, found.getFirst());
+            if (!seen.add(at)) continue;
             int land = 0, samples = 0;
             for (int dx = -radius; dx <= radius; dx += 8) {
                 for (int dz = -radius; dz <= radius; dz += 8) {

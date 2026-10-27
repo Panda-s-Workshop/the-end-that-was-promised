@@ -2,6 +2,10 @@
   "feature": "promisedend:void_grass",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "bloom_meadows_void_grass"
+    },
+    {
       "type": "minecraft:count",
       "count": 16
     },

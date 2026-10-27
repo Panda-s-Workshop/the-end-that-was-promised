@@ -18,6 +18,8 @@
     "promisedend:chorus_wall_sign",
     "promisedend:chorus_hanging_sign",
     "promisedend:chorus_wall_hanging_sign",
-    "promisedend:chorus_shelf"
+    "promisedend:chorus_shelf",
+    "promisedend:void_mushroom_block",
+    "promisedend:void_mushroom_stem"
   ]
 }

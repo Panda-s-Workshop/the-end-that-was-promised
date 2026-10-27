@@ -1,0 +1,16 @@
+{
+  "type": "promisedend:hanging_vine",
+  "vine": "promisedend:chorus_vine",
+  "anchor": "promisedend:chorus_vine_anchor",
+  "tries": 24,
+  "spread": 7,
+  "height": 20,
+  "length": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 2,
+    "max_inclusive": 6
+  },
+  "chance": 0.35,
+  "open": true,
+  "reach": 0.5
+}

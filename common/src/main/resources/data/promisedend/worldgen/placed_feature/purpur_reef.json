@@ -2,6 +2,10 @@
   "feature": "promisedend:purpur_reef",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "purpur_reef"
+    },
+    {
       "type": "minecraft:in_square"
     },
     {

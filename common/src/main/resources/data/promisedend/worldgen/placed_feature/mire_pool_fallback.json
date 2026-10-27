@@ -2,6 +2,10 @@
   "feature": "promisedend:mire_pool_fallback",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "mire_pool_fallback"
+    },
+    {
       "type": "promisedend:chunk_chance",
       "chance": 3,
       "salt": "mire_pool_fallback"

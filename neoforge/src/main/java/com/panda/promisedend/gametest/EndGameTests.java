@@ -103,6 +103,9 @@ public final class EndGameTests {
         FUNCTIONS.register("cave_dark_held_off", () -> EndGameTests::caveDarkHeldOff);
         FUNCTIONS.register("void_grass_rules", () -> EndGameTests::voidGrassRules);
         FUNCTIONS.register("end_flowers_rules", () -> EndGameTests::endFlowersRules);
+        FUNCTIONS.register("wilds_plants_rules", () -> EndGameTests::wildsPlantsRules);
+        FUNCTIONS.register("wilds_features_grow", () -> EndGameTests::wildsFeaturesGrow);
+        FUNCTIONS.register("canopy_keeps_out", () -> EndGameTests::canopyKeepsOut);
         FUNCTIONS.register("crumbling_edges_line_islands", () -> EndGameTests::crumblingEdgesLineIslands);
         FUNCTIONS.register("crumbling_voidstone_falls", () -> EndGameTests::crumblingVoidstoneFalls);
         FUNCTIONS.register("voidsteel_ore_drops", () -> EndGameTests::voidsteelOreDrops);
@@ -324,7 +327,7 @@ public final class EndGameTests {
             double share = (double) e.getValue() / samples;
             shares.append(String.format(java.util.Locale.ROOT, " %s %.1f %%", e.getKey().id, 100 * share));
             if (e.getKey().vanilla()) vanilla += e.getValue();
-            else if (share < 0.03 || share > 0.30) wrong.add(String.format(java.util.Locale.ROOT, "%s %.1f %%", e.getKey().id, 100 * share));
+            else if (share < 0.02 || share > 0.30) wrong.add(String.format(java.util.Locale.ROOT, "%s %.1f %%", e.getKey().id, 100 * share));
         }
         double v = (double) vanilla / samples;
         PromisedEnd.LOGGER.info("[outer_end_shares] {} samples; terrain:{}; biomes:{}; vanilla {}", samples, mix, shares,
@@ -1123,8 +1126,9 @@ public final class EndGameTests {
     }
 
     /**
-     * Bloom Meadows' flowers: each stands on end stone, Chorus Moss and Lumen Moss, not on stone or grass; the Ender
-     * Bloom gives light 6 and the Starflower 4; each drops itself, and one crafts into a magenta or a cyan dye. Bone meal
+     * Bloom Meadows' flowers: each stands on end stone, Chorus Moss and Lumen Moss, not on stone or grass; neither gives
+     * light (the glow is the texture's, so a meadow stays dark enough for Endermen); each drops itself, is a small
+     * flower (#minecraft:small_flowers), and crafts into a magenta or a cyan dye. Bone meal
      * on one puts another of its kind on the open ground within EndFlowerBlock.SPREAD (a 5 by 5 floor with the flower in
      * the middle: the 24 cells round it, one a use, never further), then stops.
      */
@@ -1133,8 +1137,8 @@ public final class EndGameTests {
         List<String> bad = new ArrayList<>();
         var recipes = level.getServer().getRecipeManager();
         java.util.Map<com.panda.promisedend.block.EndFlowerBlock, Object[]> flowers = new java.util.LinkedHashMap<>();
-        flowers.put(ModBlocks.ENDER_BLOOM.get(), new Object[] {6, net.minecraft.world.item.Items.DYE.magenta()});
-        flowers.put(ModBlocks.STARFLOWER.get(), new Object[] {4, net.minecraft.world.item.Items.DYE.cyan()});
+        flowers.put(ModBlocks.ENDER_BLOOM.get(), new Object[] {0, net.minecraft.world.item.Items.DYE.magenta()});
+        flowers.put(ModBlocks.STARFLOWER.get(), new Object[] {0, net.minecraft.world.item.Items.DYE.cyan()});
         int row = 0;
         for (var e : flowers.entrySet()) {
             var flower = e.getKey();
@@ -1148,6 +1152,7 @@ public final class EndGameTests {
                 if (flower.defaultBlockState().canSurvive(level, at) != want) bad.add(name + (want ? " can't stand on " : " stands on ") + ground.getName().getString());
             }
             if (flower.defaultBlockState().getLightEmission() != (int) e.getValue()[0]) bad.add(name + " gives light " + flower.defaultBlockState().getLightEmission());
+            if (!flower.defaultBlockState().is(net.minecraft.tags.BlockTags.SMALL_FLOWERS)) bad.add(name + " isn't in #minecraft:small_flowers");
             var drops = net.minecraft.world.level.block.Block.getDrops(flower.defaultBlockState(), level, BlockPos.ZERO, null);
             if (drops.size() != 1 || !drops.get(0).is(flower.asItem())) bad.add(name + " drops " + drops);
             var input = net.minecraft.world.item.crafting.CraftingInput.of(1, 1, List.of(new ItemStack(flower)));
@@ -2888,7 +2893,8 @@ public final class EndGameTests {
 
     /**
      * Every block of ours drops something when mined with the right tool (its loot table rolls a stack): a netherite
-     * pickaxe, or shears for the grass that only shears keep, as vanilla's.
+     * pickaxe, shears for the grass, leaves and vine that shears keep, as vanilla's, Silk Touch for the huge mushroom's blocks,
+     * and a Void Berry Vine while it bears.
      */
     private static void everyBlockDrops(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -2898,11 +2904,16 @@ public final class EndGameTests {
             var key = block.getLootTable();
             if (key.isEmpty()) continue; // noLootTable blocks (boss arena pieces) drop nothing on purpose
             var table = level.getServer().reloadableRegistries().getLootTable(key.get());
+            var tool = new net.minecraft.world.item.ItemStack(block == ModBlocks.VOID_GRASS.get() || block == ModBlocks.TALL_VOID_GRASS.get()
+                    || block == ModBlocks.CHORUS_LEAVES.get() || block == ModBlocks.CHORUS_VINE.get() ? net.minecraft.world.item.Items.SHEARS : net.minecraft.world.item.Items.NETHERITE_PICKAXE);
+            // the huge mushroom's blocks keep themselves only to Silk Touch, as vanilla's (a cap's mushrooms are 0-2)
+            if (block == ModBlocks.VOID_MUSHROOM_BLOCK.get() || block == ModBlocks.VOID_MUSHROOM_STEM.get())
+                tool.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
             var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
                     .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
-                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, new net.minecraft.world.item.ItemStack(
-                            block == ModBlocks.VOID_GRASS.get() || block == ModBlocks.TALL_VOID_GRASS.get() ? net.minecraft.world.item.Items.SHEARS : net.minecraft.world.item.Items.NETHERITE_PICKAXE))
-                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, block.defaultBlockState())
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, tool)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, block == ModBlocks.VOID_BERRY_VINE.get()
+                            ? block.defaultBlockState().setValue(com.panda.promisedend.block.VoidBerryVineBlock.BERRIES, true) : block.defaultBlockState())
                     .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK);
             if (table.getRandomItems(params).isEmpty()) bad.add(h.getId().getPath());
         }
@@ -3195,7 +3206,10 @@ public final class EndGameTests {
                     pool.water().getState(level, random, BlockPos.ZERO), spire.budding().getState(level, random, BlockPos.ZERO),
                     blossom.toPlace().value().getState(level, random, BlockPos.ZERO), scar.ore().getState(level, random, BlockPos.ZERO),
                     reef.coral().getState(level, random, BlockPos.ZERO), cavern.cluster().getState(level, random, BlockPos.ZERO),
-                    bloom.toPlace().value().getState(level, random, BlockPos.ZERO));
+                    bloom.toPlace().value().getState(level, random, BlockPos.ZERO),
+                    // the rest of the Wilds: the canopy's leaves (a tree feature's), the barrens' mycelium (a patch's ground), the gardens' vine
+                    ModBlocks.CHORUS_LEAVES.get().defaultBlockState(), ModBlocks.VOID_MYCELIUM.get().defaultBlockState(),
+                    ((com.panda.promisedend.worldgen.HangingVineFeature) grove(level, "void_berry_vines_fallback")).vine().defaultBlockState());
             var previous = com.panda.promisedend.EndConfig.current();
             for (int i = 0; i < biomes.size(); i++) {
                 String biome = biomes.get(i);
@@ -4343,6 +4357,8 @@ public final class EndGameTests {
             if (hollows != null) bad.add(hollows);
             String blooms = fallbackBlooms(helper);
             if (blooms != null) bad.add(blooms);
+            String wilds = fallbackWilds(helper);
+            if (wilds != null) bad.add(wilds);
             // outside the End nothing, even with terrain off: the copies are for the End's own biomes
             BlockPos away = helper.absolutePos(new BlockPos(1, 2, 1)).offset(0, 40, 0);
             var test = helper.getLevel();
@@ -4646,6 +4662,360 @@ public final class EndGameTests {
             PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Meadows' fallback in {}: {} spots in 4 seeds, {} Ender Blooms, {} Starflowers", level.dimension().identifier(), spots, blooms, stars);
             if (level == end && (blooms == 0 || stars == 0)) result = "the Meadows' fallback with terrain off: " + blooms + " Ender Blooms, " + stars + " Starflowers in 4 seeds";
             if (level != end && blooms + stars != 0) result = "the Meadows' fallback built outside the End";
+        }
+        return result;
+    }
+
+    /**
+     * The rest of the Wilds' plants. Chorus Leaves are leaves (#minecraft:leaves), shears keep them, 4000 breaks by hand
+     * give Chorus Sprouts at 5 % and chorus fruit at 3 % (within about four spreads of each), and a leaf with no log
+     * near decays while one by a log stays; a sprout stands on end stone and the mosses, not on stone, grows into a tree
+     * of chorus log and leaves, and grows by random ticks in the dark (a sealed cell), where a vanilla sapling in a cell
+     * beside it doesn't. A Chorus Vine hangs from the leaves and from itself, not from stone, is climbable, grows a block with bone
+     * meal, and breaks with its anchor. Void Mycelium drops end stone, itself to Silk Touch. A Void Mushroom stands on
+     * Void Mycelium, not on end stone, and grows huge (caps on a stem); a cap gives 0-2 mushrooms, itself to Silk Touch.
+     * A Void Berry Vine hangs under end stone, gives light 10 while it bears and none once picked, a use picks a Void
+     * Berry, bone meal brings the berries back, a picked vine drops nothing, and new vine bears one block in three (3000
+     * grown, 850-1150 bearing); the berries plant the vine and are food. Two Void Mushrooms and a bowl make the stew (6 food, ten seconds of Slow
+     * Falling, the bowl back), three Chorus Vines a string.
+     */
+    private static void wildsPlantsRules(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var random = level.getRandom();
+        List<String> bad = new ArrayList<>();
+        var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+        var endStone = net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState();
+        var stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+        var silk = new ItemStack(net.minecraft.world.item.Items.NETHERITE_PICKAXE);
+        silk.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH), 1);
+        java.util.function.BiFunction<net.minecraft.world.level.block.state.BlockState, ItemStack, List<ItemStack>> drops = (state, tool) ->
+                net.minecraft.world.level.block.Block.getDrops(state, level, BlockPos.ZERO, null, null, tool);
+        // the leaves
+        var leaves = ModBlocks.CHORUS_LEAVES.get().defaultBlockState();
+        if (!leaves.is(net.minecraft.tags.BlockTags.LEAVES)) bad.add("Chorus Leaves aren't in #minecraft:leaves");
+        var sheared = drops.apply(leaves, new ItemStack(net.minecraft.world.item.Items.SHEARS));
+        if (sheared.size() != 1 || !sheared.get(0).is(ModBlocks.CHORUS_LEAVES.get().asItem())) bad.add("sheared leaves drop " + sheared);
+        int sprouts = 0, fruit = 0;
+        for (int i = 0; i < 4000; i++) {
+            for (var stack : drops.apply(leaves, ItemStack.EMPTY)) {
+                if (stack.is(ModBlocks.CHORUS_SPROUT.get().asItem())) sprouts += stack.getCount();
+                if (stack.is(net.minecraft.world.item.Items.CHORUS_FRUIT)) fruit += stack.getCount();
+            }
+        }
+        PromisedEnd.LOGGER.info("[wilds_plants_rules] 4000 leaves by hand: {} sprouts, {} chorus fruit", sprouts, fruit);
+        // 200 and 120 expected, spreads of 14 and 11
+        if (sprouts < 145 || sprouts > 255 || fruit < 75 || fruit > 165) bad.add("4000 leaves by hand gave " + sprouts + " sprouts (200 expected) and " + fruit + " chorus fruit (120)");
+        {
+            BlockPos lone = new BlockPos(2560, level.getMaxY() - 40, 2600), log = lone.offset(0, 0, 8);
+            level.setBlock(lone, leaves, 3);
+            level.setBlock(log, ModBlocks.CHORUS_LOG.get().defaultBlockState(), 3);
+            level.setBlock(log.above(), leaves, 3);
+            for (BlockPos p : List.of(lone, log.above())) level.getBlockState(p).tick(level, p, random);
+            for (BlockPos p : List.of(lone, log.above())) level.getBlockState(p).randomTick(level, p, random);
+            if (!level.getBlockState(lone).isAir()) bad.add("a leaf with no log near didn't decay");
+            if (!level.getBlockState(log.above()).is(ModBlocks.CHORUS_LEAVES.get())) bad.add("a leaf on a log decayed");
+            for (BlockPos p : List.of(lone, log, log.above())) level.setBlock(p, air, 3);
+            level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new net.minecraft.world.phys.AABB(lone).inflate(12)).forEach(e -> e.discard());
+        }
+        // the sprout: where it stands, and a tree from it in the open sky
+        var sprout = ModBlocks.CHORUS_SPROUT.get();
+        int x = 1;
+        for (var ground : List.of(endStone, ModBlocks.CHORUS_MOSS.get().defaultBlockState(), stone)) {
+            BlockPos at = helper.absolutePos(new BlockPos(x++, 2, 1));
+            level.setBlock(at.below(), ground, 3);
+            boolean want = ground != stone;
+            if (sprout.defaultBlockState().canSurvive(level, at) != want) bad.add("the sprout " + (want ? "can't stand on " : "stands on ") + ground.getBlock().getName().getString());
+            level.setBlock(at.below(), air, 3);
+        }
+        BlockPos tree = new BlockPos(2600, level.getMaxY() - 60, 2600);
+        floor(level, tree, 6, endStone);
+        level.setBlock(tree, sprout.defaultBlockState(), 3);
+        for (int i = 0; i < 12 && level.getBlockState(tree).is(sprout); i++) sprout.advanceTree(level, tree, level.getBlockState(tree), random);
+        int logs = 0, leafBlocks = 0;
+        for (BlockPos p : BlockPos.betweenClosed(tree.offset(-8, 0, -8), tree.offset(8, 20, 8))) {
+            if (level.getBlockState(p).is(ModBlocks.CHORUS_LOG.get())) logs++;
+            if (level.getBlockState(p).is(ModBlocks.CHORUS_LEAVES.get())) leafBlocks++;
+        }
+        if (logs == 0 || leafBlocks == 0) bad.add("the sprout grew " + logs + " logs and " + leafBlocks + " leaves");
+        clear(level, tree);
+        // in the dark (a sealed cell of stone: no sky light, no block light), by random ticks alone, as under the Canopy's
+        // crowns or in a cave: a vanilla sapling in a cell beside it never grows. The open End has sky light, so a cell
+        // with room for the tree: 13 across and 18 high inside
+        BlockPos dark = new BlockPos(2600, level.getMaxY() - 100, 2700), control = dark.offset(20, 0, 0);
+        for (BlockPos cell : List.of(dark, control)) {
+            for (BlockPos p : BlockPos.betweenClosed(cell.offset(-7, -1, -7), cell.offset(7, 18, 7))) level.setBlock(p, stone, 2);
+            for (BlockPos p : BlockPos.betweenClosed(cell.offset(-6, 0, -6), cell.offset(6, 17, 6))) level.setBlock(p, air, 2);
+        }
+        level.setBlock(dark.below(), endStone, 3);
+        level.setBlock(control.below(), net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState(), 3);
+        level.setBlock(dark, sprout.defaultBlockState(), 3);
+        level.setBlock(control, net.minecraft.world.level.block.Blocks.OAK_SAPLING.defaultBlockState(), 3);
+        // the Chorus Vine
+        var vine = ModBlocks.CHORUS_VINE.get();
+        BlockPos anchor = new BlockPos(2640, level.getMaxY() - 40, 2600);
+        level.setBlock(anchor, stone, 3);
+        if (vine.defaultBlockState().canSurvive(level, anchor.below())) bad.add("a Chorus Vine hangs from stone");
+        level.setBlock(anchor, leaves.setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true), 3);
+        if (!vine.defaultBlockState().canSurvive(level, anchor.below())) bad.add("a Chorus Vine can't hang from the leaves");
+        level.setBlock(anchor.below(), vine.defaultBlockState(), 3);
+        if (!vine.defaultBlockState().canSurvive(level, anchor.below(2))) bad.add("a Chorus Vine can't hang from another");
+        if (!vine.defaultBlockState().is(net.minecraft.tags.BlockTags.CLIMBABLE)) bad.add("a Chorus Vine isn't climbable");
+        vine.performBonemeal(level, random, anchor.below(), vine.defaultBlockState(), net.minecraft.world.level.block.BonemealSource.INTERACTION);
+        if (!level.getBlockState(anchor.below(2)).is(vine)) bad.add("bone meal didn't lengthen the vine");
+        level.setBlock(anchor, air, 3);
+        for (int dy = 1; dy <= 2; dy++) level.getBlockState(anchor.below(dy)).tick(level, anchor.below(dy), random);
+        if (!level.getBlockState(anchor.below()).isAir() || !level.getBlockState(anchor.below(2)).isAir()) bad.add("the vine stayed when its anchor went");
+        level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new net.minecraft.world.phys.AABB(anchor).inflate(4)).forEach(e -> e.discard());
+        // the mycelium
+        var mycelium = ModBlocks.VOID_MYCELIUM.get().defaultBlockState();
+        var bare = drops.apply(mycelium, ItemStack.EMPTY);
+        if (bare.size() != 1 || !bare.get(0).is(net.minecraft.world.item.Items.END_STONE)) bad.add("Void Mycelium by hand drops " + bare);
+        var silked = drops.apply(mycelium, silk);
+        if (silked.size() != 1 || !silked.get(0).is(mycelium.getBlock().asItem())) bad.add("Void Mycelium with Silk Touch drops " + silked);
+        // the Void Mushroom
+        var mushroom = ModBlocks.VOID_MUSHROOM.get();
+        BlockPos shroom = new BlockPos(2680, level.getMaxY() - 60, 2600);
+        floor(level, shroom, 4, endStone);
+        if (mushroom.defaultBlockState().canSurvive(level, shroom)) bad.add("a Void Mushroom stands on end stone");
+        floor(level, shroom, 4, ModBlocks.VOID_MYCELIUM.get().defaultBlockState());
+        if (!mushroom.defaultBlockState().canSurvive(level, shroom)) bad.add("a Void Mushroom can't stand on Void Mycelium");
+        level.setBlock(shroom, mushroom.defaultBlockState(), 3);
+        boolean grown = false;
+        for (int i = 0; i < 10 && !grown; i++) grown = mushroom.growMushroom(level, shroom, level.getBlockState(shroom), random);
+        int caps = 0, stems = 0;
+        for (BlockPos p : BlockPos.betweenClosed(shroom.offset(-4, 0, -4), shroom.offset(4, 12, 4))) {
+            if (level.getBlockState(p).is(ModBlocks.VOID_MUSHROOM_BLOCK.get())) caps++;
+            if (level.getBlockState(p).is(ModBlocks.VOID_MUSHROOM_STEM.get())) stems++;
+        }
+        if (!grown || caps == 0 || stems == 0) bad.add("the mushroom grew " + caps + " caps on " + stems + " stems");
+        clear(level, shroom);
+        var cap = ModBlocks.VOID_MUSHROOM_BLOCK.get().defaultBlockState();
+        int most = 0, total = 0;
+        for (int i = 0; i < 200; i++) {
+            int n = drops.apply(cap, ItemStack.EMPTY).stream().filter(s -> s.is(mushroom.asItem())).mapToInt(ItemStack::getCount).sum();
+            most = Math.max(most, n);
+            total += n;
+        }
+        if (most > 2 || total == 0) bad.add("200 caps gave " + total + " mushrooms, at most " + most + " from one");
+        var kept = drops.apply(cap, silk);
+        if (kept.size() != 1 || !kept.get(0).is(cap.getBlock().asItem())) bad.add("a cap with Silk Touch drops " + kept);
+        // the Void Berry Vine and its berries
+        var berry = ModBlocks.VOID_BERRY_VINE.get();
+        var bearing = berry.defaultBlockState().setValue(com.panda.promisedend.block.VoidBerryVineBlock.BERRIES, true);
+        BlockPos islet = new BlockPos(2720, level.getMaxY() - 40, 2600);
+        level.setBlock(islet, endStone, 3);
+        if (!bearing.canSurvive(level, islet.below())) bad.add("a Void Berry Vine can't hang under end stone");
+        level.setBlock(islet.below(), bearing, 3);
+        if (bearing.getLightEmission() != com.panda.promisedend.block.VoidBerryVineBlock.LIT || berry.defaultBlockState().getLightEmission() != 0)
+            bad.add("the berry vine's light: " + bearing.getLightEmission() + " bearing, " + berry.defaultBlockState().getLightEmission() + " picked");
+        var picker = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        level.getBlockState(islet.below()).useWithoutItem(level, picker,
+                new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(islet.below()), net.minecraft.core.Direction.NORTH, islet.below(), false));
+        var popped = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new net.minecraft.world.phys.AABB(islet).inflate(3));
+        if (level.getBlockState(islet.below()).getValue(com.panda.promisedend.block.VoidBerryVineBlock.BERRIES)) bad.add("a use didn't pick the berries");
+        if (popped.stream().noneMatch(e -> e.getItem().is(ModItems.VOID_BERRIES.get()))) bad.add("picking popped " + popped.stream().map(e -> e.getItem()).toList());
+        popped.forEach(e -> e.discard());
+        var picked = level.getBlockState(islet.below());
+        if (!berry.isValidBonemealTarget(level, islet.below(), picked, net.minecraft.world.level.block.BonemealSource.INTERACTION)) bad.add("bone meal can't take a picked vine");
+        berry.performBonemeal(level, random, islet.below(), picked, net.minecraft.world.level.block.BonemealSource.INTERACTION);
+        if (!level.getBlockState(islet.below()).getValue(com.panda.promisedend.block.VoidBerryVineBlock.BERRIES)) bad.add("bone meal didn't bring the berries back");
+        level.setBlock(islet.below(), air, 3);
+        level.setBlock(islet, air, 3);
+        var berryLoot = drops.apply(bearing, ItemStack.EMPTY);
+        if (berryLoot.size() != 1 || !berryLoot.get(0).is(ModItems.VOID_BERRIES.get())) bad.add("a bearing vine drops " + berryLoot);
+        var pickedLoot = drops.apply(berry.defaultBlockState(), ItemStack.EMPTY);
+        if (!pickedLoot.isEmpty()) bad.add("a picked vine drops " + pickedLoot);
+        int bore = 0;
+        for (int i = 0; i < 3000; i++) if (berry.grown(random).getValue(com.panda.promisedend.block.VoidBerryVineBlock.BERRIES)) bore++;
+        if (bore < 850 || bore > 1150) bad.add(bore + " of 3000 new vine blocks bear (1000 expected)");
+        if (ModItems.VOID_BERRIES.get().getBlock() != berry) bad.add("Void Berries plant " + ModItems.VOID_BERRIES.get().getBlock());
+        if (new ItemStack(ModItems.VOID_BERRIES.get()).get(net.minecraft.core.component.DataComponents.FOOD) == null) bad.add("Void Berries aren't food");
+        // the recipes
+        var recipes = level.getServer().getRecipeManager();
+        java.util.function.Function<List<ItemStack>, ItemStack> craft = in -> {
+            var input = net.minecraft.world.item.crafting.CraftingInput.of(in.size(), 1, in);
+            return recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level).map(r -> r.value().assemble(input)).orElse(ItemStack.EMPTY);
+        };
+        var stew = craft.apply(List.of(new ItemStack(mushroom), new ItemStack(mushroom), new ItemStack(net.minecraft.world.item.Items.BOWL)));
+        if (!stew.is(ModItems.VOID_MUSHROOM_STEW.get())) bad.add("two Void Mushrooms and a bowl make " + stew);
+        else {
+            var food = stew.get(net.minecraft.core.component.DataComponents.FOOD);
+            var eat = stew.get(net.minecraft.core.component.DataComponents.CONSUMABLE);
+            var rest = stew.get(net.minecraft.core.component.DataComponents.USE_REMAINDER);
+            boolean falls = eat != null && eat.onConsumeEffects().stream().anyMatch(e -> e instanceof net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect a
+                    && a.effects().stream().anyMatch(m -> m.is(net.minecraft.world.effect.MobEffects.SLOW_FALLING) && m.getDuration() == 200));
+            if (food == null || food.nutrition() != 6 || !falls || rest == null || !rest.convertInto().is(net.minecraft.world.item.Items.BOWL))
+                bad.add("the stew: food " + food + ", Slow Falling " + falls + ", leaves " + (rest == null ? null : rest.convertInto()));
+        }
+        var string = craft.apply(List.of(new ItemStack(vine), new ItemStack(vine), new ItemStack(vine)));
+        if (!string.is(net.minecraft.world.item.Items.STRING)) bad.add("three Chorus Vines make " + string);
+        if (!bad.isEmpty()) {
+            helper.fail("wilds plants: " + bad);
+            return;
+        }
+        // the light engine runs off the tick, slower under load: tick the cells once their dark is in, whenever that is
+        boolean[] done = {false};
+        helper.onEachTick(() -> {
+            int light = Math.max(level.getMaxLocalRawBrightness(dark.above()), level.getMaxLocalRawBrightness(control.above()));
+            if (done[0] || light >= 9) return;
+            done[0] = true;
+            int ticks = 0;
+            for (; ticks < 400 && level.getBlockState(dark).is(sprout); ticks++) {
+                level.getBlockState(dark).randomTick(level, dark, random);
+                if (level.getBlockState(control).is(net.minecraft.world.level.block.Blocks.OAK_SAPLING)) level.getBlockState(control).randomTick(level, control, random);
+            }
+            boolean oak = level.getBlockState(control).is(net.minecraft.world.level.block.Blocks.OAK_SAPLING);
+            PromisedEnd.LOGGER.info("[wilds_plants_rules] a sprout at light {} grew in {} random ticks; the oak sapling beside it {}", light, ticks, oak ? "didn't" : "did");
+            List<String> dim = new ArrayList<>();
+            if (!oak) dim.add("a vanilla sapling grew in the dark, so the case can't tell");
+            if (level.getBlockState(dark).is(sprout)) dim.add("a sprout in the dark didn't grow in 400 random ticks");
+            clear(level, dark);
+            clear(level, control);
+            if (!dim.isEmpty()) helper.fail("wilds plants: " + dim);
+            else helper.succeed();
+        });
+    }
+
+    /**
+     * The rest of the Wilds' features, run as worldgen runs them (their counts, heightmaps and biome checks) in 4 seeds,
+     * each in its biome: on a floor of end stone in the sky, the Chorus Canopy's trees (log and leaves) and vines under
+     * them; the Void Fungus Barrens' mycelium, huge mushrooms (caps on stems) and small ones; and under a slab of end
+     * stone at y 91, the Hanging Gardens' Void Berry Vines, some of them bearing.
+     */
+    private static void wildsFeaturesGrow(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var placed = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
+        List<String> bad = new ArrayList<>();
+        record Case(String biome, List<String> features, List<net.minecraft.world.level.block.Block> counted, int y) {}
+        var cases = List.of(
+                new Case("chorus_canopy", List.of("chorus_canopy_tree", "chorus_vines"), List.of(ModBlocks.CHORUS_LOG.get(), ModBlocks.CHORUS_LEAVES.get(), ModBlocks.CHORUS_VINE.get()), 0),
+                new Case("void_fungus_barrens", List.of("void_mycelium_patch", "huge_void_mushroom", "void_mushroom_scatter"),
+                        List.of(ModBlocks.VOID_MYCELIUM.get(), ModBlocks.VOID_MUSHROOM_BLOCK.get(), ModBlocks.VOID_MUSHROOM_STEM.get(), ModBlocks.VOID_MUSHROOM.get()), 0),
+                new Case("hanging_gardens", List.of("void_berry_vines"), List.of(ModBlocks.VOID_BERRY_VINE.get()), 92));
+        for (int i = 0; i < cases.size(); i++) {
+            var c = cases.get(i);
+            BlockPos corner = new BlockPos(11200, c.y() == 0 ? level.getMaxY() - 60 : c.y(), 9056 + 64 * i), at = corner.offset(8, 0, 8);
+            fillBiome(level, at, "promisedend:" + c.biome());
+            fillBiome(level, at.above(12), "promisedend:" + c.biome());
+            if (c.y() != 0) fillBiome(level, new BlockPos(at.getX(), 75, at.getZ()), "promisedend:" + c.biome());
+            floor(level, at, 16, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            for (int seed = 0; seed < 4; seed++) {
+                for (String name : c.features()) {
+                    placeAsWorldgen(level, placed.getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name))), 3030 + seed + 100 * name.length(), corner);
+                }
+            }
+            java.util.Map<net.minecraft.world.level.block.Block, Integer> found = new java.util.LinkedHashMap<>();
+            int bearing = 0, reachable = 0, tips = 0;
+            for (var b : c.counted()) found.put(b, 0);
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, -16, -16), at.offset(16, 24, 16))) {
+                var state = level.getBlockState(p);
+                if (found.containsKey(state.getBlock())) found.merge(state.getBlock(), 1, Integer::sum);
+                if (state.is(ModBlocks.VOID_BERRY_VINE.get()) && state.getValue(com.panda.promisedend.block.VoidBerryVineBlock.BERRIES)) bearing++;
+                // a Chorus Vine's tip a player standing on the ground can take hold of: ground one or two blocks under it
+                if (state.is(ModBlocks.CHORUS_VINE.get()) && !level.getBlockState(p.below()).is(ModBlocks.CHORUS_VINE.get())) {
+                    tips++;
+                    if (level.getBlockState(p.below()).isFaceSturdy(level, p.below(), net.minecraft.core.Direction.UP)
+                            || level.getBlockState(p.below()).isAir() && level.getBlockState(p.below(2)).isFaceSturdy(level, p.below(2), net.minecraft.core.Direction.UP))
+                        reachable++;
+                }
+            }
+            String extra = c.y() != 0 ? ", " + bearing + " bearing" : c.biome().equals("chorus_canopy") ? ", " + reachable + " of " + tips + " vines reach to the ground" : "";
+            PromisedEnd.LOGGER.info("[wilds_features_grow] {} in 4 seeds: {}{}", c.biome(), found, extra);
+            for (var e : found.entrySet()) if (e.getValue() == 0) bad.add(c.biome() + " built no " + e.getKey().getName().getString());
+            if (c.y() != 0 && bearing == 0) bad.add(c.biome() + "'s vines bear no berries");
+            if (c.biome().equals("chorus_canopy") && reachable < 4) bad.add("only " + reachable + " of " + tips + " Chorus Vines reach down to where a player can climb them");
+            clear(level, at.below(16));
+            clear(level, at.above(20));
+        }
+        if (!bad.isEmpty()) helper.fail("wilds features: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Chorus Canopy's trees and vines, run as worldgen runs them (their filters included) in 4 seeds on a floor of end
+     * stone made the Canopy: with an End City's claim on the floor's chunk, none; on the same floor unclaimed (the
+     * control), trees and vines. The Canopy is a highlands biome, where vanilla's End Cities stand.
+     */
+    private static void canopyKeepsOut(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var placed = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
+        BlockPos corner = new BlockPos(11264, level.getMaxY() - 60, 9600), at = corner.offset(8, 0, 8);
+        fillBiome(level, at, "promisedend:chorus_canopy");
+        fillBiome(level, at.above(12), "promisedend:chorus_canopy");
+        var structure = level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getValueOrThrow(net.minecraft.world.level.levelgen.structure.BuiltinStructures.END_CITY);
+        int[] built = new int[2];
+        for (int claimed = 1; claimed >= 0; claimed--) {
+            floor(level, at, 16, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            var chunk = level.getChunk(at);
+            var before = new java.util.HashMap<>(chunk.getAllReferences());
+            if (claimed == 1) chunk.addReferenceForStructure(structure, net.minecraft.world.level.ChunkPos.pack(at.getX() >> 4, at.getZ() >> 4));
+            for (int seed = 0; seed < 4; seed++) {
+                for (String name : List.of("chorus_canopy_tree", "chorus_vines")) {
+                    placeAsWorldgen(level, placed.getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name))), 3030 + seed + 100 * name.length(), corner);
+                }
+            }
+            chunk.setAllReferences(before);
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-24, -2, -24), at.offset(24, 30, 24))) {
+                var state = level.getBlockState(p);
+                if (state.is(ModBlocks.CHORUS_LOG.get()) || state.is(ModBlocks.CHORUS_LEAVES.get()) || state.is(ModBlocks.CHORUS_VINE.get())) built[claimed]++;
+            }
+            clear(level, at.below(16));
+            clear(level, at.above(20));
+        }
+        PromisedEnd.LOGGER.info("[canopy_keeps_out] canopy blocks in 4 seeds: {} on a claimed chunk, {} on the unclaimed control", built[1], built[0]);
+        if (built[1] > 0) helper.fail(built[1] + " canopy blocks in an End City's chunk");
+        if (built[0] == 0) helper.fail("no canopy on the unclaimed control, so the claim case can't tell");
+        helper.succeed();
+    }
+
+    /**
+     * With terrain off, the rest of the Wilds on vanilla's biomes (through each loader's hook), run as worldgen runs them
+     * in 6 seeds: Chorus Canopy trees and their vines on a floor of end stone made end_highlands, Void Mycelium (and its
+     * mushrooms) on one made end_barrens, and Void Berry Vines under a slab of end stone at y 91 made small_end_islands;
+     * the same in the test level, outside the End, none. Null when it holds.
+     */
+    private static String fallbackWilds(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) return "no End level";
+        var access = end.registryAccess();
+        record Case(ResourceKey<net.minecraft.world.level.biome.Biome> biome, String tag, List<String> features, net.minecraft.world.level.block.Block counted, int y) {}
+        var cases = List.of(
+                new Case(net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "canopy_fallback", List.of("chorus_canopy_tree_fallback", "chorus_vines_fallback"), ModBlocks.CHORUS_LEAVES.get(), 0),
+                new Case(net.minecraft.world.level.biome.Biomes.END_BARRENS, "fungus_fallback", List.of("void_mycelium_fallback", "void_mushroom_fallback"), ModBlocks.VOID_MYCELIUM.get(), 0),
+                new Case(net.minecraft.world.level.biome.Biomes.END_BARRENS, "fungus_fallback", List.of("void_mycelium_fallback", "void_mushroom_fallback"), ModBlocks.VOID_MUSHROOM_BLOCK.get(), 0),
+                new Case(net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "garden_fallback", List.of("void_berry_vines_fallback"), ModBlocks.VOID_BERRY_VINE.get(), 92));
+        String result = null;
+        for (int i = 0; i < cases.size(); i++) {
+            var c = cases.get(i);
+            var biome = access.lookupOrThrow(Registries.BIOME).getOrThrow(c.biome());
+            if (!biome.is(net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id(c.tag())))) return c.biome().identifier() + " isn't in #promisedend:" + c.tag();
+            for (String name : c.features()) {
+                var feature = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name)));
+                if (biome.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(feature)))
+                    return name + " isn't among " + c.biome().identifier() + "'s features (the loader's biome modifier didn't apply)";
+            }
+            for (var level : List.of(end, helper.getLevel())) {
+                var placed = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
+                BlockPos corner = new BlockPos(10176, c.y() == 0 ? level.getMaxY() - 60 : c.y(), 9056 + 64 * i), at = corner.offset(8, 0, 8);
+                String id = c.biome().identifier().toString();
+                fillBiome(level, at, id);
+                fillBiome(level, at.above(12), id);
+                if (c.y() != 0) fillBiome(level, new BlockPos(at.getX(), 75, at.getZ()), id);
+                floor(level, at, 16, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+                int spots = 0, built = 0;
+                for (int seed = 0; seed < 6; seed++) {
+                    for (String name : c.features()) {
+                        spots += placeAsWorldgen(level, placed.getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name))), 2020 + seed + 100 * name.length(), corner);
+                    }
+                }
+                for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, -16, -16), at.offset(16, 24, 16))) if (level.getBlockState(p).is(c.counted())) built++;
+                clear(level, at.below(16));
+                clear(level, at.above(20));
+                PromisedEnd.LOGGER.info("[terrain_off_falls_back] {}'s Wilds fallback in {}: {} spots in 6 seeds, {} {}", c.biome().identifier(),
+                        level.dimension().identifier(), spots, built, c.counted().getName().getString());
+                if (level == end && built == 0) result = c.biome().identifier() + "'s Wilds fallback with terrain off: no " + c.counted().getName().getString() + " in 6 seeds";
+                if (level != end && built != 0) result = c.biome().identifier() + "'s Wilds fallback built outside the End";
+            }
         }
         return result;
     }

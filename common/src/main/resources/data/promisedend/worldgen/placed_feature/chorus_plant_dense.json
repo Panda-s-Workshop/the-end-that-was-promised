@@ -2,6 +2,10 @@
   "feature": "minecraft:chorus_plant",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "chorus_plant_dense"
+    },
+    {
       "type": "minecraft:count",
       "count": {
         "type": "minecraft:uniform",

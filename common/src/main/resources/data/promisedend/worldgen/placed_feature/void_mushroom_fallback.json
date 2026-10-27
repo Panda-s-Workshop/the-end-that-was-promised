@@ -1,0 +1,27 @@
+{
+  "feature": "promisedend:huge_void_mushroom",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "void_mushroom_fallback"
+    },
+    {
+      "type": "promisedend:terrain_off"
+    },
+    {
+      "type": "promisedend:chunk_chance",
+      "chance": 2,
+      "salt": "void_mushroom_fallback"
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

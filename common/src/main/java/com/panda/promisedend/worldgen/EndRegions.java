@@ -28,6 +28,9 @@ public final class EndRegions {
         VOIDSCAR_WASTES("promisedend:voidscar_wastes"),
         SKYFALL_ARCHIPELAGO("promisedend:skyfall_archipelago"),
         BLOOM_MEADOWS("promisedend:bloom_meadows"),
+        CHORUS_CANOPY("promisedend:chorus_canopy"),
+        VOID_FUNGUS_BARRENS("promisedend:void_fungus_barrens"),
+        HANGING_GARDENS("promisedend:hanging_gardens"),
         UNFINISHED_EDGE("promisedend:unfinished_edge");
 
         public final String id;
@@ -44,16 +47,16 @@ public final class EndRegions {
     /**
      * A region's theme: the biome each terrain class becomes inside it. Weights sum to 100. The real End is about 18 %
      * highlands, 26 % midlands, 11 % barrens and 45 % small islands (GameTest {@code outer_end_shares}), so a highland
-     * biome of ours with a theme to itself is about a fifth of its weight: with five themes, 4-5 % of the outer End.
+     * biome of ours with a theme to itself is about a fifth of its weight: with five themes, about 3.5-4 % of the outer End.
      * Vanilla's own theme stays small: its small islands in the Crystal theme already give vanilla most of its quarter,
-     * which is why Crystal is the heaviest (and the Skyfall, on the other themes' islands, stays under 30 %). The Wilds lend their highlands, barrens and islands to the Grove's biomes
-     * until their own are built (one at a time, DECISIONS 65).
+     * which is why Crystal is the heaviest. The Wilds are the living End, a biome of their own for each terrain class;
+     * their barrens are the smallest share of ours, about 2 %, since the barrens are the rarest class.
      */
     enum Theme {
         GROVE(21, Biome.CHORUS_THICKET, Biome.LUMEN_MIRE, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO),
         CRYSTAL(28, Biome.RESONANT_SPIRES, Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SMALL_END_ISLANDS),
         ANCIENT(20, Biome.HOLLOW_HIGHLANDS, Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO),
-        WILDS(21, Biome.CHORUS_THICKET, Biome.BLOOM_MEADOWS, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO),
+        WILDS(21, Biome.CHORUS_CANOPY, Biome.BLOOM_MEADOWS, Biome.VOID_FUNGUS_BARRENS, Biome.HANGING_GARDENS),
         VANILLA(10, Biome.END_HIGHLANDS, Biome.END_MIDLANDS, Biome.END_BARRENS, Biome.SMALL_END_ISLANDS);
 
         final int weight;

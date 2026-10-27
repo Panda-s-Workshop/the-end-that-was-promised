@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "promisedend:void_mushroom",
+    "promisedend:void_mushroom",
+    "minecraft:bowl"
+  ],
+  "result": {
+    "id": "promisedend:void_mushroom_stew"
+  }
+}

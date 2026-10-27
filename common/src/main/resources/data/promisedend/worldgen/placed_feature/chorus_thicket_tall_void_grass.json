@@ -2,6 +2,10 @@
   "feature": "promisedend:tall_void_grass",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "chorus_thicket_tall_void_grass"
+    },
+    {
       "type": "minecraft:count",
       "count": 4
     },

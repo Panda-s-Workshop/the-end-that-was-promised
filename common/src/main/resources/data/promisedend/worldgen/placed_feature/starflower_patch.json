@@ -2,6 +2,10 @@
   "feature": "promisedend:starflower",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "starflower_patch"
+    },
+    {
       "type": "minecraft:count",
       "count": 3
     },

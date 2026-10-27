@@ -2,6 +2,10 @@
   "feature": "promisedend:updraft_vent",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "updraft_vent_fallback"
+    },
+    {
       "type": "promisedend:terrain_off"
     },
     {

@@ -2,6 +2,10 @@
   "feature": "promisedend:crumbling_edge",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "crumbling_edge"
+    },
+    {
       "type": "minecraft:biome"
     }
   ]

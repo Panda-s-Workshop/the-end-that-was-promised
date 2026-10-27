@@ -32,7 +32,7 @@ public class CodexScreen extends Screen {
     static final int GOAL_Y = 34, GOAL_H = 24;
 
     static final Identifier BG = PromisedEnd.id("textures/gui/codex.png");
-    // ink on the pale pages (the Voidstone and purpur ramps, docs/ART_STYLE.md)
+    // ink on the pale pages (the Voidstone and purpur ramps)
     static final int INK = 0xFF1A1524, INK_MUTED = 0xFF4C4267, INK_RULE = 0xFFA97CA9, DONE = 0xFF6E4A6E, SEAL = 0xFF8C628C;
 
     private int x0, y0;

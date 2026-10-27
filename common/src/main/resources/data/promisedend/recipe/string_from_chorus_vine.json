@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "string",
+  "ingredients": [
+    "promisedend:chorus_vine",
+    "promisedend:chorus_vine",
+    "promisedend:chorus_vine"
+  ],
+  "result": {
+    "id": "minecraft:string"
+  }
+}

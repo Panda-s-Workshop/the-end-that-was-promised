@@ -19,6 +19,9 @@ import net.minecraft.world.level.block.CeilingHangingSignBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.FenceGateBlock;
+import net.minecraft.world.level.block.HugeMushroomBlock;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.sounds.AmbientLeavesBlockSoundPlayer;
 import net.minecraft.world.level.block.PressurePlateBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.ShelfBlock;
@@ -179,13 +182,14 @@ public final class ModBlocks {
             RotatedPillarBlock::new, ANCIENT_PURPUR_CUT));
     public static final DeferredBlock<Block> ANCIENT_PURPUR_TILES = simple("ancient_purpur_tiles", ANCIENT_PURPUR_CUT);
 
-    // ---- Bloom Meadows: two glowing flowers in the Wilds' grass, each a dye
+    // ---- Bloom Meadows: two glowing flowers in the Wilds' grass, each a dye. The glow is the texture's alone: a block
+    // light, a meadow of them, would keep the Endermen off every meadow
     public static final DeferredBlock<com.panda.promisedend.block.EndFlowerBlock> ENDER_BLOOM = withHint(BLOCKS.registerBlock("ender_bloom",
             com.panda.promisedend.block.EndFlowerBlock::new, p -> p.mapColor(MapColor.COLOR_MAGENTA).noCollision().instabreak()
-                    .sound(SoundType.AZALEA).offsetType(BlockBehaviour.OffsetType.XZ).lightLevel(s -> 6).pushReaction(PushReaction.POPPED)), 2);
+                    .sound(SoundType.AZALEA).offsetType(BlockBehaviour.OffsetType.XZ).pushReaction(PushReaction.POPPED)), 2);
     public static final DeferredBlock<com.panda.promisedend.block.EndFlowerBlock> STARFLOWER = withHint(BLOCKS.registerBlock("starflower",
             com.panda.promisedend.block.EndFlowerBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).noCollision().instabreak()
-                    .sound(SoundType.AZALEA).offsetType(BlockBehaviour.OffsetType.XZ).lightLevel(s -> 4).pushReaction(PushReaction.POPPED)), 2);
+                    .sound(SoundType.AZALEA).offsetType(BlockBehaviour.OffsetType.XZ).pushReaction(PushReaction.POPPED)), 2);
 
     // ---- Void Grass: the outer End's ground cover, short and tall, as vanilla's grass
     public static final DeferredBlock<com.panda.promisedend.block.VoidGrassBlock> VOID_GRASS = withHint(BLOCKS.registerBlock("void_grass",
@@ -201,6 +205,38 @@ public final class ModBlocks {
             com.panda.promisedend.block.EchoAmberClusterBlock::new, p -> p.mapColor(MapColor.COLOR_ORANGE).forceSolidOn().noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER).strength(1.5F).lightLevel(com.panda.promisedend.block.EchoAmberClusterBlock::light)
                     .pushReaction(PushReaction.POPPED)), 2);
+
+    // ---- the Chorus Canopy: trees of chorus timber, their leaves, the sprout they drop, the vines under them
+    /** As vanilla's leaves (they decay away from a log; {@code #minecraft:logs} holds the chorus logs), but fireproof as the timber is. */
+    public static final DeferredBlock<LeavesBlock> CHORUS_LEAVES = withItem(BLOCKS.registerBlock("chorus_leaves",
+            p -> new LeavesBlock(AmbientLeavesBlockSoundPlayer.noAmbientSound(), p), p -> p.mapColor(MapColor.COLOR_PURPLE).strength(0.2F)
+                    .randomTicks().sound(SoundType.AZALEA_LEAVES).noOcclusion().isValidSpawn((s, l, pos, e) -> false)
+                    .isSuffocating((s, l, pos) -> false)
+                    .pushReaction(PushReaction.POPPED).isRedstoneConductor((s, l, pos) -> false)));
+    public static final DeferredBlock<com.panda.promisedend.block.ChorusSproutBlock> CHORUS_SPROUT = withHint(BLOCKS.registerBlock("chorus_sprout",
+            com.panda.promisedend.block.ChorusSproutBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).noCollision().randomTicks()
+                    .instabreak().sound(SoundType.AZALEA).pushReaction(PushReaction.POPPED)), 1);
+    public static final DeferredBlock<com.panda.promisedend.block.HangingVineBlock> CHORUS_VINE = withHint(BLOCKS.registerBlock("chorus_vine",
+            p -> new com.panda.promisedend.block.HangingVineBlock(ModTags.CHORUS_VINE_ANCHOR, p), p -> p.mapColor(MapColor.COLOR_PURPLE)
+                    .noCollision().randomTicks().instabreak().sound(SoundType.CAVE_VINES).pushReaction(PushReaction.POPPED)), 2);
+
+    // ---- the Void Fungus Barrens: Void Mycelium, the Void Mushroom on it, and the huge ones it grows into
+    /** End stone grown over, as the other mosses: it drops end stone without Silk Touch. */
+    public static final DeferredBlock<Block> VOID_MYCELIUM = withHint(BLOCKS.registerSimpleBlock("void_mycelium",
+            p -> p.mapColor(MapColor.TERRACOTTA_BLUE).strength(3.0F, 9.0F).sound(SoundType.NYLIUM).requiresCorrectToolForDrops()), 1);
+    public static final DeferredBlock<com.panda.promisedend.block.VoidMushroomBlock> VOID_MUSHROOM = withHint(BLOCKS.registerBlock("void_mushroom",
+            com.panda.promisedend.block.VoidMushroomBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).noCollision().randomTicks().instabreak()
+                    .sound(SoundType.FUNGUS).lightLevel(s -> 1).pushReaction(PushReaction.POPPED)), 2);
+    public static final DeferredBlock<HugeMushroomBlock> VOID_MUSHROOM_BLOCK = withItem(BLOCKS.registerBlock("void_mushroom_block",
+            HugeMushroomBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).strength(0.2F).sound(SoundType.WOOD).ignitedByLava()));
+    public static final DeferredBlock<HugeMushroomBlock> VOID_MUSHROOM_STEM = withItem(BLOCKS.registerBlock("void_mushroom_stem",
+            HugeMushroomBlock::new, p -> p.mapColor(MapColor.TERRACOTTA_WHITE).strength(0.2F).sound(SoundType.WOOD).ignitedByLava()));
+
+    // ---- the Hanging Gardens: Void Berry vines under the islets; the berries are their item, as glow berries are
+    public static final DeferredBlock<com.panda.promisedend.block.VoidBerryVineBlock> VOID_BERRY_VINE = BLOCKS.registerBlock("void_berry_vine",
+            p -> new com.panda.promisedend.block.VoidBerryVineBlock(ModTags.VOID_BERRY_VINE_ANCHOR, p), p -> p.mapColor(MapColor.COLOR_MAGENTA)
+                    .noCollision().randomTicks().instabreak().sound(SoundType.CAVE_VINES).lightLevel(com.panda.promisedend.block.VoidBerryVineBlock::light)
+                    .pushReaction(PushReaction.POPPED));
 
     private ModBlocks() {}
 

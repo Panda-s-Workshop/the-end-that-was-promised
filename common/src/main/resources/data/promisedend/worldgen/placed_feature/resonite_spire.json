@@ -2,6 +2,10 @@
   "feature": "promisedend:resonite_spire",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "resonite_spire"
+    },
+    {
       "type": "promisedend:chunk_chance",
       "chance": 2,
       "salt": "resonite_spire"

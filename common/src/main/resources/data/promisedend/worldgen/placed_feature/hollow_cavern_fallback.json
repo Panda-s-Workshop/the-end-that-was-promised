@@ -2,6 +2,10 @@
   "feature": "promisedend:hollow_cavern_fallback",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "hollow_cavern_fallback"
+    },
+    {
       "type": "promisedend:chunk_chance",
       "chance": 3,
       "salt": "hollow_cavern_fallback"

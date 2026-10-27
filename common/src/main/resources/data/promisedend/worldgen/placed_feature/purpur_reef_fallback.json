@@ -2,6 +2,10 @@
   "feature": "promisedend:purpur_reef_fallback",
   "placement": [
     {
+      "type": "promisedend:stable_seed",
+      "salt": "purpur_reef_fallback"
+    },
+    {
       "type": "promisedend:chunk_chance",
       "chance": 3,
       "salt": "purpur_reef_fallback"

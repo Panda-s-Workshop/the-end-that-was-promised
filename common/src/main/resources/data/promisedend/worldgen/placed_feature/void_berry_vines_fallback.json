@@ -1,0 +1,30 @@
+{
+  "feature": "promisedend:void_berry_vines",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "void_berry_vines_fallback"
+    },
+    {
+      "type": "promisedend:terrain_off"
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "min_inclusive": {
+          "absolute": 74
+        },
+        "max_inclusive": {
+          "absolute": 76
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

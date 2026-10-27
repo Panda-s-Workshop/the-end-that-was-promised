@@ -1,0 +1,23 @@
+{
+  "feature": "promisedend:huge_void_mushroom",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "huge_void_mushroom"
+    },
+    {
+      "type": "minecraft:count",
+      "count": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

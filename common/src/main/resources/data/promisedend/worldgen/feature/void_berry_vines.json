@@ -1,0 +1,14 @@
+{
+  "type": "promisedend:hanging_vine",
+  "vine": "promisedend:void_berry_vine",
+  "anchor": "promisedend:void_berry_vine_anchor",
+  "tries": 32,
+  "spread": 7,
+  "height": 40,
+  "length": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 2,
+    "max_inclusive": 8
+  },
+  "chance": 0.5
+}

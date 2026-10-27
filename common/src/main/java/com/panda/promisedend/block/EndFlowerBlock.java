@@ -18,7 +18,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
- * A flower of Bloom Meadows (the Ender Bloom, the Starflower): it glows a little, stands where Void Grass stands
+ * A flower of Bloom Meadows (the Ender Bloom, the Starflower): its heart glows (the texture's, not a light), it stands
+ * where Void Grass stands
  * ({@code #promisedend:void_grass_ground}: end stone and the End's mosses), drops itself and crafts into a dye. Bone
  * meal puts another of its kind on open ground within {@link #SPREAD} blocks, so one flower found is a supply of dye,
  * as vanilla's flowers are from a grass block.
@@ -41,11 +42,14 @@ public class EndFlowerBlock extends VegetationBlock implements BonemealableBlock
         return below.is(ModTags.VOID_GRASS_GROUND);
     }
 
-    /** Open ground within {@link #SPREAD} blocks of {@code pos}, a block either way up or down: air over a ground block. */
+    /**
+     * Open ground within {@link #SPREAD} blocks of {@code pos}, a block either way up or down: air, or a plant a block
+     * placed there replaces (Void Grass), over a ground block.
+     */
     private List<BlockPos> openGround(LevelReader level, BlockPos pos) {
         List<BlockPos> out = new ArrayList<>();
         for (BlockPos p : BlockPos.betweenClosed(pos.offset(-SPREAD, -1, -SPREAD), pos.offset(SPREAD, 1, SPREAD))) {
-            if (level.getBlockState(p).isAir() && level.getBlockState(p.below()).is(ModTags.VOID_GRASS_GROUND)) out.add(p.immutable());
+            if (level.getBlockState(p).canBeReplaced() && level.getBlockState(p.below()).is(ModTags.VOID_GRASS_GROUND)) out.add(p.immutable());
         }
         return out;
     }

@@ -35,18 +35,26 @@ public record ChunkChanceFilter(int chance, String salt) implements PlacementFil
 
     @Override
     public boolean shouldPlace(PlacementContext context, RandomSource random, BlockPos pos) {
+        return pick(worldSeed(context), salt, pos.getX() >> 4, pos.getZ() >> 4, chance);
+    }
+
+    /** The world's seed, or the one a GameTest stands in for. */
+    static long worldSeed(PlacementContext context) {
         Long test = SEED_FOR_TESTS.get();
-        long seed = test != null ? test : context.getLevel().getSeed();
-        return pick(seed, salt, pos.getX() >> 4, pos.getZ() >> 4, chance);
+        return test != null ? test : context.getLevel().getSeed();
     }
 
     /** Whether the chunk at {@code cx}, {@code cz} is one of the one in {@code chance}: a SplitMix64 hash of the three. */
     public static boolean pick(long seed, String salt, int cx, int cz, int chance) {
+        return Long.remainderUnsigned(hash(seed, salt, cx, cz), chance) == 0;
+    }
+
+    /** A SplitMix64 hash of the seed, the salt and the chunk. */
+    static long hash(long seed, String salt, int cx, int cz) {
         long h = seed ^ salt.hashCode() * 0x9E3779B97F4A7C15L ^ ((cx & 0xFFFFFFFFL) | ((long) cz << 32)) * 0xC2B2AE3D27D4EB4FL;
         h = (h ^ (h >>> 30)) * 0xBF58476D1CE4E5B9L;
         h = (h ^ (h >>> 27)) * 0x94D049BB133111EBL;
-        h ^= h >>> 31;
-        return Long.remainderUnsigned(h, chance) == 0;
+        return h ^ (h >>> 31);
     }
 
     @Override

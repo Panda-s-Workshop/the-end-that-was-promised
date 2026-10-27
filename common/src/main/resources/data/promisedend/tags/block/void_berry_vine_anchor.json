@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:end_stone",
+    "promisedend:chorus_moss",
+    "promisedend:lumen_moss",
+    "promisedend:void_mycelium"
+  ]
+}

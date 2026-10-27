@@ -38,6 +38,36 @@ class DataNumbersTest {
         }
     }
 
+    /**
+     * Every terrain-off copy (a {@code *_fallback} placed feature) builds only while our terrain is off: its feature
+     * checks that itself ({@code "fallback": true}, ours), or its placement starts with {@code promisedend:terrain_off}
+     * (a vanilla feature, or one of ours without the flag). With terrain on, vanilla's biomes stay vanilla's.
+     */
+    @Test
+    void everyFallbackWaitsForTerrainOff() throws IOException {
+        int checked = 0;
+        try (var files = Files.list(DATA.resolve("worldgen/placed_feature"))) {
+            for (Path file : files.filter(f -> f.getFileName().toString().endsWith("_fallback.json")).toList()) {
+                JsonObject placed = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+                String feature = placed.get("feature").getAsString();
+                boolean flagged = false;
+                if (feature.startsWith("promisedend:")) {
+                    JsonObject config = read("worldgen/feature/" + feature.substring("promisedend:".length()) + ".json");
+                    flagged = config.has("fallback") && config.get("fallback").getAsBoolean();
+                }
+                // the first step that places: the random's reseeding goes before everything
+                String first = null;
+                for (var m : placed.getAsJsonArray("placement")) {
+                    first = m.getAsJsonObject().get("type").getAsString();
+                    if (!first.equals("promisedend:stable_seed")) break;
+                }
+                assertTrue(flagged || first.equals("promisedend:terrain_off"), file.getFileName() + " builds with terrain on: " + feature + ", placed first by " + first);
+                checked++;
+            }
+        }
+        assertTrue(checked >= 16, "only " + checked + " terrain-off copies found");
+    }
+
     @Test
     void outpostsSpacedTwelveSeparatedFiveInTheRing() throws IOException {
         JsonObject placement = read("worldgen/structure_set/rim_outpost.json").getAsJsonObject("placement");

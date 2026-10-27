@@ -9,7 +9,12 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.component.Consumables;
+import net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect;
 import net.minecraft.world.item.ToolMaterial;
 import net.minecraft.world.item.equipment.ArmorMaterial;
 import net.minecraft.world.item.equipment.ArmorType;
@@ -62,6 +67,17 @@ public final class ModItems {
     public static final DeferredItem<HintItem> VOIDSTEEL_SCRAP = ITEMS.registerItem("voidsteel_scrap", p -> new HintItem(p, "voidsteel_scrap", 2));
     public static final DeferredItem<HintItem> ECHO_AMBER = ITEMS.registerItem("echo_amber", p -> new HintItem(p, "echo_amber", 2));
     public static final DeferredItem<Item> RESONITE_INGOT = ITEMS.registerSimpleItem("resonite_ingot");
+
+    // ---- the Wilds' food: Void Berries (they plant the vine, as glow berries do) and the Void Mushroom's stew
+    public static final DeferredItem<com.panda.promisedend.item.HintBlockItem> VOID_BERRIES = ITEMS.registerItem("void_berries",
+            p -> new com.panda.promisedend.item.HintBlockItem(ModBlocks.VOID_BERRY_VINE.get(), p, "void_berries", 2),
+            p -> p.food(new FoodProperties.Builder().nutrition(3).saturationModifier(0.3F).build()).useItemDescriptionPrefix());
+    /** Mushroom stew's numbers, and the End's own lightness: ten seconds of Slow Falling. */
+    public static final DeferredItem<HintItem> VOID_MUSHROOM_STEW = ITEMS.registerItem("void_mushroom_stew",
+            p -> new HintItem(p, "void_mushroom_stew", 1), p -> p.stacksTo(1)
+                    .food(new FoodProperties.Builder().nutrition(6).saturationModifier(0.6F).build(), Consumables.defaultFood()
+                            .onConsume(new ApplyStatusEffectsConsumeEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 200))).build())
+                    .usingConvertsTo(net.minecraft.world.item.Items.BOWL));
     public static final ToolMaterial RESONITE = material(GearTiers.RESONITE, BlockTags.INCORRECT_FOR_DIAMOND_TOOL, ModTags.RESONITE_TOOL_MATERIALS);
     public static final DeferredItem<Item> RESONITE_SWORD = ITEMS.registerSimpleItem("resonite_sword",
             p -> p.sword(RESONITE, GearTiers.SWORD_BASE, GearTiers.SWORD_SPEED));
