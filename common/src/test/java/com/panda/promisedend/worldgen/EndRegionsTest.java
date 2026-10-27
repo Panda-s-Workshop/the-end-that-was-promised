@@ -109,7 +109,7 @@ class EndRegionsTest {
             }
         }
         Set<Biome> outerBiomes = EnumSet.of(Biome.CHORUS_THICKET, Biome.RESONANT_SPIRES, Biome.HOLLOW_HIGHLANDS, Biome.LUMEN_MIRE,
-                Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO);
+                Biome.SHULKER_REEFS, Biome.VOIDSCAR_WASTES, Biome.SKYFALL_ARCHIPELAGO, Biome.BLOOM_MEADOWS);
         for (Biome b : outerBiomes) assertTrue(count.getOrDefault(b, 0) > 0, b + " never appears");
         // within its own terrain class, every biome takes a real share and vanilla's own theme still shows (a tenth of
         // the regions; most of vanilla's quarter of the outer End is the small islands of the Crystal theme)
@@ -128,8 +128,8 @@ class EndRegionsTest {
 
     /**
      * Over a 20,000-sample grid, with vanilla's terrain classes in the real End's mix (GameTest {@code outer_end_shares}:
-     * highlands 17.9 %, midlands 25.9 %, barrens 11.0 %, small islands 45.2 %), each outer biome of ours is 5-30 % of the
-     * outer End and vanilla's own keep 20-30 %. Over five seeds: one seed's 600 or so regions leave each theme's share
+     * highlands 17.9 %, midlands 25.9 %, barrens 11.0 %, small islands 45.2 %), each outer biome of ours is 3-30 % of the
+     * outer End (a highland biome with a theme to itself is about 4 %, DECISIONS 66) and vanilla's own keep 20-30 %. Over five seeds: one seed's 600 or so regions leave each theme's share
      * a couple of points either way.
      */
     @Test
@@ -158,7 +158,7 @@ class EndRegionsTest {
                 vanilla += e.getValue();
                 continue;
             }
-            assertTrue(share >= 0.05 && share <= 0.30, e.getKey() + " is " + Math.round(share * 1000) / 10.0 + " % of the outer End");
+            assertTrue(share >= 0.03 && share <= 0.30, e.getKey() + " is " + Math.round(share * 1000) / 10.0 + " % of the outer End");
         }
         double v = (double) vanilla / samples;
         assertTrue(v >= 0.20 && v <= 0.30, "vanilla keeps " + Math.round(v * 1000) / 10.0 + " %");

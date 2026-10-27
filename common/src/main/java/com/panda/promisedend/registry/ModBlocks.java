@@ -179,6 +179,14 @@ public final class ModBlocks {
             RotatedPillarBlock::new, ANCIENT_PURPUR_CUT));
     public static final DeferredBlock<Block> ANCIENT_PURPUR_TILES = simple("ancient_purpur_tiles", ANCIENT_PURPUR_CUT);
 
+    // ---- Bloom Meadows: two glowing flowers in the Wilds' grass, each a dye
+    public static final DeferredBlock<com.panda.promisedend.block.EndFlowerBlock> ENDER_BLOOM = withHint(BLOCKS.registerBlock("ender_bloom",
+            com.panda.promisedend.block.EndFlowerBlock::new, p -> p.mapColor(MapColor.COLOR_MAGENTA).noCollision().instabreak()
+                    .sound(SoundType.AZALEA).offsetType(BlockBehaviour.OffsetType.XZ).lightLevel(s -> 6).pushReaction(PushReaction.POPPED)), 2);
+    public static final DeferredBlock<com.panda.promisedend.block.EndFlowerBlock> STARFLOWER = withHint(BLOCKS.registerBlock("starflower",
+            com.panda.promisedend.block.EndFlowerBlock::new, p -> p.mapColor(MapColor.COLOR_CYAN).noCollision().instabreak()
+                    .sound(SoundType.AZALEA).offsetType(BlockBehaviour.OffsetType.XZ).lightLevel(s -> 4).pushReaction(PushReaction.POPPED)), 2);
+
     // ---- Void Grass: the outer End's ground cover, short and tall, as vanilla's grass
     public static final DeferredBlock<com.panda.promisedend.block.VoidGrassBlock> VOID_GRASS = withHint(BLOCKS.registerBlock("void_grass",
             com.panda.promisedend.block.VoidGrassBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).replaceable().noCollision().instabreak()

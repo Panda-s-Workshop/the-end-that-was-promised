@@ -2,8 +2,9 @@
   "feature": "promisedend:updraft_vent",
   "placement": [
     {
-      "type": "minecraft:rarity_filter",
-      "chance": 3
+      "type": "promisedend:chunk_chance",
+      "chance": 3,
+      "salt": "updraft_vent"
     },
     {
       "type": "minecraft:in_square"

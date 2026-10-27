@@ -27,7 +27,7 @@ import net.minecraft.world.level.block.Block;
 public final class OuterProgress {
     public static final Identifier ENTER_OUTER = PromisedEnd.id("outer/enter_outer");
     /** The outer biomes that have a visit advancement, {@code outer/visit_<biome>}. */
-    public static final List<String> BIOMES = List.of("chorus_thicket", "lumen_mire", "resonant_spires", "skyfall_archipelago", "voidscar_wastes", "shulker_reefs", "hollow_highlands");
+    public static final List<String> BIOMES = List.of("chorus_thicket", "lumen_mire", "resonant_spires", "skyfall_archipelago", "voidscar_wastes", "shulker_reefs", "hollow_highlands", "bloom_meadows");
     public static final int NEAR = 4;
     /** The terrain-off check reads a 9-block cube round the player, so it runs every other distance check. */
     public static final int MARKER_INTERVAL = RimProgress.CHECK_INTERVAL * 2;

@@ -38,6 +38,8 @@ public final class ModWorldgen {
     public static final Supplier<MapCodec<com.panda.promisedend.worldgen.HollowCavernFeature>> HOLLOW_CAVERN = FEATURE_TYPES.register("hollow_cavern",
             () -> com.panda.promisedend.worldgen.HollowCavernFeature.CODEC);
     public static final Supplier<MapCodec<TerrainOffFilter>> TERRAIN_OFF = MODIFIERS.register("terrain_off", () -> TerrainOffFilter.CODEC);
+    public static final Supplier<MapCodec<com.panda.promisedend.worldgen.ChunkChanceFilter>> CHUNK_CHANCE = MODIFIERS.register("chunk_chance",
+            () -> com.panda.promisedend.worldgen.ChunkChanceFilter.CODEC);
     public static final Supplier<MapCodec<RingSpreadPlacement>> RING_SPREAD = PLACEMENTS.register("ring_spread", () -> RingSpreadPlacement.CODEC);
 
     private ModWorldgen() {}

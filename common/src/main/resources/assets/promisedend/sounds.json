@@ -172,6 +172,17 @@
       }
     ]
   },
+  "ambient.bloom_meadows.additions": {
+    "subtitle": "subtitles.promisedend.bloom_meadows.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.azalea_leaves.fall",
+        "type": "event",
+        "pitch": 0.8,
+        "volume": 0.5
+      }
+    ]
+  },
   "ambient.hollow_highlands.additions": {
     "subtitle": "subtitles.promisedend.hollow_highlands.additions",
     "sounds": [

@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#promisedend:bloom_fallback",
+  "features": "promisedend:starflower_fallback",
+  "step": "vegetal_decoration"
+}

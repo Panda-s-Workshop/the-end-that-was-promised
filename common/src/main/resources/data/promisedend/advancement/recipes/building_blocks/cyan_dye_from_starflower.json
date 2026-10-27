@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:cyan_dye_from_starflower"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_starflower": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:starflower"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_starflower"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:cyan_dye_from_starflower"
+    ]
+  }
+}

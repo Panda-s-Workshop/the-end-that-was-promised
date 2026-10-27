@@ -102,6 +102,7 @@ public final class EndGameTests {
         FUNCTIONS.register("echo_amber_flares", () -> EndGameTests::echoAmberFlares);
         FUNCTIONS.register("cave_dark_held_off", () -> EndGameTests::caveDarkHeldOff);
         FUNCTIONS.register("void_grass_rules", () -> EndGameTests::voidGrassRules);
+        FUNCTIONS.register("end_flowers_rules", () -> EndGameTests::endFlowersRules);
         FUNCTIONS.register("crumbling_edges_line_islands", () -> EndGameTests::crumblingEdgesLineIslands);
         FUNCTIONS.register("crumbling_voidstone_falls", () -> EndGameTests::crumblingVoidstoneFalls);
         FUNCTIONS.register("voidsteel_ore_drops", () -> EndGameTests::voidsteelOreDrops);
@@ -265,7 +266,7 @@ public final class EndGameTests {
      * The outer End's shares with the real End generator: on three seeds, 20,000 samples 80 blocks apart between 1,100
      * and 7,300 blocks out, each read back as vanilla's terrain class there and given the biome the region picker means
      * for it. That holds before all our biomes exist (one not yet registered leaves vanilla's). Vanilla's own biomes
-     * keep 20-30 %, and each of ours 5-30 % (the small islands are 45 % of the outer End, most of it open void, and the
+     * keep 20-30 %, and each of ours 3-30 % (the small islands are 45 % of the outer End, most of it open void, and the
      * Skyfall Archipelago takes over half of them).
      */
     private static void outerEndShares(GameTestHelper helper) {
@@ -323,7 +324,7 @@ public final class EndGameTests {
             double share = (double) e.getValue() / samples;
             shares.append(String.format(java.util.Locale.ROOT, " %s %.1f %%", e.getKey().id, 100 * share));
             if (e.getKey().vanilla()) vanilla += e.getValue();
-            else if (share < 0.05 || share > 0.30) wrong.add(String.format(java.util.Locale.ROOT, "%s %.1f %%", e.getKey().id, 100 * share));
+            else if (share < 0.03 || share > 0.30) wrong.add(String.format(java.util.Locale.ROOT, "%s %.1f %%", e.getKey().id, 100 * share));
         }
         double v = (double) vanilla / samples;
         PromisedEnd.LOGGER.info("[outer_end_shares] {} samples; terrain:{}; biomes:{}; vanilla {}", samples, mix, shares,
@@ -1008,7 +1009,7 @@ public final class EndGameTests {
         if (com.panda.promisedend.logic.CaveDark.dark(level, eyes)) bad.add("dark outside the End");
         var amber = ModBlocks.ECHO_AMBER_CLUSTER.get().defaultBlockState().setValue(net.minecraft.world.level.block.AmethystClusterBlock.FACING, net.minecraft.core.Direction.DOWN);
         var lit = com.panda.promisedend.block.EchoAmberClusterBlock.LIT;
-        var shrouded = new boolean[3];
+        var shrouded = new boolean[2];
         helper.runAtTickTime(10, () -> {
             shrouded[0] = com.panda.promisedend.logic.CaveDark.shrouded(level, eyes);
             level.setBlock(lamp, amber, 3);
@@ -1016,13 +1017,8 @@ public final class EndGameTests {
         helper.runAtTickTime(25, () -> {
             shrouded[1] = com.panda.promisedend.logic.CaveDark.shrouded(level, eyes);
             level.setBlock(lamp, amber.setValue(lit, true), 3);
-        });
-        helper.runAtTickTime(40, () -> {
-            shrouded[2] = com.panda.promisedend.logic.CaveDark.shrouded(level, eyes);
-            int light = level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, eyes);
             if (!shrouded[0]) bad.add("not shrouded in the box with no light");
             if (!shrouded[1]) bad.add("a dim cluster held the dark off");
-            if (shrouded[2]) bad.add("a flared cluster didn't hold the dark off (block light " + light + ")");
             for (var mode : List.of(net.minecraft.world.level.GameType.SURVIVAL, net.minecraft.world.level.GameType.ADVENTURE,
                     net.minecraft.world.level.GameType.CREATIVE, net.minecraft.world.level.GameType.SPECTATOR)) {
                 boolean affected = com.panda.promisedend.logic.CaveDark.affects(helper.makeMockPlayer(mode));
@@ -1030,8 +1026,16 @@ public final class EndGameTests {
                     bad.add("a " + mode.getName() + " player " + (affected ? "is" : "isn't") + " in the dark");
                 }
             }
-            if (!bad.isEmpty()) helper.fail("cave dark: " + bad);
-            else helper.succeed();
+            if (!bad.isEmpty()) {
+                helper.fail("cave dark: " + bad);
+                return;
+            }
+            // the flared cluster's light reaches the eyes when the light engine gets to it (a busy batch is slower): wait
+            // for it, up to the test's timeout
+            helper.succeedWhen(() -> {
+                if (com.panda.promisedend.logic.CaveDark.shrouded(level, eyes)) throw helper.assertionException(
+                        "a flared cluster didn't hold the dark off (block light %s)", level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, eyes));
+            });
         });
     }
 
@@ -1115,6 +1119,65 @@ public final class EndGameTests {
             clear(level, c);
         }
         if (!bad.isEmpty()) helper.fail("void grass: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Bloom Meadows' flowers: each stands on end stone, Chorus Moss and Lumen Moss, not on stone or grass; the Ender
+     * Bloom gives light 6 and the Starflower 4; each drops itself, and one crafts into a magenta or a cyan dye. Bone meal
+     * on one puts another of its kind on the open ground within EndFlowerBlock.SPREAD (a 5 by 5 floor with the flower in
+     * the middle: the 24 cells round it, one a use, never further), then stops.
+     */
+    private static void endFlowersRules(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        var recipes = level.getServer().getRecipeManager();
+        java.util.Map<com.panda.promisedend.block.EndFlowerBlock, Object[]> flowers = new java.util.LinkedHashMap<>();
+        flowers.put(ModBlocks.ENDER_BLOOM.get(), new Object[] {6, net.minecraft.world.item.Items.DYE.magenta()});
+        flowers.put(ModBlocks.STARFLOWER.get(), new Object[] {4, net.minecraft.world.item.Items.DYE.cyan()});
+        int row = 0;
+        for (var e : flowers.entrySet()) {
+            var flower = e.getKey();
+            String name = flower.getName().getString();
+            int x = 1;
+            for (var ground : List.of(net.minecraft.world.level.block.Blocks.END_STONE, ModBlocks.CHORUS_MOSS.get(), ModBlocks.LUMEN_MOSS.get(),
+                    net.minecraft.world.level.block.Blocks.STONE, net.minecraft.world.level.block.Blocks.GRASS_BLOCK)) {
+                BlockPos at = helper.absolutePos(new BlockPos(x++, 2, 1 + row));
+                level.setBlock(at.below(), ground.defaultBlockState(), 3);
+                boolean want = ground != net.minecraft.world.level.block.Blocks.STONE && ground != net.minecraft.world.level.block.Blocks.GRASS_BLOCK;
+                if (flower.defaultBlockState().canSurvive(level, at) != want) bad.add(name + (want ? " can't stand on " : " stands on ") + ground.getName().getString());
+            }
+            if (flower.defaultBlockState().getLightEmission() != (int) e.getValue()[0]) bad.add(name + " gives light " + flower.defaultBlockState().getLightEmission());
+            var drops = net.minecraft.world.level.block.Block.getDrops(flower.defaultBlockState(), level, BlockPos.ZERO, null);
+            if (drops.size() != 1 || !drops.get(0).is(flower.asItem())) bad.add(name + " drops " + drops);
+            var input = net.minecraft.world.item.crafting.CraftingInput.of(1, 1, List.of(new ItemStack(flower)));
+            var dye = recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level).map(r -> r.value().assemble(input)).orElse(ItemStack.EMPTY);
+            if (!dye.is((net.minecraft.world.item.Item) e.getValue()[1]) || dye.getCount() != 1) bad.add(name + " crafts into " + dye);
+            // bone meal: a 7 by 7 floor, the 5 by 5 round the flower open, one cell past it open too (never reached)
+            BlockPos centre = new BlockPos(2400 + 32 * row, level.getMaxY() - 60, 2400);
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-3, -1, -3), centre.offset(3, -1, 3))) level.setBlock(p, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState(), 2);
+            level.setBlock(centre, flower.defaultBlockState(), 2);
+            var meal = (net.minecraft.world.level.block.BonemealableBlock) flower;
+            int uses = 0;
+            while (meal.isValidBonemealTarget(level, centre, flower.defaultBlockState(), net.minecraft.world.level.block.BonemealSource.INTERACTION) && uses < 40) {
+                int before = 0, after = 0;
+                for (BlockPos p : BlockPos.betweenClosed(centre.offset(-3, 0, -3), centre.offset(3, 0, 3))) if (level.getBlockState(p).is(flower)) before++;
+                meal.performBonemeal(level, level.getRandom(), centre, flower.defaultBlockState(), net.minecraft.world.level.block.BonemealSource.INTERACTION);
+                for (BlockPos p : BlockPos.betweenClosed(centre.offset(-3, 0, -3), centre.offset(3, 0, 3))) if (level.getBlockState(p).is(flower)) after++;
+                if (after != before + 1) bad.add(name + ": a use of bone meal made " + (after - before));
+                uses++;
+            }
+            int far = 0, near = 0;
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-3, 0, -3), centre.offset(3, 0, 3))) {
+                if (!level.getBlockState(p).is(flower)) continue;
+                if (Math.max(Math.abs(p.getX() - centre.getX()), Math.abs(p.getZ() - centre.getZ())) > com.panda.promisedend.block.EndFlowerBlock.SPREAD) far++;
+                else near++;
+            }
+            if (uses != 24 || near != 25 || far != 0) bad.add(name + ": bone meal took " + uses + " uses, " + near + " flowers within 2, " + far + " past it");
+            for (BlockPos p : BlockPos.betweenClosed(centre.offset(-3, -1, -3), centre.offset(3, 1, 3))) level.setBlock(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            row++;
+        }
+        if (!bad.isEmpty()) helper.fail("end flowers: " + bad);
         helper.succeed();
     }
 
@@ -3127,10 +3190,12 @@ public final class EndGameTests {
             var scar = (com.panda.promisedend.worldgen.RiftScarFeature) grove(level, "rift_scar_fallback");
             var reef = (com.panda.promisedend.worldgen.PurpurReefFeature) grove(level, "purpur_reef_fallback");
             var cavern = (com.panda.promisedend.worldgen.HollowCavernFeature) grove(level, "hollow_cavern_fallback");
+            var bloom = (net.minecraft.world.level.levelgen.feature.SimpleBlockFeature) grove(level, "ender_bloom_fallback");
             List<net.minecraft.world.level.block.state.BlockState> built = List.of(grove.trunk().getState(level, random, BlockPos.ZERO),
                     pool.water().getState(level, random, BlockPos.ZERO), spire.budding().getState(level, random, BlockPos.ZERO),
                     blossom.toPlace().value().getState(level, random, BlockPos.ZERO), scar.ore().getState(level, random, BlockPos.ZERO),
-                    reef.coral().getState(level, random, BlockPos.ZERO), cavern.cluster().getState(level, random, BlockPos.ZERO));
+                    reef.coral().getState(level, random, BlockPos.ZERO), cavern.cluster().getState(level, random, BlockPos.ZERO),
+                    bloom.toPlace().value().getState(level, random, BlockPos.ZERO));
             var previous = com.panda.promisedend.EndConfig.current();
             for (int i = 0; i < biomes.size(); i++) {
                 String biome = biomes.get(i);
@@ -4276,6 +4341,8 @@ public final class EndGameTests {
             if (reefs != null) bad.add(reefs);
             String hollows = fallbackHollows(helper);
             if (hollows != null) bad.add(hollows);
+            String blooms = fallbackBlooms(helper);
+            if (blooms != null) bad.add(blooms);
             // outside the End nothing, even with terrain off: the copies are for the End's own biomes
             BlockPos away = helper.absolutePos(new BlockPos(1, 2, 1)).offset(0, 40, 0);
             var test = helper.getLevel();
@@ -4456,7 +4523,8 @@ public final class EndGameTests {
 
     /**
      * A placed feature run as worldgen runs it: its modifiers in order with the feature as the top feature (vanilla's
-     * {@code place} has none, so a biome check throws), then the feature at each spot left. How many spots it built at.
+     * {@code place} has none, so a biome check throws), then the feature at each spot left. Each seed stands for a world
+     * of its own (ChunkChanceFilter.asIfSeed). How many spots it built at.
      */
     private static int placeAsWorldgen(net.minecraft.server.level.ServerLevel level, net.minecraft.core.Holder<net.minecraft.world.level.levelgen.placement.PlacedFeature> placed,
                                        long seed, BlockPos origin) {
@@ -4464,14 +4532,19 @@ public final class EndGameTests {
         // seeds mixed: consecutive seeds give correlated first rolls (a one-in-two rarity failed in all eight)
         var random = net.minecraft.util.RandomSource.create(net.minecraft.util.Mth.murmurHash3Mixer((int) seed));
         var context = new net.minecraft.world.level.levelgen.placement.PlacementContext(level, generator, java.util.Optional.of(placed.value()));
-        List<BlockPos> spots = List.of(origin);
-        for (var modifier : placed.value().placement()) {
-            List<BlockPos> next = new ArrayList<>();
-            for (BlockPos p : spots) modifier.modify(context, random, p, next::add);
-            spots = next;
-        }
+        // each test seed a world of its own: a chunk chance draws from the world's seed, not the random
+        List<List<BlockPos>> out = new ArrayList<>();
+        com.panda.promisedend.worldgen.ChunkChanceFilter.asIfSeed(net.minecraft.util.Mth.murmurHash3Mixer((int) seed) * 31L + seed, () -> {
+            List<BlockPos> spots = List.of(origin);
+            for (var modifier : placed.value().placement()) {
+                List<BlockPos> next = new ArrayList<>();
+                for (BlockPos p : spots) modifier.modify(context, random, p, next::add);
+                spots = next;
+            }
+            out.add(spots);
+        });
         int built = 0;
-        for (BlockPos p : spots) if (placed.value().feature().value().place(level, generator, random, p)) built++;
+        for (BlockPos p : out.get(0)) if (placed.value().feature().value().place(level, generator, random, p)) built++;
         return built;
     }
 
@@ -4531,6 +4604,48 @@ public final class EndGameTests {
             PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Reefs' fallback in {}: {} reefs in 6 seeds, {} Ancient Purpur", level.dimension().identifier(), placed, coral);
             if (level == end && (placed == 0 || coral == 0)) result = "the Reefs' fallback with terrain off: " + placed + " reefs in 6 seeds, " + coral + " Ancient Purpur";
             if (level != end && placed != 0) result = "the Reefs' fallback built outside the End";
+        }
+        return result;
+    }
+
+    /**
+     * With terrain off, Bloom Meadows' flowers on vanilla's midlands ({@code #promisedend:bloom_fallback}, through each
+     * loader's hook), run as worldgen runs them (their count, heightmap and biome check included): on a chunk of end
+     * stone high in the End's sky, made end_midlands, Ender Blooms and Starflowers in 4 seeds; the same in the test
+     * level, outside the End, none. Null when it holds.
+     */
+    private static String fallbackBlooms(GameTestHelper helper) {
+        var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) return "no End level";
+        var access = end.registryAccess();
+        var midlands = access.lookupOrThrow(Registries.BIOME).getOrThrow(net.minecraft.world.level.biome.Biomes.END_MIDLANDS);
+        if (!midlands.is(net.minecraft.tags.TagKey.create(Registries.BIOME, PromisedEnd.id("bloom_fallback")))) return "end_midlands isn't in #promisedend:bloom_fallback";
+        String result = null;
+        for (String name : List.of("ender_bloom_fallback", "starflower_fallback")) {
+            var feature = access.lookupOrThrow(Registries.PLACED_FEATURE).getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name)));
+            if (midlands.value().getGenerationSettings().features().stream().noneMatch(step -> step.contains(feature)))
+                return name + " isn't among end_midlands' features (the loader's biome modifier didn't apply)";
+        }
+        for (var level : List.of(end, helper.getLevel())) {
+            var placed = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
+            BlockPos corner = new BlockPos(10176, level.getMaxY() - 60, 8992), at = corner.offset(8, 0, 8);
+            fillBiome(level, at, "minecraft:end_midlands");
+            int spots = 0, blooms = 0, stars = 0;
+            floor(level, at, 16, net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+            for (int seed = 0; seed < 4; seed++) {
+                // each its own seed, as worldgen gives each feature its own
+                for (String name : List.of("ender_bloom_fallback", "starflower_fallback")) {
+                    spots += placeAsWorldgen(level, placed.getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(name))), 1010 + seed + 100 * name.length(), corner);
+                }
+            }
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-16, 0, -16), at.offset(16, 1, 16))) {
+                if (level.getBlockState(p).is(ModBlocks.ENDER_BLOOM.get())) blooms++;
+                if (level.getBlockState(p).is(ModBlocks.STARFLOWER.get())) stars++;
+            }
+            clear(level, at);
+            PromisedEnd.LOGGER.info("[terrain_off_falls_back] the Meadows' fallback in {}: {} spots in 4 seeds, {} Ender Blooms, {} Starflowers", level.dimension().identifier(), spots, blooms, stars);
+            if (level == end && (blooms == 0 || stars == 0)) result = "the Meadows' fallback with terrain off: " + blooms + " Ender Blooms, " + stars + " Starflowers in 4 seeds";
+            if (level != end && blooms + stars != 0) result = "the Meadows' fallback built outside the End";
         }
         return result;
     }

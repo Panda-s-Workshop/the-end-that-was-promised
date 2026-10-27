@@ -84,6 +84,11 @@ public final class EndFabric implements ModInitializer {
         // and the caverns and their Echo Amber in #promisedend:hollow_fallback (vanilla's highlands), before the chorus grows
         BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("hollow_fallback"))),
                 GenerationStep.Decoration.LOCAL_MODIFICATIONS, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id("hollow_cavern_fallback")));
+        // and Bloom Meadows' flowers on #promisedend:bloom_fallback (vanilla's midlands), so the dyes exist
+        for (String flower : new String[] {"ender_bloom_fallback", "starflower_fallback"}) {
+            BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("bloom_fallback"))),
+                    GenerationStep.Decoration.VEGETAL_DECORATION, ResourceKey.create(Registries.PLACED_FEATURE, PromisedEnd.id(flower)));
+        }
 
         ServerLifecycleEvents.SERVER_STARTING.register(PromisedEnd::onServerStarting);
         ServerLifecycleEvents.SERVER_STARTED.register(com.panda.promisedend.ServerCheck::onServerStarted);

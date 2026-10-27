@@ -2,8 +2,9 @@
   "feature": "promisedend:resonite_spire",
   "placement": [
     {
-      "type": "minecraft:rarity_filter",
-      "chance": 2
+      "type": "promisedend:chunk_chance",
+      "chance": 2,
+      "salt": "resonite_spire"
     },
     {
       "type": "minecraft:in_square"

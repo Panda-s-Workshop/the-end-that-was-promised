@@ -31,7 +31,7 @@ class DataNumbersTest {
     void debrisIslandsAreOnePerChunkAtTwentyPercentAtY50To80() throws IOException {
         for (String name : new String[] {"rim_debris", "rim_debris_fallback"}) {
             JsonObject placed = read("worldgen/placed_feature/" + name + ".json");
-            assertEquals(5, modifier(placed, "minecraft:rarity_filter").get("chance").getAsInt(), name + ": 1 in 5 chunks, 20 %");
+            assertEquals(5, modifier(placed, "promisedend:chunk_chance").get("chance").getAsInt(), name + ": 1 in 5 chunks, 20 %");
             JsonObject height = modifier(placed, "minecraft:height_range").getAsJsonObject("height");
             assertEquals(50, height.getAsJsonObject("min_inclusive").get("absolute").getAsInt(), name);
             assertEquals(80, height.getAsJsonObject("max_inclusive").get("absolute").getAsInt(), name);
