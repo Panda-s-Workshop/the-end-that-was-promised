@@ -69,6 +69,66 @@
       }
     ]
   },
+  "entity.chorus_weaver.ambient": {
+    "subtitle": "subtitles.promisedend.chorus_weaver.ambient",
+    "sounds": [
+      {
+        "name": "minecraft:block.chorus_flower.grow",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.chorus_weaver.hurt": {
+    "subtitle": "subtitles.promisedend.chorus_weaver.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:block.wood.hit",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.chorus_weaver.death": {
+    "subtitle": "subtitles.promisedend.chorus_weaver.death",
+    "sounds": [
+      {
+        "name": "minecraft:block.chorus_flower.death",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.chorus_weaver.reveal": {
+    "subtitle": "subtitles.promisedend.chorus_weaver.reveal",
+    "sounds": [
+      {
+        "name": "minecraft:block.chorus_flower.grow",
+        "type": "event",
+        "pitch": 1.4
+      }
+    ]
+  },
+  "entity.chorus_weaver.lash": {
+    "subtitle": "subtitles.promisedend.chorus_weaver.lash",
+    "sounds": [
+      {
+        "name": "minecraft:entity.fishing_bobber.throw",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.chorus_weaver.vine_hit": {
+    "subtitle": "subtitles.promisedend.chorus_weaver.vine_hit",
+    "sounds": [
+      {
+        "name": "minecraft:entity.fishing_bobber.retrieve",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
   "entity.ender_dragon.call_wardens": {
     "subtitle": "subtitles.promisedend.ender_dragon.call_wardens",
     "sounds": [

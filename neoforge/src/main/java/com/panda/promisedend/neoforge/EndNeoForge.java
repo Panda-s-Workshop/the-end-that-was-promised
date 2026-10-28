@@ -23,6 +23,14 @@ public final class EndNeoForge {
         modBus.addListener((RegisterEvent e) -> DeferredRegister.all().forEach(register -> registerInto(e, register)));
         modBus.addListener((net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent e) ->
                 com.panda.promisedend.registry.ModEntities.attributes((type, attributes) -> e.put(type, attributes.build())));
+        modBus.addListener((net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent e) ->
+                com.panda.promisedend.registry.ModEntities.spawnRules(new com.panda.promisedend.registry.ModEntities.SpawnRules() {
+                    @Override
+                    public <T extends net.minecraft.world.entity.Mob> void set(net.minecraft.world.entity.EntityType<T> type, net.minecraft.world.entity.SpawnPlacementType placement,
+                                                                               net.minecraft.world.level.levelgen.Heightmap.Types heightmap, net.minecraft.world.entity.SpawnPlacements.SpawnPredicate<T> predicate) {
+                        e.register(type, placement, heightmap, predicate, net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent.Operation.REPLACE);
+                    }
+                }));
         // the chorus signs and shelf are vanilla's block entities; stripping is data (neoforge/data_maps/block/transformables.json)
         modBus.addListener((net.neoforged.neoforge.event.BlockEntityTypeAddBlocksEvent e) -> {
             e.modify(net.minecraft.world.level.block.entity.BlockEntityTypes.SIGN, ModBlocks.CHORUS_SIGN.get(), ModBlocks.CHORUS_WALL_SIGN.get());

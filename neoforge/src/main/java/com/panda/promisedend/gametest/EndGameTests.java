@@ -121,6 +121,7 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_column_bounds", () -> EndGameTests::updraftColumnBounds);
         FUNCTIONS.register("updraft_landing_safe", () -> EndGameTests::updraftLandingSafe);
         FUNCTIONS.register("current_carries_entity", () -> EndGameTests::currentCarriesEntity);
+        FUNCTIONS.register("chorus_weaver_lashes", () -> EndGameTests::chorusWeaverLashes);
         FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
         FUNCTIONS.register("biome_visits_award", () -> EndGameTests::biomeVisitsAward);
     }
@@ -128,7 +129,7 @@ public final class EndGameTests {
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
             "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460,
-            "updraft_lifts_entity", 360, "echo_amber_flares", 180, "current_carries_entity", 560);
+            "updraft_lifts_entity", 360, "echo_amber_flares", 180, "current_carries_entity", 560, "chorus_weaver_lashes", 380);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -4083,6 +4084,30 @@ public final class EndGameTests {
         for (String tex : List.of("textures/entity/crystal_warden.png", "textures/entity/crystal_warden_glowmask.png")) {
             if (EndGameTests.class.getResource(base + tex) == null) bad.add("no " + tex);
         }
+        // the other constructs: each one's clips, bones, textures, and its timed clips against the class's ticks
+        record Rig(String id, List<String> clips, java.util.Map<String, Integer> ticks) {}
+        for (var rig : List.of(new Rig("chorus_weaver", com.panda.promisedend.entity.ChorusWeaver.CLIPS, java.util.Map.of(
+                "reveal", com.panda.promisedend.entity.ChorusWeaver.REVEAL_TICKS, "lash", com.panda.promisedend.entity.ChorusWeaver.LASH_TICKS)))) {
+            var a = readJson(base + "geckolib/animations/entity/" + rig.id() + ".animation.json");
+            var g = readJson(base + "geckolib/models/entity/" + rig.id() + ".geo.json");
+            if (a == null || g == null) {
+                bad.add(rig.id() + ": no animation or model file");
+                continue;
+            }
+            var its = new java.util.TreeSet<>(a.getAsJsonObject("animations").keySet());
+            if (!its.equals(new java.util.TreeSet<>(rig.clips()))) bad.add(rig.id() + ": clips " + its + " but the class plays " + rig.clips());
+            var has = new java.util.HashSet<String>();
+            g.getAsJsonArray("minecraft:geometry").get(0).getAsJsonObject().getAsJsonArray("bones")
+                    .forEach(b -> has.add(b.getAsJsonObject().get("name").getAsString()));
+            a.getAsJsonObject("animations").entrySet().forEach(e -> e.getValue().getAsJsonObject().getAsJsonObject("bones").keySet().forEach(b -> {
+                if (!has.contains(b)) bad.add(rig.id() + ": " + e.getKey() + " moves a bone the model lacks: " + b);
+            }));
+            rig.ticks().forEach((clip, ticks) -> {
+                var c = a.getAsJsonObject("animations").getAsJsonObject(clip);
+                if (c == null || Math.round(c.get("animation_length").getAsDouble() * 20) != ticks) bad.add(rig.id() + ": the " + clip + " clip isn't " + ticks + " ticks");
+            });
+            if (EndGameTests.class.getResource(base + "textures/entity/" + rig.id() + ".png") == null) bad.add("no texture for " + rig.id());
+        }
         var sounds = readJson(base + "sounds.json");
         if (sounds == null) {
             bad.add("no sounds.json");
@@ -5333,6 +5358,75 @@ public final class EndGameTests {
         }
         if (!bad.isEmpty()) helper.fail("rim islands: " + bad);
         helper.succeed();
+    }
+
+    /**
+     * The Chorus Weaver. On the arena's floor it stands disguised for 20 ticks with a creative player 3 blocks
+     * off (the in-level mock player is always creative, so a survival player's waking it is the harness's). Hurt, it
+     * wakes at once; set on a pig 5.5 off, it throws its vine: when the vine lands the pig has Slowness IV for 2 s and
+     * is pulled towards the weaver. With the pig gone, it roots again as a plant after its 200 ticks alone.
+     */
+    private static void chorusWeaverLashes(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 1, 1));
+        var weaver = helper.spawn(com.panda.promisedend.registry.ModEntities.CHORUS_WEAVER.get(), new BlockPos(1, 1, 1));
+        var creative = helper.makeMockServerPlayerInLevel();
+        net.minecraft.world.phys.Vec3 w = weaver.position();
+        creative.snapTo(w.x + 3, w.y, w.z, 90, 0);
+        net.minecraft.world.entity.Mob[] pig = {null};
+        // the clock starts once the arena's chunk ticks its entities (a fresh one doesn't at once): {that tick, woke, landed}
+        int[] began = {-1}, woke = {-1}, landed = {-1};
+        for (int t = 1; t <= 370; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (began[0] < 0) {
+                    if (level.isPositionEntityTicking(at)) began[0] = tick;
+                    else if (tick == 60) helper.fail("the arena's chunk wasn't entity-ticking by tick 60");
+                    return;
+                }
+                int in = tick - began[0];
+                if (in <= 20) {
+                    if (!weaver.disguised()) helper.fail("the weaver woke with only a creative player 3 off (" + in + " ticks in)");
+                    if (in == 20) {
+                        creative.discard();
+                        pig[0] = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, new BlockPos(1, 1, 1));
+                        pig[0].snapTo(w.x, w.y, w.z + 5.5, 180, 0);
+                        pig[0].setNoAi(true);
+                        weaver.hurtServer(level, level.damageSources().magic(), 1.0F);
+                    }
+                    return;
+                }
+                if (woke[0] < 0) {
+                    if (weaver.disguised()) {
+                        helper.fail("hurt, the weaver didn't wake");
+                        return;
+                    }
+                    woke[0] = in;
+                }
+                if (landed[0] < 0) weaver.setTarget(pig[0]);
+                if (landed[0] < 0 && weaver.lashes() > 0) {
+                    landed[0] = in;
+                    var slow = pig[0].getEffect(net.minecraft.world.effect.MobEffects.SLOWNESS);
+                    net.minecraft.world.phys.Vec3 v = pig[0].getDeltaMovement(), toward = weaver.position().subtract(pig[0].position());
+                    double pull = (v.x * toward.x + v.z * toward.z) / Math.max(1e-6, Math.hypot(toward.x, toward.z));
+                    PromisedEnd.LOGGER.info("[chorus_weaver_lashes] the vine landed {} ticks after waking: slowness {} for {}, pulled {} a tick towards it",
+                            in - woke[0], slow == null ? "none" : slow.getAmplifier() + 1, slow == null ? 0 : slow.getDuration(), String.format("%.2f", pull));
+                    if (slow == null || slow.getAmplifier() != com.panda.promisedend.entity.ChorusWeaver.SLOW_AMPLIFIER)
+                        helper.fail("the vine's slowness: " + slow);
+                    if (pull < 0.4) helper.fail("the vine pulled the pig " + pull + " a tick towards the weaver");
+                    pig[0].discard();
+                    weaver.setTarget(null);
+                }
+                if (landed[0] < 0 && in == 80) helper.fail("no vine 80 ticks in (woke at " + woke[0] + ", state " + weaver.state() + ")");
+                if (landed[0] > 0 && weaver.disguised()) {
+                    int after = in - landed[0];
+                    PromisedEnd.LOGGER.info("[chorus_weaver_lashes] rooted again {} ticks after the pig went", after);
+                    if (after < com.panda.promisedend.entity.ChorusWeaver.DISGUISE_AFTER) helper.fail("rooted again only " + after + " ticks after the pig went");
+                    else helper.succeed();
+                }
+                if (tick == 370) helper.fail("the weaver never rooted again (the pig went " + landed[0] + " ticks in)");
+            });
+        }
     }
 
     /**

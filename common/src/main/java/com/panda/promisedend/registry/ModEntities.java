@@ -1,6 +1,7 @@
 package com.panda.promisedend.registry;
 
 import com.panda.promisedend.PromisedEnd;
+import com.panda.promisedend.entity.ChorusWeaver;
 import com.panda.promisedend.entity.CrystalWarden;
 import com.panda.promisedend.entity.DiveMark;
 import com.panda.promisedend.platform.registry.DeferredRegister;
@@ -8,8 +9,13 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.SpawnPlacementType;
+import net.minecraft.world.entity.SpawnPlacementTypes;
+import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 /** The Ancients' constructs. Each loader hands {@link #attributes} and the client's {@code ModRenderers} to its own API. */
 public final class ModEntities {
@@ -20,6 +26,9 @@ public final class ModEntities {
     public static final Supplier<EntityType<CrystalWarden>> CRYSTAL_WARDEN = ENTITIES.registerEntityType("crystal_warden",
             CrystalWarden::new, MobCategory.MONSTER, b -> b.sized(1.3F, 1.9F).eyeHeight(CrystalWarden.LENS_HEIGHT)
                     .clientTrackingRange(10).fireImmune());
+    // a chorus plant's height, at the rig's 1.25 scale: its crown 28 px up (2.2 blocks), its trunk 9 px across
+    public static final Supplier<EntityType<ChorusWeaver>> CHORUS_WEAVER = ENTITIES.registerEntityType("chorus_weaver",
+            ChorusWeaver::new, MobCategory.MONSTER, b -> b.sized(0.8F, 2.2F).eyeHeight(1.85F).clientTrackingRange(8));
     /** The dragon's dive mark: no body, never saved, seen from as far as the fight. */
     public static final Supplier<EntityType<DiveMark>> DIVE_MARK = ENTITIES.registerEntityType("dive_mark",
             DiveMark::new, MobCategory.MISC, b -> b.sized(0.5F, 0.1F).clientTrackingRange(10).updateInterval(10).noSave().noSummon().fireImmune());
@@ -27,6 +36,17 @@ public final class ModEntities {
     /** Every construct's attributes, for the loader's attribute registration. */
     public static void attributes(BiConsumer<EntityType<? extends LivingEntity>, AttributeSupplier.Builder> sink) {
         sink.accept(CRYSTAL_WARDEN.get(), CrystalWarden.createAttributes());
+        sink.accept(CHORUS_WEAVER.get(), ChorusWeaver.createAttributes());
+    }
+
+    /** A loader's way of registering a spawn placement (NeoForge: the event; Fabric: {@code SpawnPlacements.register}). */
+    public interface SpawnRules {
+        <T extends Mob> void set(EntityType<T> type, SpawnPlacementType placement, Heightmap.Types heightmap, SpawnPlacements.SpawnPredicate<T> predicate);
+    }
+
+    /** Where each construct may spawn naturally; the biomes' spawners say which biome (gen_world). */
+    public static void spawnRules(SpawnRules rules) {
+        rules.set(CHORUS_WEAVER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, ChorusWeaver::canSpawn);
     }
 
     private ModEntities() {}

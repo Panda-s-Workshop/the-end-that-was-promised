@@ -9,6 +9,11 @@
               "type": "minecraft:enderman",
               "count": 4,
               "weight": 10
+            },
+            {
+              "type": "promisedend:chorus_weaver",
+              "count": 1,
+              "weight": 4
             }
           ]
         }

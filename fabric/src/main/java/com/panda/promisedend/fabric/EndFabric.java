@@ -53,6 +53,13 @@ public final class EndFabric implements ModInitializer {
         BlockTransformerHelper.registerStripping(ModBlocks.CHORUS_WOOD.get(), ModBlocks.STRIPPED_CHORUS_WOOD.get());
         com.panda.promisedend.registry.ModEntities.attributes(
                 net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry::register);
+        com.panda.promisedend.registry.ModEntities.spawnRules(new com.panda.promisedend.registry.ModEntities.SpawnRules() {
+            @Override
+            public <T extends net.minecraft.world.entity.Mob> void set(net.minecraft.world.entity.EntityType<T> type, net.minecraft.world.entity.SpawnPlacementType placement,
+                                                                       net.minecraft.world.level.levelgen.Heightmap.Types heightmap, net.minecraft.world.entity.SpawnPlacements.SpawnPredicate<T> predicate) {
+                net.minecraft.world.entity.SpawnPlacements.register(type, placement, heightmap, predicate);
+            }
+        });
 
         // terrain.enabled=false: a copy of the Rim's debris goes on every End biome in #promisedend:rim_fallback, where
         // the feature keeps to the ring; NeoForge reads the same from data/promisedend/neoforge/biome_modifier/

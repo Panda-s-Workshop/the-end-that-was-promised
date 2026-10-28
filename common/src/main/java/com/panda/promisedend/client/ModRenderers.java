@@ -14,6 +14,7 @@ public final class ModRenderers {
     public static void register(Sink sink) {
         sink.register(ModEntities.CRYSTAL_WARDEN.get(), CrystalWardenRenderer::new);
         sink.register(ModEntities.DIVE_MARK.get(), DiveMarkRenderer::new);
+        sink.register(ModEntities.CHORUS_WEAVER.get(), c -> new ConstructRenderer<>(c, "chorus_weaver", com.panda.promisedend.entity.ChorusWeaver.MODEL_SCALE, 0.5F));
     }
 
     private ModRenderers() {}

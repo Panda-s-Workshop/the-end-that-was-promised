@@ -52,6 +52,8 @@ public final class ModItems {
     public static final DeferredItem<HintItem> DRAGON_SCALE = ITEMS.registerItem("dragon_scale", p -> new HintItem(p, "dragon_scale", 1));
     public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> CRYSTAL_WARDEN_SPAWN_EGG = ITEMS.registerItem("crystal_warden_spawn_egg",
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.CRYSTAL_WARDEN.get()));
+    public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> CHORUS_WEAVER_SPAWN_EGG = ITEMS.registerItem("chorus_weaver_spawn_egg",
+            net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.CHORUS_WEAVER.get()));
 
     // ---- the Lumen Mire ---------------------------------------------------------------------------
     public static final DeferredItem<HintItem> LUMEN = ITEMS.registerItem("lumen", p -> new HintItem(p, "lumen", 1));

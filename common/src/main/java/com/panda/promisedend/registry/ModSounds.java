@@ -17,6 +17,12 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> CRYSTAL_WARDEN_BEAM = sound("entity.crystal_warden.beam");
     public static final Supplier<SoundEvent> CRYSTAL_WARDEN_POWER_DOWN = sound("entity.crystal_warden.power_down");
     public static final Supplier<SoundEvent> CRYSTAL_WARDEN_ARRIVE = sound("entity.crystal_warden.arrive");
+    public static final Supplier<SoundEvent> CHORUS_WEAVER_AMBIENT = sound("entity.chorus_weaver.ambient");
+    public static final Supplier<SoundEvent> CHORUS_WEAVER_HURT = sound("entity.chorus_weaver.hurt");
+    public static final Supplier<SoundEvent> CHORUS_WEAVER_DEATH = sound("entity.chorus_weaver.death");
+    public static final Supplier<SoundEvent> CHORUS_WEAVER_REVEAL = sound("entity.chorus_weaver.reveal");
+    public static final Supplier<SoundEvent> CHORUS_WEAVER_LASH = sound("entity.chorus_weaver.lash");
+    public static final Supplier<SoundEvent> CHORUS_WEAVER_VINE_HIT = sound("entity.chorus_weaver.vine_hit");
     public static final Supplier<SoundEvent> DRAGON_CALL_WARDENS = sound("entity.ender_dragon.call_wardens");
     public static final Supplier<SoundEvent> DRAGON_HOARD_APPEARS = sound("block.dragon_hoard.appear");
     public static final Supplier<SoundEvent> DRAGON_VOID_BREATH_GATHER = sound("entity.ender_dragon.void_breath_gather");
