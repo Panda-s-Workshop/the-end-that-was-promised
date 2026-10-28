@@ -138,6 +138,10 @@ public final class ModBlocks {
     public static final DeferredBlock<com.panda.promisedend.block.DriftBlossomBlock> DRIFT_BLOSSOM = withHint(BLOCKS.registerBlock("drift_blossom",
             com.panda.promisedend.block.DriftBlossomBlock::new, p -> p.mapColor(MapColor.SNOW).noCollision().instabreak()
                     .sound(SoundType.AZALEA).offsetType(BlockBehaviour.OffsetType.XZ).pushReaction(PushReaction.POPPED)), 2);
+    /** A Lumen Wisp's light: unseen, no body, no item, gone when its tick comes (block/WispLightBlock). */
+    public static final DeferredBlock<com.panda.promisedend.block.WispLightBlock> WISP_LIGHT = BLOCKS.registerBlock("wisp_light",
+            com.panda.promisedend.block.WispLightBlock::new, p -> p.replaceable().noCollision().noOcclusion().noLootTable().instabreak()
+                    .lightLevel(s -> 13).sound(SoundType.EMPTY).pushReaction(PushReaction.POPPED));
     /** Lumen's lamp: a full light, as the sea lantern and glowstone, in a polished voidstone cage. */
     public static final DeferredBlock<Block> LUMEN_LAMP = simple("lumen_lamp",
             p -> p.mapColor(MapColor.SAND).strength(1.0F).sound(SoundType.GLASS).lightLevel(s -> 15));

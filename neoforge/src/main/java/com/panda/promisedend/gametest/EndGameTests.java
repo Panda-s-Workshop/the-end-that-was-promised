@@ -122,14 +122,20 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_landing_safe", () -> EndGameTests::updraftLandingSafe);
         FUNCTIONS.register("current_carries_entity", () -> EndGameTests::currentCarriesEntity);
         FUNCTIONS.register("chorus_weaver_lashes", () -> EndGameTests::chorusWeaverLashes);
+        FUNCTIONS.register("lumen_wisp_lights_the_way", () -> EndGameTests::lumenWispLightsTheWay);
+        FUNCTIONS.register("rift_stalker_blinks_and_freezes", () -> EndGameTests::riftStalkerBlinksAndFreezes);
         FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
         FUNCTIONS.register("biome_visits_award", () -> EndGameTests::biomeVisitsAward);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
-    private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
-            "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460,
-            "updraft_lifts_entity", 360, "echo_amber_flares", 180, "current_carries_entity", 560, "chorus_weaver_lashes", 380);
+    private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.ofEntries(
+            java.util.Map.entry("crystal_warden_beam_cap_and_rest", 220), java.util.Map.entry("wrath_increments_on_kill", 260),
+            java.util.Map.entry("dragon_drops_scales", 240), java.util.Map.entry("void_water_slows", 160),
+            java.util.Map.entry("dragon_phase3_triggers", 460), java.util.Map.entry("updraft_lifts_entity", 360),
+            java.util.Map.entry("echo_amber_flares", 180), java.util.Map.entry("current_carries_entity", 560),
+            java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("lumen_wisp_lights_the_way", 320),
+            java.util.Map.entry("rift_stalker_blinks_and_freezes", 220));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -4087,7 +4093,10 @@ public final class EndGameTests {
         // the other constructs: each one's clips, bones, textures, and its timed clips against the class's ticks
         record Rig(String id, List<String> clips, java.util.Map<String, Integer> ticks) {}
         for (var rig : List.of(new Rig("chorus_weaver", com.panda.promisedend.entity.ChorusWeaver.CLIPS, java.util.Map.of(
-                "reveal", com.panda.promisedend.entity.ChorusWeaver.REVEAL_TICKS, "lash", com.panda.promisedend.entity.ChorusWeaver.LASH_TICKS)))) {
+                "reveal", com.panda.promisedend.entity.ChorusWeaver.REVEAL_TICKS, "lash", com.panda.promisedend.entity.ChorusWeaver.LASH_TICKS)),
+                new Rig("lumen_wisp", com.panda.promisedend.entity.LumenWisp.CLIPS, java.util.Map.of()),
+                new Rig("rift_stalker", com.panda.promisedend.entity.RiftStalker.CLIPS, java.util.Map.of(
+                        "gather", com.panda.promisedend.entity.RiftStalker.GATHER_TICKS, "strike", com.panda.promisedend.entity.RiftStalker.STRIKE_TICKS)))) {
             var a = readJson(base + "geckolib/animations/entity/" + rig.id() + ".animation.json");
             var g = readJson(base + "geckolib/models/entity/" + rig.id() + ".geo.json");
             if (a == null || g == null) {
@@ -5425,6 +5434,187 @@ public final class EndGameTests {
                     else helper.succeed();
                 }
                 if (tick == 370) helper.fail("the weaver never rooted again (the pig went " + landed[0] + " ticks in)");
+            });
+        }
+    }
+
+    /** Turns {@code player} to look at {@code at}, from where they stand. */
+    private static void lookAt(net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.Vec3 at) {
+        double dx = at.x - player.getX(), dy = at.y - player.getEyeY(), dz = at.z - player.getZ();
+        float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0F, pitch = (float) -Math.toDegrees(Math.atan2(dy, Math.hypot(dx, dz)));
+        player.snapTo(player.getX(), player.getY(), player.getZ(), yaw, pitch);
+        player.setYHeadRot(yaw);
+    }
+
+    /**
+     * The Rift Stalker. In the arena, a player looking straight at it freezes it within 3 ticks: for 37 more it doesn't
+     * move and its blink doesn't count down. Looked away from, it hunts again and the count runs a tick a tick at a
+     * target. Gathered, it comes out {@link com.panda.promisedend.entity.RiftStalker#BLINK_BEHIND} behind the target (an
+     * iron golem facing south, without AI) and its strike takes the golem's 6. Hit, it gathers at once, and a stare
+     * meanwhile doesn't hold it.
+     */
+    private static void riftStalkerBlinksAndFreezes(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(2, 1, 2));
+        var stalker = helper.spawn(com.panda.promisedend.registry.ModEntities.RIFT_STALKER.get(), new BlockPos(2, 1, 2));
+        var player = helper.makeMockServerPlayerInLevel();
+        net.minecraft.world.phys.Vec3 s0 = stalker.position();
+        player.snapTo(s0.x, s0.y, s0.z + 6, 0, 0);
+        var golem = helper.spawn(net.minecraft.world.entity.EntityTypes.IRON_GOLEM, new BlockPos(9, 1, 9));
+        golem.setNoAi(true);
+        net.minecraft.world.phys.Vec3 g = golem.position();
+        golem.snapTo(g.x, g.y, g.z, 0, 0);
+        golem.setYHeadRot(0);
+        golem.yBodyRot = 0;
+        // {the tick the clock started, the blink count when frozen, the golem's health as it blinked, when it blinked}
+        int[] began = {-1}, frozenBlinkIn = {-1}, blinkedAt = {-1}, hitAt = {-1};
+        float[] health = {0};
+        net.minecraft.world.phys.Vec3[] held = {null};
+        int[] countFrom = {0};
+        for (int t = 1; t <= 210; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (began[0] < 0) {
+                    if (level.isPositionEntityTicking(at)) {
+                        began[0] = tick;
+                        lookAt(player, new net.minecraft.world.phys.Vec3(stalker.getX(), stalker.getY(0.6), stalker.getZ()));
+                    } else if (tick == 60) helper.fail("the arena's chunk wasn't entity-ticking by tick 60");
+                    return;
+                }
+                int in = tick - began[0];
+                var state = stalker.state();
+                if (in == 3) {
+                    if (state != com.panda.promisedend.entity.RiftStalker.State.FROZEN) helper.fail("a player looking straight at the stalker didn't freeze it: " + state);
+                    held[0] = stalker.position();
+                    frozenBlinkIn[0] = stalker.blinkIn();
+                }
+                if (in > 3 && in <= 40) {
+                    if (state != com.panda.promisedend.entity.RiftStalker.State.FROZEN) helper.fail("the stared-at stalker came out of its freeze at " + in + ": " + state);
+                    if (stalker.position().distanceTo(held[0]) > 0.05) helper.fail("the frozen stalker moved " + stalker.position().distanceTo(held[0]));
+                    if (stalker.blinkIn() != frozenBlinkIn[0]) helper.fail("the frozen stalker's blink counted down: " + frozenBlinkIn[0] + " to " + stalker.blinkIn());
+                    if (in == 40) { // looking south, away from it (a living thing looks along its head's turn)
+                        player.snapTo(player.getX(), player.getY(), player.getZ(), 0, 0);
+                        player.setYHeadRot(0);
+                    }
+                }
+                if (in == 43) {
+                    if (state != com.panda.promisedend.entity.RiftStalker.State.HUNT) helper.fail("looked away from, the stalker stayed " + state);
+                    stalker.setTarget(golem);
+                    countFrom[0] = stalker.blinkIn();
+                }
+                if (in == 53) {
+                    stalker.setTarget(golem);
+                    int ran = countFrom[0] - stalker.blinkIn();
+                    PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] frozen 37 ticks without moving; unwatched, its blink ran {} in 10 ticks", ran);
+                    if (ran != 10) helper.fail("unwatched with a target, the stalker's blink ran " + ran + " in 10 ticks");
+                    health[0] = golem.getHealth();
+                    stalker.startGather();
+                }
+                if (in > 53 && blinkedAt[0] < 0 && stalker.blinks() > 0) {
+                    blinkedAt[0] = in;
+                    net.minecraft.world.phys.Vec3 look = golem.getViewVector(1.0F), off = stalker.position().subtract(golem.position());
+                    double behind = -(look.x * off.x + look.z * off.z), d = Math.hypot(off.x, off.z);
+                    PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] blinked {} ticks after gathering, {} behind the golem ({} off)",
+                            in - 53, String.format("%.2f", behind), String.format("%.2f", d));
+                    if (in - 53 != com.panda.promisedend.entity.RiftStalker.GATHER_TICKS) helper.fail("it blinked " + (in - 53) + " ticks after gathering");
+                    if (behind < 1.2 || d > 3.5) helper.fail("it came out " + behind + " behind the golem, " + d + " off");
+                }
+                if (blinkedAt[0] > 0 && in == blinkedAt[0] + com.panda.promisedend.entity.RiftStalker.STRIKE_HIT + 1) {
+                    float took = health[0] - golem.getHealth();
+                    PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] its strike took {} from the golem", took);
+                    if (stalker.strikes() != 1 || Math.abs(took - com.panda.promisedend.entity.RiftStalker.DAMAGE) > 0.5)
+                        helper.fail("the strike landed " + stalker.strikes() + " times, taking " + took);
+                }
+                if (blinkedAt[0] > 0 && hitAt[0] < 0 && in >= blinkedAt[0] + com.panda.promisedend.entity.RiftStalker.STRIKE_TICKS + 2) {
+                    if (state != com.panda.promisedend.entity.RiftStalker.State.HUNT) helper.fail("after its strike the stalker stayed " + state);
+                    // hit while looked at: it gathers at once, and the stare doesn't hold it
+                    lookAt(player, new net.minecraft.world.phys.Vec3(stalker.getX(), stalker.getY(0.6), stalker.getZ()));
+                    stalker.setTarget(golem);
+                    stalker.hurtServer(level, level.damageSources().magic(), 1.0F);
+                    hitAt[0] = in;
+                    if (stalker.state() != com.panda.promisedend.entity.RiftStalker.State.GATHER) helper.fail("hit, the stalker didn't gather: " + stalker.state());
+                }
+                if (hitAt[0] > 0 && in > hitAt[0] && in < hitAt[0] + com.panda.promisedend.entity.RiftStalker.GATHER_TICKS
+                        && state == com.panda.promisedend.entity.RiftStalker.State.FROZEN)
+                    helper.fail("hit, the stalker was held by a stare " + (in - hitAt[0]) + " ticks into its gather");
+                if (hitAt[0] > 0 && in == hitAt[0] + com.panda.promisedend.entity.RiftStalker.GATHER_TICKS + 2) {
+                    PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] hit, it blinked again: {} blinks", stalker.blinks());
+                    if (stalker.blinks() != 2) helper.fail("hit, the stalker didn't blink: " + stalker.blinks() + " blinks");
+                    else helper.succeed();
+                }
+                if (tick == 210) helper.fail("the test ran out (blinked " + blinkedAt[0] + ", hit " + hitAt[0] + ")");
+            });
+        }
+    }
+
+    /**
+     * The Lumen Wisp. In the arena a player 7 blocks off with empty hands draws nothing for 20 ticks; with Lumen in hand
+     * the wisp comes within 4 blocks of them in 80 ticks, leaving Wisp Lights on its way, and a light it left is out
+     * again by its 100 ticks; with the Lumen put away it stops following. Killed, it leaves a light where it was,
+     * scheduled to go out (30 s), and no other block.
+     */
+    private static void lumenWispLightsTheWay(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 2, 1));
+        var wisp = helper.spawn(com.panda.promisedend.registry.ModEntities.LUMEN_WISP.get(), new BlockPos(1, 2, 1));
+        var player = helper.makeMockServerPlayerInLevel();
+        net.minecraft.world.phys.Vec3 w = wisp.position();
+        player.snapTo(w.x, w.y - 1, w.z + 7, 180, 0);
+        var lumen = new ItemStack(com.panda.promisedend.registry.ModItems.LUMEN.get());
+        // {the tick the clock started, the tick it came near, a light it left and when, the tick the Lumen went away}
+        int[] began = {-1}, near = {-1}, litAt = {-1}, putAway = {-1};
+        BlockPos[] light = {null};
+        var wispLight = com.panda.promisedend.registry.ModBlocks.WISP_LIGHT.get();
+        for (int t = 1; t <= 310; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (began[0] < 0) {
+                    if (level.isPositionEntityTicking(at)) began[0] = tick;
+                    else if (tick == 60) helper.fail("the arena's chunk wasn't entity-ticking by tick 60");
+                    return;
+                }
+                int in = tick - began[0];
+                if (in <= 20) {
+                    if (wisp.following() != null) helper.fail("the wisp followed a player holding nothing");
+                    if (in == 20) player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, lumen.copy());
+                    return;
+                }
+                if (light[0] == null && wisp.lit() > 0) {
+                    for (BlockPos q : BlockPos.betweenClosed(at.offset(-2, -2, -2), at.offset(2, 4, 10))) {
+                        if (level.getBlockState(q).is(wispLight)) {
+                            light[0] = q.immutable();
+                            litAt[0] = in;
+                            break;
+                        }
+                    }
+                    if (light[0] == null) helper.fail("the wisp counts a light it left, but there is none in the arena");
+                }
+                if (near[0] < 0 && wisp.distanceTo(player) < 4.0) {
+                    near[0] = in;
+                    PromisedEnd.LOGGER.info("[lumen_wisp_lights_the_way] came within 4 of the player {} ticks after the Lumen came out, {} lights left",
+                            in - 20, wisp.lit());
+                }
+                if (near[0] < 0 && in == 100) helper.fail("the wisp didn't come within 4 of a player holding Lumen in 80 ticks: " + wisp.distanceTo(player));
+                if (light[0] != null && in == litAt[0] + com.panda.promisedend.entity.LumenWisp.TRAIL_TICKS + 5
+                        && level.getBlockState(light[0]).is(wispLight) && !light[0].equals(wisp.blockPosition()))
+                    helper.fail("a light the wisp left at " + light[0] + " was still lit " + (com.panda.promisedend.entity.LumenWisp.TRAIL_TICKS + 5) + " ticks on");
+                if (near[0] > 0 && putAway[0] < 0 && in >= near[0] + 20) {
+                    putAway[0] = in;
+                    player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+                }
+                if (putAway[0] > 0 && in == putAway[0] + 5 && wisp.following() != null) helper.fail("the wisp kept following after the Lumen was put away");
+                if (putAway[0] > 0 && light[0] != null && in >= litAt[0] + com.panda.promisedend.entity.LumenWisp.TRAIL_TICKS + 10 && in >= putAway[0] + 10) {
+                    BlockPos where = wisp.blockPosition();
+                    wisp.kill(level);
+                    helper.runAfterDelay(2, () -> {
+                        boolean lit = level.getBlockState(where).is(wispLight), timed = level.getBlockTicks().hasScheduledTick(where, wispLight);
+                        PromisedEnd.LOGGER.info("[lumen_wisp_lights_the_way] broken at {}: a light there {}, set to go out {}", where, lit, timed);
+                        if (!lit || !timed) helper.fail("the broken wisp left no timed light where it was: lit " + lit + ", timed " + timed);
+                        else helper.succeed();
+                    });
+                    putAway[0] = Integer.MAX_VALUE / 2;
+                }
+                if (tick == 310) helper.fail("the test ran out (near " + near[0] + ", lit at " + litAt[0] + ", put away " + putAway[0] + ")");
             });
         }
     }

@@ -15,6 +15,8 @@ public final class ModRenderers {
         sink.register(ModEntities.CRYSTAL_WARDEN.get(), CrystalWardenRenderer::new);
         sink.register(ModEntities.DIVE_MARK.get(), DiveMarkRenderer::new);
         sink.register(ModEntities.CHORUS_WEAVER.get(), c -> new ConstructRenderer<>(c, "chorus_weaver", com.panda.promisedend.entity.ChorusWeaver.MODEL_SCALE, 0.5F));
+        sink.register(ModEntities.LUMEN_WISP.get(), c -> new ConstructRenderer<>(c, "lumen_wisp", com.panda.promisedend.entity.LumenWisp.MODEL_SCALE, 0.2F));
+        sink.register(ModEntities.RIFT_STALKER.get(), c -> new ConstructRenderer<>(c, "rift_stalker", com.panda.promisedend.entity.RiftStalker.MODEL_SCALE, 0.5F));
     }
 
     private ModRenderers() {}

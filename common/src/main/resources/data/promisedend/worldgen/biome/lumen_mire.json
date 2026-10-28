@@ -10,6 +10,17 @@
               "count": 4,
               "weight": 10
             }
+          ],
+          "ambient": [
+            {
+              "type": "promisedend:lumen_wisp",
+              "count": {
+                "type": "minecraft:uniform",
+                "min_inclusive": 1,
+                "max_inclusive": 2
+              },
+              "weight": 10
+            }
           ]
         }
       },

@@ -23,6 +23,16 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> CHORUS_WEAVER_REVEAL = sound("entity.chorus_weaver.reveal");
     public static final Supplier<SoundEvent> CHORUS_WEAVER_LASH = sound("entity.chorus_weaver.lash");
     public static final Supplier<SoundEvent> CHORUS_WEAVER_VINE_HIT = sound("entity.chorus_weaver.vine_hit");
+    public static final Supplier<SoundEvent> LUMEN_WISP_AMBIENT = sound("entity.lumen_wisp.ambient");
+    public static final Supplier<SoundEvent> LUMEN_WISP_HURT = sound("entity.lumen_wisp.hurt");
+    public static final Supplier<SoundEvent> LUMEN_WISP_DEATH = sound("entity.lumen_wisp.death");
+    public static final Supplier<SoundEvent> RIFT_STALKER_AMBIENT = sound("entity.rift_stalker.ambient");
+    public static final Supplier<SoundEvent> RIFT_STALKER_HURT = sound("entity.rift_stalker.hurt");
+    public static final Supplier<SoundEvent> RIFT_STALKER_DEATH = sound("entity.rift_stalker.death");
+    public static final Supplier<SoundEvent> RIFT_STALKER_GATHER = sound("entity.rift_stalker.gather");
+    public static final Supplier<SoundEvent> RIFT_STALKER_BLINK = sound("entity.rift_stalker.blink");
+    public static final Supplier<SoundEvent> RIFT_STALKER_STRIKE = sound("entity.rift_stalker.strike");
+    public static final Supplier<SoundEvent> RIFT_STALKER_FREEZE = sound("entity.rift_stalker.freeze");
     public static final Supplier<SoundEvent> DRAGON_CALL_WARDENS = sound("entity.ender_dragon.call_wardens");
     public static final Supplier<SoundEvent> DRAGON_HOARD_APPEARS = sound("block.dragon_hoard.appear");
     public static final Supplier<SoundEvent> DRAGON_VOID_BREATH_GATHER = sound("entity.ender_dragon.void_breath_gather");

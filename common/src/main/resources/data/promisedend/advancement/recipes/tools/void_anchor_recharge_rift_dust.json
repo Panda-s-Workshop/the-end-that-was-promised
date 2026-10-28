@@ -1,0 +1,43 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:void_anchor_recharge_rift_dust"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_cracked_void_anchor": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:cracked_void_anchor"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_rift_dust": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:rift_dust"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_cracked_void_anchor",
+      "has_rift_dust"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:void_anchor_recharge_rift_dust"
+    ]
+  }
+}

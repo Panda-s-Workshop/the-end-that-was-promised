@@ -3,6 +3,8 @@ package com.panda.promisedend.registry;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.entity.ChorusWeaver;
 import com.panda.promisedend.entity.CrystalWarden;
+import com.panda.promisedend.entity.LumenWisp;
+import com.panda.promisedend.entity.RiftStalker;
 import com.panda.promisedend.entity.DiveMark;
 import com.panda.promisedend.platform.registry.DeferredRegister;
 import java.util.function.BiConsumer;
@@ -29,6 +31,12 @@ public final class ModEntities {
     // a chorus plant's height, at the rig's 1.25 scale: its crown 28 px up (2.2 blocks), its trunk 9 px across
     public static final Supplier<EntityType<ChorusWeaver>> CHORUS_WEAVER = ENTITIES.registerEntityType("chorus_weaver",
             ChorusWeaver::new, MobCategory.MONSTER, b -> b.sized(0.8F, 2.2F).eyeHeight(1.85F).clientTrackingRange(8));
+    // a lantern's size at the rig's scale: its cage 7 px across, its hook's top 11 px up
+    public static final Supplier<EntityType<LumenWisp>> LUMEN_WISP = ENTITIES.registerEntityType("lumen_wisp",
+            LumenWisp::new, MobCategory.AMBIENT, b -> b.sized(0.5F, 0.7F).eyeHeight(0.4F).clientTrackingRange(8));
+    // hunched at the rig's 1.25 scale: its head's top 28 px up (2.2 blocks), its shoulders 10 px across
+    public static final Supplier<EntityType<RiftStalker>> RIFT_STALKER = ENTITIES.registerEntityType("rift_stalker",
+            RiftStalker::new, MobCategory.MONSTER, b -> b.sized(0.7F, 2.2F).eyeHeight(1.9F).clientTrackingRange(8));
     /** The dragon's dive mark: no body, never saved, seen from as far as the fight. */
     public static final Supplier<EntityType<DiveMark>> DIVE_MARK = ENTITIES.registerEntityType("dive_mark",
             DiveMark::new, MobCategory.MISC, b -> b.sized(0.5F, 0.1F).clientTrackingRange(10).updateInterval(10).noSave().noSummon().fireImmune());
@@ -37,6 +45,8 @@ public final class ModEntities {
     public static void attributes(BiConsumer<EntityType<? extends LivingEntity>, AttributeSupplier.Builder> sink) {
         sink.accept(CRYSTAL_WARDEN.get(), CrystalWarden.createAttributes());
         sink.accept(CHORUS_WEAVER.get(), ChorusWeaver.createAttributes());
+        sink.accept(LUMEN_WISP.get(), LumenWisp.createAttributes());
+        sink.accept(RIFT_STALKER.get(), RiftStalker.createAttributes());
     }
 
     /** A loader's way of registering a spawn placement (NeoForge: the event; Fabric: {@code SpawnPlacements.register}). */
@@ -47,6 +57,8 @@ public final class ModEntities {
     /** Where each construct may spawn naturally; the biomes' spawners say which biome (gen_world). */
     public static void spawnRules(SpawnRules rules) {
         rules.set(CHORUS_WEAVER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, ChorusWeaver::canSpawn);
+        rules.set(LUMEN_WISP.get(), SpawnPlacementTypes.NO_RESTRICTIONS, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, LumenWisp::canSpawn);
+        rules.set(RIFT_STALKER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, RiftStalker::canSpawn);
     }
 
     private ModEntities() {}

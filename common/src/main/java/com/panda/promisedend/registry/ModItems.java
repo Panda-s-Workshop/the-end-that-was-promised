@@ -54,6 +54,10 @@ public final class ModItems {
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.CRYSTAL_WARDEN.get()));
     public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> CHORUS_WEAVER_SPAWN_EGG = ITEMS.registerItem("chorus_weaver_spawn_egg",
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.CHORUS_WEAVER.get()));
+    public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> LUMEN_WISP_SPAWN_EGG = ITEMS.registerItem("lumen_wisp_spawn_egg",
+            net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.LUMEN_WISP.get()));
+    public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> RIFT_STALKER_SPAWN_EGG = ITEMS.registerItem("rift_stalker_spawn_egg",
+            net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.RIFT_STALKER.get()));
 
     // ---- the Lumen Mire ---------------------------------------------------------------------------
     public static final DeferredItem<HintItem> LUMEN = ITEMS.registerItem("lumen", p -> new HintItem(p, "lumen", 1));
@@ -67,6 +71,8 @@ public final class ModItems {
     public static final DeferredItem<HintItem> DRIFT_SILK = ITEMS.registerItem("drift_silk", p -> new HintItem(p, "drift_silk", 2));
     /** The Voidscar Wastes': from the Voidsteel Scrap Ore in the rift walls. */
     public static final DeferredItem<HintItem> VOIDSTEEL_SCRAP = ITEMS.registerItem("voidsteel_scrap", p -> new HintItem(p, "voidsteel_scrap", 2));
+    /** The Rift Stalker's: an offering, and a Cracked Void Anchor's charge in place of a pearl. */
+    public static final DeferredItem<HintItem> RIFT_DUST = ITEMS.registerItem("rift_dust", p -> new HintItem(p, "rift_dust", 2));
     public static final DeferredItem<HintItem> ECHO_AMBER = ITEMS.registerItem("echo_amber", p -> new HintItem(p, "echo_amber", 2));
     public static final DeferredItem<Item> RESONITE_INGOT = ITEMS.registerSimpleItem("resonite_ingot");
 

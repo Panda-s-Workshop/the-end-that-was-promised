@@ -13,6 +13,11 @@
                 "max_inclusive": 2
               },
               "weight": 10
+            },
+            {
+              "type": "promisedend:rift_stalker",
+              "count": 1,
+              "weight": 4
             }
           ]
         }

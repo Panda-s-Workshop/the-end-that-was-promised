@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    "promisedend:cracked_void_anchor",
+    "promisedend:rift_dust"
+  ],
+  "result": {
+    "id": "promisedend:void_anchor"
+  }
+}
