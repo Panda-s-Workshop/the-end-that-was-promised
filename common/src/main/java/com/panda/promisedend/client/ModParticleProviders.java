@@ -31,6 +31,10 @@ public final class ModParticleProviders {
                 new Mote(level, x, y, z, sprites, RIFT));
         sink.sprites(ModParticles.AMBER_MOTE.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
                 new Mote(level, x, y, z, sprites, AMBER));
+        sink.sprites(ModParticles.UPDRAFT_WISP.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
+                new Mote(level, x, y, z, sprites, WISP));
+        sink.sprites(ModParticles.UPDRAFT_PUFF.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
+                new Mote(level, x, y, z, sprites, PUFF));
     }
 
     private ModParticleProviders() {}
@@ -44,6 +48,12 @@ public final class ModParticleProviders {
     static final Motion RIFT = new Motion(0.012, -0.003F, 0.001, 0.0, 60, 50, 0.05F, 0.03F);
     /** Amber's motes hang in the cavern air, barely sinking: a slow start down, little gravity, a wide sway. */
     static final Motion AMBER = new Motion(-0.002, 0.0005F, 0.002, 0.0, 70, 50, 0.04F, 0.03F);
+    /**
+     * An updraft's wisp rises fast and steadily (gravity the other way holds it near 0.29 a tick against the
+     * friction), some 6-10 blocks in its life; its puff rises at about 0.12, larger and softer, on vanilla's poof sprites.
+     */
+    static final Motion WISP = new Motion(0.3, -0.3F, 0.001, 0.0, 20, 15, 0.16F, 0.08F);
+    static final Motion PUFF = new Motion(0.15, -0.12F, 0.002, 0.0, 20, 15, 0.18F, 0.12F);
 
     /**
      * A mote: drifts down slowly, swaying, and fades in and out. It carries its own light: a leaf-like particle takes

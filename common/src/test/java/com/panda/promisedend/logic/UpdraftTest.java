@@ -87,9 +87,21 @@ class UpdraftTest {
 
     @Test
     void particlesGrowWithTheColumn() {
-        assertEquals(3, Updraft.puffs(6));
-        assertEquals(3, Updraft.puffs(Updraft.HEIGHT_CRAFTED));
-        assertEquals(6, Updraft.puffs(Updraft.HEIGHT_ANCIENT));
+        assertEquals(1, Updraft.puffs(6));
+        assertEquals(1, Updraft.puffs(Updraft.HEIGHT_CRAFTED));
+        assertEquals(3, Updraft.puffs(Updraft.HEIGHT_ANCIENT));
+        assertEquals(3, Updraft.wisps(6));
+        assertEquals(8, Updraft.wisps(Updraft.HEIGHT_CRAFTED));
+        assertEquals(16, Updraft.wisps(Updraft.HEIGHT_ANCIENT));
+    }
+
+    @Test
+    void aGlidersColumnIsWider() {
+        assertFalse(Updraft.inColumn(2.5, 3, 0, Updraft.HEIGHT_ANCIENT), "2.5 off, outside for a walker");
+        assertTrue(Updraft.inColumn(2.5, 3, 0, Updraft.HEIGHT_ANCIENT, true), "2.5 off, inside for a glider");
+        assertTrue(Updraft.inColumn(2.1, 3, 2.1, Updraft.HEIGHT_ANCIENT, true), "2.97 off, inside for a glider");
+        assertFalse(Updraft.inColumn(2.2, 3, 2.2, Updraft.HEIGHT_ANCIENT, true), "3.11 off, outside for a glider");
+        assertFalse(Updraft.inColumn(0, 32, 0, Updraft.HEIGHT_ANCIENT, true), "at the top, outside for a glider too");
     }
 
     @Test

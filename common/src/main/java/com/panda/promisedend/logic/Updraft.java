@@ -2,7 +2,7 @@ package com.panda.promisedend.logic;
 
 /**
  * The Updraft Vent's column: who is in it, and how it lifts them. Each tick an entity in the column rises 0.12 faster,
- * up to 0.8 a tick; a gliding player 0.25 faster, up to 1.2, keeping their horizontal speed. Something already rising
+ * up to 0.8 a tick; a gliding player 0.25 faster, up to 1.2, keeping their horizontal speed, in a column twice as wide. Something already rising
  * faster (a rocket, a jump pad) isn't slowed. A player sneaking in the column sinks slowly instead, the way down.
  *
  * <p>The vent works after the entity has moved and taken its gravity for the tick, so the lift gives that gravity back
@@ -11,6 +11,11 @@ package com.panda.promisedend.logic;
 public final class Updraft {
     /** How far from the vent's centre the column reaches, in blocks. */
     public static final double RADIUS = 1.5;
+    /**
+     * How far it reaches for a glider: twice as far, so a glider crossing at cruise speed is in it for some 5 ticks,
+     * not 2-3, and leaves it climbing.
+     */
+    public static final double GLIDE_RADIUS = 3.0;
     /** The column over a vent found in the world, and over one a player made. */
     public static final int HEIGHT_ANCIENT = 32, HEIGHT_CRAFTED = 16;
     public static final double LIFT = 0.12, CAP = 0.8;
@@ -19,12 +24,16 @@ public final class Updraft {
     public static final double SINK = -0.15;
     /** Particles go up every this many ticks. */
     public static final int PARTICLES_EVERY = 4;
-    /** One puff a burst for every this many blocks of column, at least three. */
-    public static final int BLOCKS_A_PUFF = 5;
+    /** One puff a burst for every this many blocks of column, at least one: the puffs are the core's accents. */
+    public static final int BLOCKS_A_PUFF = 10;
+    /** One wisp of the column's core a burst for every this many blocks of column, at least two. */
+    public static final int BLOCKS_A_WISP = 2;
+    /** How far from the centre the core's wisps rise. */
+    public static final double CORE = 0.45;
     /**
      * How far off an ancient column's particles are drawn; a crafted one's, as most particles, to 32. Past 32 an
-     * ancient column sends up one puff a burst and its spark, which is enough to find it by and keeps a field of them
-     * light.
+     * ancient column sends up a quarter of its core's wisps, one puff and its spark a burst, which is enough to see it
+     * by as a line across the void and keeps a field of them light.
      */
     public static final double SEEN_ANCIENT = 96, SEEN = 32;
     /** No puff goes up within this of the camera, so a rider sees the column round them, not a cloud in their face. */
@@ -34,6 +43,16 @@ public final class Updraft {
      * so any over them would be overtaken, and those this far under rise a few blocks in their life and never reach them.
      */
     public static final double CLEAR_OF_RIDER = 5;
+    /**
+     * The same for the core's wisps, which rise faster and further (some 6-10 blocks in their life): none start within
+     * this under a rider's eye, so none rise through it while the rider hovers at the top or sinks.
+     */
+    public static final double WISP_CLEAR_OF_RIDER = 11;
+    /**
+     * About how far a wisp rises in its life: none start within this of the column's top, so the drawn air ends about
+     * where the lift does.
+     */
+    public static final int WISP_RISE = 8;
 
     private Updraft() {}
 
@@ -62,7 +81,12 @@ public final class Updraft {
 
     /** Puffs a burst for a column {@code height} tall. */
     public static int puffs(int height) {
-        return Math.max(3, height / BLOCKS_A_PUFF);
+        return Math.max(1, height / BLOCKS_A_PUFF);
+    }
+
+    /** The core's wisps a burst for a column {@code height} tall. */
+    public static int wisps(int height) {
+        return Math.max(2, height / BLOCKS_A_WISP);
     }
 
     /**
@@ -70,6 +94,12 @@ public final class Updraft {
      * {@code height} tall.
      */
     public static boolean inColumn(double dx, double dy, double dz, int height) {
-        return dy >= 0 && dy < height && dx * dx + dz * dz <= RADIUS * RADIUS;
+        return inColumn(dx, dy, dz, height, false);
+    }
+
+    /** The same for a glider, whose column reaches {@link #GLIDE_RADIUS}. */
+    public static boolean inColumn(double dx, double dy, double dz, int height, boolean gliding) {
+        double r = gliding ? GLIDE_RADIUS : RADIUS;
+        return dy >= 0 && dy < height && dx * dx + dz * dz <= r * r;
     }
 }

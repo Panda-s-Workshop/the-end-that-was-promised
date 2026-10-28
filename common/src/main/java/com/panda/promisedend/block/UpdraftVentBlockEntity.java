@@ -2,6 +2,7 @@ package com.panda.promisedend.block;
 
 import com.panda.promisedend.logic.Updraft;
 import com.panda.promisedend.registry.ModBlockEntities;
+import com.panda.promisedend.registry.ModParticles;
 import com.panda.promisedend.registry.ModTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -61,9 +62,12 @@ public class UpdraftVentBlockEntity extends BlockEntity {
         int h = vent.height;
         if (h <= 0) return;
         double cx = pos.getX() + 0.5, cz = pos.getZ() + 0.5, base = pos.getY() + 1;
-        AABB box = new AABB(cx - Updraft.RADIUS, base, cz - Updraft.RADIUS, cx + Updraft.RADIUS, base + h, cz + Updraft.RADIUS);
+        // as wide as a glider's column; anything else is held to its own
+        double reach = Updraft.GLIDE_RADIUS;
+        AABB box = new AABB(cx - reach, base, cz - reach, cx + reach, base + h, cz + reach);
         for (Entity e : level.getEntitiesOfClass(Entity.class, box, UpdraftVentBlockEntity::lifts)) {
-            if (!Updraft.inColumn(e.getX() - cx, e.getY() - base, e.getZ() - cz, h)) continue;
+            boolean gliding = e instanceof Player p && p.isFallFlying();
+            if (!Updraft.inColumn(e.getX() - cx, e.getY() - base, e.getZ() - cz, h, gliding)) continue;
             Player player = e instanceof Player p ? p : e.getControllingPassenger() instanceof Player p ? p : null;
             if (player != null) {
                 if (player.getAbilities().flying) continue;
@@ -75,7 +79,7 @@ public class UpdraftVentBlockEntity extends BlockEntity {
                             toldToSink = true;
                         }
                         if (player.isShiftKeyDown()) sinkOrLift(e, true, false);
-                        else sinkOrLift(e, false, e == player && player.isFallFlying());
+                        else sinkOrLift(e, false, gliding);
                     }
                 } else if (player instanceof ServerPlayer server) {
                     server.resetFallDistance();
@@ -108,10 +112,12 @@ public class UpdraftVentBlockEntity extends BlockEntity {
     }
 
     /**
-     * Pale puffs rising over the whole column, more the taller it is, none close round the camera; an ancient column
-     * also sparks, and is seen from 96 blocks, not the usual 32, so a glider can find it from across the void. Past 32
-     * the game would drop them, so an ancient column's are forced, and then keep to the Minimal setting themselves.
-     * (Not the game's cloud, which follows a player near it: a rider would carry the puffs up round their head.)
+     * A tight core of small wisps rising fast up the middle, with a few pale puffs round it, more the taller the
+     * column, none close round the camera; both carry their own light (vanilla's poof took the End's dim light and drew
+     * grey-green). An ancient column also sparks, and is seen from 96 blocks, not the usual 32, so a glider can find it
+     * from across the void. Past 32 the game would drop them, so an ancient column's are forced, and then keep to the
+     * Minimal setting themselves. (Not the game's cloud, which follows a player near it: a rider would carry the puffs
+     * up round their head.)
      */
     private static void particles(Level level, BlockState state, double cx, double base, double cz, int h) {
         Vec3 eye = camera.get();
@@ -127,12 +133,21 @@ public class UpdraftVentBlockEntity extends BlockEntity {
         boolean riding = (cx - eye.x) * (cx - eye.x) + (cz - eye.z) * (cz - eye.z) < (Updraft.RADIUS + 0.5) * (Updraft.RADIUS + 0.5);
         // forced only past the game's own 32, so up close the Decreased setting thins them as it does any particle
         boolean force = ancient && far > Updraft.SEEN * Updraft.SEEN;
-        int puffs = far > Updraft.SEEN * Updraft.SEEN ? 1 : Updraft.puffs(h);
-        for (int i = 0; i < puffs; i++) {
-            double a = random.nextDouble() * Math.PI * 2, r = Math.sqrt(random.nextDouble()) * Updraft.RADIUS * 0.8;
-            double x = cx + Math.cos(a) * r, y = base + random.nextDouble() * h, z = cz + Math.sin(a) * r;
-            if (eye.distanceToSqr(x, y, z) < clear || riding && y > eye.y - Updraft.CLEAR_OF_RIDER) continue;
-            level.addParticle(ParticleTypes.POOF, force, false, x, y, z, 0, 0.12 + random.nextDouble() * 0.1, 0);
+        boolean distant = far > Updraft.SEEN * Updraft.SEEN;
+        // from afar a quarter of the core still goes up, so the column reads as a line across the void
+        int wisps = distant ? Math.max(1, Updraft.wisps(h) / 4) : Updraft.wisps(h), puffs = distant ? 1 : Updraft.puffs(h);
+        for (int i = 0; i < wisps + puffs; i++) {
+            boolean wisp = i < wisps;
+            double a = random.nextDouble() * Math.PI * 2;
+            // the puffs out to where a glider is caught, so the band shows
+            double r = Math.sqrt(random.nextDouble()) * (wisp ? Updraft.CORE : Updraft.GLIDE_RADIUS * 0.9);
+            // the wisps start mostly low, rushing out of the vent's mouth; the puffs anywhere up the column
+            double up = random.nextDouble();
+            // and under the top by about what they rise, so the drawn air ends near where the lift does
+            double y = base + (wisp ? up * up * Math.max(1, h - Updraft.WISP_RISE) : up * h);
+            double x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+            if (eye.distanceToSqr(x, y, z) < clear || riding && y > eye.y - (wisp ? Updraft.WISP_CLEAR_OF_RIDER : Updraft.CLEAR_OF_RIDER)) continue;
+            level.addParticle(wisp ? ModParticles.UPDRAFT_WISP.get() : ModParticles.UPDRAFT_PUFF.get(), force, false, x, y, z, 0, 0, 0);
         }
         if (ancient) {
             double a = random.nextDouble() * Math.PI * 2, r = Math.sqrt(random.nextDouble()) * Updraft.RADIUS * 0.6;

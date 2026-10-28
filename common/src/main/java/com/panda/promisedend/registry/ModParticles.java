@@ -21,5 +21,9 @@ public final class ModParticles {
     public static final Supplier<SimpleParticleType> RIFT_MOTE = PARTICLES.register("rift_mote", () -> new SimpleParticleType(false));
     public static final Supplier<SimpleParticleType> AMBER_MOTE = PARTICLES.register("amber_mote", () -> new SimpleParticleType(false));
 
+    /** An Updraft Vent's column: a small pale wisp rising fast up its core, and the soft puff round it, both lit. */
+    public static final Supplier<SimpleParticleType> UPDRAFT_WISP = PARTICLES.register("updraft_wisp", () -> new SimpleParticleType(false));
+    public static final Supplier<SimpleParticleType> UPDRAFT_PUFF = PARTICLES.register("updraft_puff", () -> new SimpleParticleType(false));
+
     private ModParticles() {}
 }

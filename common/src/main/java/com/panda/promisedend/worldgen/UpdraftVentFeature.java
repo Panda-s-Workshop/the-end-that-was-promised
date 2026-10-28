@@ -30,8 +30,11 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 public record UpdraftVentFeature(int search, int edge) implements Feature {
     /** How far a column beside the top must fall away, at least, to count as the void. */
     public static final int DROP = 16;
-    /** No two vents within this many blocks of each other, across and up or down. */
-    public static final int SPACING = 4;
+    /**
+     * No two vents within this many blocks of each other, across and up or down: more than a glider's column is wide
+     * (Updraft.GLIDE_RADIUS each side), so no glider is in two columns at once and lifted twice a tick.
+     */
+    public static final int SPACING = 7;
 
     public static final MapCodec<UpdraftVentFeature> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             Codec.intRange(0, 12).fieldOf("search").forGetter(UpdraftVentFeature::search),
