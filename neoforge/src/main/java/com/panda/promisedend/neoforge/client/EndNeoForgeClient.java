@@ -14,6 +14,8 @@ import net.neoforged.neoforge.event.GameShuttingDownEvent;
 public final class EndNeoForgeClient {
     public EndNeoForgeClient(IEventBus modBus, ModContainer container) {
         NeoForge.EVENT_BUS.addListener((GameShuttingDownEvent e) -> DevExit.onClientStopping());
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientTickEvent.Post e) ->
+                com.panda.promisedend.client.VoidCurrentView.tick(net.minecraft.client.Minecraft.getInstance()));
         modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) ->
                 com.panda.promisedend.client.ModRenderers.register(new com.panda.promisedend.client.ModRenderers.Sink() {
                     @Override
@@ -30,6 +32,10 @@ public final class EndNeoForgeClient {
                         e.registerSpriteSet(type, provider::create);
                     }
                 }));
+        modBus.addListener((net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent e) ->
+                e.register(com.panda.promisedend.network.TerrainPayload.TYPE, (payload, context) -> com.panda.promisedend.logic.VoidCurrents.heardTerrain(payload.terrainEnabled())));
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut e) ->
+                com.panda.promisedend.logic.VoidCurrents.heardTerrain(null));
         PromisedEnd.openCodex = () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen());
         com.panda.promisedend.client.ClientView.install();
     }

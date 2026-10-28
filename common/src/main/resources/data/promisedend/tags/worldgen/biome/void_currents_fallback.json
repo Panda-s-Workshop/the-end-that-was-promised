@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "#promisedend:skyfall_fallback",
+    "#promisedend:voidscar_fallback"
+  ]
+}

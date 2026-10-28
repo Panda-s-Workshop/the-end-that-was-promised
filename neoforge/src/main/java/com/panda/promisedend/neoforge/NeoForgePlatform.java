@@ -25,4 +25,9 @@ public final class NeoForgePlatform implements EndPlatform {
     public boolean isFakePlayer(net.minecraft.world.entity.player.Player player) {
         return player.isFakePlayer();
     }
+
+    @Override
+    public void sendToPlayer(net.minecraft.server.level.ServerPlayer player, net.minecraft.network.protocol.common.custom.CustomPacketPayload payload) {
+        if (player.connection != null && player.connection.hasChannel(payload.type())) net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, payload);
+    }
 }

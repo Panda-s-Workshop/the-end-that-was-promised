@@ -26,4 +26,9 @@ public final class FabricPlatform implements EndPlatform {
     public boolean isFakePlayer(net.minecraft.world.entity.player.Player player) {
         return player instanceof net.fabricmc.fabric.api.entity.FakePlayer;
     }
+
+    @Override
+    public void sendToPlayer(net.minecraft.server.level.ServerPlayer player, net.minecraft.network.protocol.common.custom.CustomPacketPayload payload) {
+        if (net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player, payload.type())) net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
 }

@@ -120,6 +120,7 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_keeps_player_aloft", () -> EndGameTests::updraftKeepsPlayerAloft);
         FUNCTIONS.register("updraft_column_bounds", () -> EndGameTests::updraftColumnBounds);
         FUNCTIONS.register("updraft_landing_safe", () -> EndGameTests::updraftLandingSafe);
+        FUNCTIONS.register("current_carries_entity", () -> EndGameTests::currentCarriesEntity);
         FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
         FUNCTIONS.register("biome_visits_award", () -> EndGameTests::biomeVisitsAward);
     }
@@ -127,7 +128,7 @@ public final class EndGameTests {
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.of("crystal_warden_beam_cap_and_rest", 220,
             "wrath_increments_on_kill", 260, "dragon_drops_scales", 240, "void_water_slows", 160, "dragon_phase3_triggers", 460,
-            "updraft_lifts_entity", 360, "echo_amber_flares", 180);
+            "updraft_lifts_entity", 360, "echo_amber_flares", 180, "current_carries_entity", 560);
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -5332,5 +5333,148 @@ public final class EndGameTests {
         }
         if (!bad.isEmpty()) helper.fail("rim islands: " + bad);
         helper.succeed();
+    }
+
+    /**
+     * The void currents. In the End, a column the field puts in a current, made the Skyfall Archipelago (where the
+     * islands over it are, at Y 64: VoidCurrents.BIOME_Y), has a flow at
+     * Y 10 and none at Y 25, over the band; made the end highlands, none; made small_end_islands, none while our terrain
+     * is on and one while it is off. In the arena, whose chunks tick: an armour stand caught by a current running east,
+     * held towards 3.5 over the floor, goes along it at about 0.4 a tick (6-9 blocks in 20 ticks) and stays within 1.5
+     * of that height; another, held by a still current, is still up after 390 ticks, let go at 400 and on the floor by 460.
+     */
+    private static void currentCarriesEntity(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var end = level.getServer().getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) {
+            helper.fail("no End level");
+            return;
+        }
+        List<String> bad = new ArrayList<>();
+        long seed = com.panda.promisedend.logic.VoidCurrents.seed(end);
+        BlockPos spot = null;
+        for (int i = 0; i < 4096 && spot == null; i++) {
+            int x = 4000 + (i % 64) * 5, z = 4000 + (i / 64) * 5;
+            if (com.panda.promisedend.logic.VoidCurrent.inCurrent(seed, x + 0.5, z + 0.5)) spot = new BlockPos(x, com.panda.promisedend.logic.VoidCurrents.BIOME_Y, z);
+        }
+        if (spot == null) {
+            helper.fail("no current in 4096 columns round (4000, 4000)");
+            return;
+        }
+        BlockPos at = spot;
+        java.util.function.DoubleFunction<double[]> flow = y -> com.panda.promisedend.logic.VoidCurrents.flowAt(end, at.getX() + 0.5, y, at.getZ() + 0.5);
+        fillBiome(end, at, "promisedend:skyfall_archipelago");
+        if (flow.apply(10.5) == null) bad.add("no flow at " + at + " in the Skyfall");
+        if (flow.apply(25.5) != null) bad.add("a flow at Y 25, over the band");
+        fillBiome(end, at, "minecraft:end_highlands");
+        if (flow.apply(10.5) != null) bad.add("a flow under the end highlands");
+        fillBiome(end, at, "minecraft:small_end_islands");
+        if (flow.apply(10.5) != null) bad.add("a flow under small_end_islands with our terrain on");
+        var previous = com.panda.promisedend.EndConfig.current();
+        try {
+            com.panda.promisedend.EndConfig.use(new com.panda.promisedend.EndConfig.Source() {
+                @Override public boolean terrainEnabled() { return false; }
+                @Override public int edgeDistance() { return previous.edgeDistance(); }
+                @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
+                @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
+                @Override public boolean dragonWrath() { return previous.dragonWrath(); }
+                @Override public int maxWrath() { return previous.maxWrath(); }
+            });
+            if (flow.apply(10.5) == null) bad.add("no flow under small_end_islands with our terrain off");
+        } finally {
+            com.panda.promisedend.EndConfig.use(previous);
+        }
+        // the server's own pass (VoidCurrents.tick), on the Skyfall column at Y 10: an armour stand is caught and carried
+        // along the flow, and after its 400 ticks held the ride ends (washed ashore or let go); an arrow there and a
+        // shulker (#void_current_ignores) are left alone. The far chunk doesn't tick its entities, so the pass is run
+        // by hand on each, a tick at a time, and each one's speed read after it (the scenario sees the real hook)
+        fillBiome(end, at, "promisedend:skyfall_archipelago");
+        double cx = at.getX() + 0.5, cz = at.getZ() + 0.5;
+        var stand = new net.minecraft.world.entity.decoration.ArmorStand(end, cx, 10, cz);
+        var arrow = net.minecraft.world.entity.EntityTypes.ARROW.create(end, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        var shulker = net.minecraft.world.entity.EntityTypes.SHULKER.create(end, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        if (arrow == null || shulker == null) {
+            helper.fail("couldn't make an arrow or a shulker");
+            return;
+        }
+        arrow.setPos(cx, 10, cz);
+        shulker.setPos(cx, 10, cz);
+        List<net.minecraft.world.entity.Entity> placed = List.of(stand, arrow, shulker);
+        placed.forEach(end::addFreshEntity);
+        try {
+            java.util.Map<java.util.UUID, com.panda.promisedend.logic.VoidCurrents.Ride> rides = new java.util.HashMap<>();
+            placed.forEach(e -> e.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO));
+            placed.forEach(e -> com.panda.promisedend.logic.VoidCurrents.tick(end, rides, e));
+            double[] f = flow.apply(10.5);
+            var v = stand.getDeltaMovement();
+            double along = v.x * f[0] + v.z * f[1];
+            if (!rides.containsKey(stand.getUUID()) || along < 0.2) bad.add("the server's pass didn't catch the stand: its speed along the flow " + along);
+            if (!stand.needsSync) bad.add("the carried stand isn't marked to be sent");
+            for (var e : List.of(arrow, shulker)) if (rides.containsKey(e.getUUID()) || e.getDeltaMovement().lengthSqr() > 0) bad.add("the pass moved " + e);
+            for (int t = 1; t <= com.panda.promisedend.logic.VoidCurrent.HOLD_TICKS; t++) {
+                stand.setPos(cx, 10, cz);
+                com.panda.promisedend.logic.VoidCurrents.tick(end, rides, stand);
+            }
+            var ride = rides.get(stand.getUUID());
+            PromisedEnd.LOGGER.info("[current_carries_entity] the server's pass: held {} ticks, then {}", ride == null ? -1 : ride.held,
+                    ride == null ? "gone" : ride.shore != null ? "a shore at " + java.util.Arrays.toString(ride.shore) : "let go");
+            if (ride == null || ride.held <= com.panda.promisedend.logic.VoidCurrent.HOLD_TICKS) bad.add("the ride didn't end after " + com.panda.promisedend.logic.VoidCurrent.HOLD_TICKS + " ticks: " + (ride == null ? "none" : ride.held));
+            stand.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            com.panda.promisedend.logic.VoidCurrents.tick(end, rides, stand);
+            if (ride != null && ride.shore == null && stand.getDeltaMovement().lengthSqr() > 0) bad.add("a let-go stand was carried again");
+        } finally {
+            placed.forEach(net.minecraft.world.entity.Entity::discard);
+        }
+        if (!bad.isEmpty()) {
+            helper.fail("void currents: " + bad);
+            return;
+        }
+        // the arena: the floor's top at y 1, the roof 7 over it
+        double floorY = helper.absolutePos(new BlockPos(0, 1, 0)).getY(), mid = floorY + 3.5;
+        BlockPos carriedAt = helper.absolutePos(new BlockPos(1, 1, 3)), heldAt = helper.absolutePos(new BlockPos(1, 1, 8));
+        double[] east = {1, 0}, still = {0, 0};
+        int[] held = {0};
+        net.minecraft.world.entity.Entity[] stands = new net.minecraft.world.entity.Entity[2];
+        double[] start = new double[1];
+        double[] drift = {0};
+        int[] began = {-1};
+        for (int t = 1; t <= 540; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (began[0] < 0) {
+                    if (!level.isPositionEntityTicking(carriedAt) || !level.isPositionEntityTicking(heldAt)) {
+                        if (tick == 60) helper.fail("the arena's chunks weren't entity-ticking by tick 60");
+                        return;
+                    }
+                    began[0] = tick;
+                    stands[0] = new net.minecraft.world.entity.decoration.ArmorStand(level, carriedAt.getX() + 0.5, mid, carriedAt.getZ() + 0.5);
+                    stands[1] = new net.minecraft.world.entity.decoration.ArmorStand(level, heldAt.getX() + 0.5, mid, heldAt.getZ() + 0.5);
+                    for (var s : stands) level.addFreshEntity(s);
+                    start[0] = stands[0].getX();
+                    return;
+                }
+                int in = tick - began[0];
+                if (in <= 20) {
+                    com.panda.promisedend.logic.VoidCurrents.carry(stands[0], east, mid, false);
+                    drift[0] = Math.max(drift[0], Math.abs(stands[0].getY() - mid));
+                }
+                if (in == 21) {
+                    double went = stands[0].getX() - start[0];
+                    PromisedEnd.LOGGER.info("[current_carries_entity] carried {} blocks east in 20 ticks, at most {} off its height", String.format("%.2f", went), String.format("%.2f", drift[0]));
+                    if (went < 6 || went > 9) helper.fail("a current carried the stand " + went + " blocks in 20 ticks (6-9)");
+                    if (drift[0] > 1.5) helper.fail("a carried stand strayed " + drift[0] + " from its height");
+                    stands[0].discard();
+                }
+                if (++held[0] <= com.panda.promisedend.logic.VoidCurrent.HOLD_TICKS) com.panda.promisedend.logic.VoidCurrents.carry(stands[1], still, mid, false);
+                if (in == 390 && stands[1].getY() < floorY + 2.5) helper.fail("the held stand was down to " + (stands[1].getY() - floorY) + " over the floor after 390 ticks");
+                if (in == 460) {
+                    double over = stands[1].getY() - floorY;
+                    PromisedEnd.LOGGER.info("[current_carries_entity] the held stand, let go at 400, is {} over the floor at 460", String.format("%.2f", over));
+                    if (over > 0.5) helper.fail("the held stand wasn't let go: " + over + " over the floor at 460 ticks");
+                    stands[1].discard();
+                    helper.succeed();
+                }
+            });
+        }
     }
 }

@@ -36,6 +36,12 @@ public final class EndNeoForge {
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStartedEvent e) -> com.panda.promisedend.ServerCheck.onServerStarted(e.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post e) -> PromisedEnd.onServerTick(e.getServer()));
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.RegisterCommandsEvent e) -> com.panda.promisedend.EndCommand.register(e.getDispatcher()));
+        // the client's handler is the client entry's
+        modBus.addListener((net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent e) -> e.registrar("1")
+                .playToClient(com.panda.promisedend.network.TerrainPayload.TYPE, com.panda.promisedend.network.TerrainPayload.STREAM_CODEC));
+        NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedInEvent e) -> {
+            if (e.getEntity() instanceof net.minecraft.server.level.ServerPlayer p) PromisedEnd.onPlayerJoin(p);
+        });
         NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedOutEvent e) -> {
             if (e.getEntity() instanceof net.minecraft.server.level.ServerPlayer p) VoidAnchor.forget(p);
         });

@@ -45,6 +45,11 @@ public final class ModTags {
 
     /** Entities an Updraft Vent's column leaves alone (the dragon, the wither, shulkers): UpdraftVentBlockEntity. */
     public static final TagKey<EntityType<?>> UPDRAFT_IGNORES = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("updraft_ignores"));
+    /** And the void currents (the same ones): logic/VoidCurrents. */
+    public static final TagKey<EntityType<?>> VOID_CURRENT_IGNORES = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("void_current_ignores"));
+    /** The biomes a void current runs under, and those it runs under only while our terrain is off. */
+    public static final TagKey<net.minecraft.world.level.biome.Biome> VOID_CURRENTS = TagKey.create(Registries.BIOME, PromisedEnd.id("void_currents"));
+    public static final TagKey<net.minecraft.world.level.biome.Biome> VOID_CURRENTS_FALLBACK = TagKey.create(Registries.BIOME, PromisedEnd.id("void_currents_fallback"));
     /** The Ancients' constructs: they never turn on each other or on the dragon they guard. */
     public static final TagKey<EntityType<?>> CONSTRUCTS = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("constructs"));
 

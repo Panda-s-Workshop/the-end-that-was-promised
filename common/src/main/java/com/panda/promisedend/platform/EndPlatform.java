@@ -13,4 +13,7 @@ public interface EndPlatform {
 
     /** A machine acting as a player (a deployer, a quarry), not a person. */
     boolean isFakePlayer(net.minecraft.world.entity.player.Player player);
+
+    /** Sends a payload to one player, if their client knows it (a vanilla client or a GameTest mock player doesn't). */
+    void sendToPlayer(net.minecraft.server.level.ServerPlayer player, net.minecraft.network.protocol.common.custom.CustomPacketPayload payload);
 }

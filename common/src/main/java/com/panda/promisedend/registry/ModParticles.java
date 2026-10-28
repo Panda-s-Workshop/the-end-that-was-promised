@@ -25,5 +25,8 @@ public final class ModParticles {
     public static final Supplier<SimpleParticleType> UPDRAFT_WISP = PARTICLES.register("updraft_wisp", () -> new SimpleParticleType(false));
     public static final Supplier<SimpleParticleType> UPDRAFT_PUFF = PARTICLES.register("updraft_puff", () -> new SimpleParticleType(false));
 
+    /** A void current's mote: periwinkle, carried along the current at its own speed, lit. */
+    public static final Supplier<SimpleParticleType> CURRENT_MOTE = PARTICLES.register("current_mote", () -> new SimpleParticleType(false));
+
     private ModParticles() {}
 }

@@ -58,6 +58,12 @@ public final class PromisedEnd {
         server.getPlayerList().getPlayers().forEach(PromisedEnd::onPlayerTick);
         com.panda.promisedend.logic.DragonWrath.tick(server);
         com.panda.promisedend.logic.DragonPhase3.tick(server);
+        com.panda.promisedend.logic.VoidCurrents.tick(server);
+    }
+
+    /** A player joined the server: their client is told what it can't read itself. */
+    public static void onPlayerJoin(net.minecraft.server.level.ServerPlayer player) {
+        com.panda.promisedend.platform.Services.PLATFORM.sendToPlayer(player, new com.panda.promisedend.network.TerrainPayload(EndConfig.terrainEnabled()));
     }
 
     /** For each server player at the end of every server tick. */

@@ -21,3 +21,5 @@ accessible method net/minecraft/world/level/block/PressurePlateBlock <init> (Lne
 accessible method net/minecraft/world/level/block/state/properties/WoodType register (Lnet/minecraft/world/level/block/state/properties/WoodType;)Lnet/minecraft/world/level/block/state/properties/WoodType;
 # the dragon's phase 3 turns the fight's boss bar purple
 accessible field net/minecraft/world/level/dimension/end/EnderDragonFight dragonEvent Lnet/minecraft/server/level/ServerBossEvent;
+# the void currents' noise: the seed hash vanilla sends every client for its biome blending
+accessible field net/minecraft/world/level/biome/BiomeManager biomeZoomSeed J

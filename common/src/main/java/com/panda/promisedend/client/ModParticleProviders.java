@@ -35,6 +35,8 @@ public final class ModParticleProviders {
                 new Mote(level, x, y, z, sprites, WISP));
         sink.sprites(ModParticles.UPDRAFT_PUFF.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
                 new Mote(level, x, y, z, sprites, PUFF));
+        sink.sprites(ModParticles.CURRENT_MOTE.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
+                new Carried(level, x, y, z, sprites, CURRENT, dx, dy, dz));
     }
 
     private ModParticleProviders() {}
@@ -54,12 +56,14 @@ public final class ModParticleProviders {
      */
     static final Motion WISP = new Motion(0.3, -0.3F, 0.001, 0.0, 20, 15, 0.16F, 0.08F);
     static final Motion PUFF = new Motion(0.15, -0.12F, 0.002, 0.0, 20, 15, 0.18F, 0.12F);
+    /** A void current's mote neither rises nor falls: it drifts along at the speed it was given, some 20-35 blocks. */
+    static final Motion CURRENT = new Motion(0.0, 0.0F, 0.0008, 0.0, 50, 40, 0.22F, 0.1F);
 
     /**
      * A mote: drifts down slowly, swaying, and fades in and out. It carries its own light: a leaf-like particle takes
      * the block light, and the End's is so low that pale colours drew near-black.
      */
-    static final class Mote extends SingleQuadParticle {
+    static class Mote extends SingleQuadParticle {
         private final SpriteSet sprites;
         private final Motion motion;
         private final float phase;
@@ -108,6 +112,39 @@ public final class ModParticleProviders {
         @Override
         public int getLightCoords(float partialTick) {
             return LightCoordsUtil.FULL_BRIGHT;
+        }
+    }
+
+    /**
+     * A void current's mote, carried at a speed of its own across ({@code dx}, {@code dz}) that the air doesn't slow,
+     * {@code dy} times larger than its own size again (far from the camera, so a river reads from an island). Every few
+     * ticks it turns with the current where it is, and fades out soon after leaving it, so the drawn river keeps to the
+     * real one's bends and ends.
+     */
+    static final class Carried extends Mote {
+        /** How often it looks for the current again, and how long it takes to fade once out of it, in ticks. */
+        static final int TURN_EVERY = 5, FADE = 8;
+
+        Carried(ClientLevel level, double x, double y, double z, SpriteSet sprites, Motion motion, double dx, double dy, double dz) {
+            super(level, x, y, z, sprites, motion);
+            this.xd = dx;
+            this.zd = dz;
+            this.friction = 1.0F;
+            this.quadSize *= (float) (1 + Math.max(0, dy));
+        }
+
+        @Override
+        public void tick() {
+            super.tick();
+            if (this.removed || this.age % TURN_EVERY != 0) return;
+            double[] f = com.panda.promisedend.logic.VoidCurrents.flowAt(this.level, this.x, this.y, this.z);
+            if (f == null) {
+                this.lifetime = Math.min(this.lifetime, this.age + FADE);
+                return;
+            }
+            double speed = Math.hypot(this.xd, this.zd);
+            this.xd = f[0] * speed;
+            this.zd = f[1] * speed;
         }
     }
 }
