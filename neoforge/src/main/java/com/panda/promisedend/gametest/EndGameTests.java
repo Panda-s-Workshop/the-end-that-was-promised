@@ -73,6 +73,7 @@ public final class EndGameTests {
         FUNCTIONS.register("construct_assets_match", () -> EndGameTests::constructAssetsMatch);
         FUNCTIONS.register("constructs_stats_and_drops", () -> EndGameTests::constructsStatsAndDrops);
         FUNCTIONS.register("construct_recipes", () -> EndGameTests::constructRecipes);
+        FUNCTIONS.register("constructs_edges_walls_and_swarms", () -> EndGameTests::constructsEdgesWallsAndSwarms);
         FUNCTIONS.register("crystal_warden_beam_cap_and_rest", () -> EndGameTests::crystalWardenBeamCapAndRest);
         FUNCTIONS.register("crystal_warden_ignores_the_dragon", () -> EndGameTests::crystalWardenIgnoresTheDragon);
         FUNCTIONS.register("crystal_warden_shatters_and_drops", () -> EndGameTests::crystalWardenShattersAndDrops);
@@ -138,7 +139,7 @@ public final class EndGameTests {
             java.util.Map.entry("dragon_phase3_triggers", 460), java.util.Map.entry("updraft_lifts_entity", 360),
             java.util.Map.entry("echo_amber_flares", 180), java.util.Map.entry("current_carries_entity", 560),
             java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("lumen_wisp_lights_the_way", 460),
-            java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260));
+            java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("constructs_edges_walls_and_swarms", 200), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -822,6 +823,105 @@ public final class EndGameTests {
                 else helper.succeed();
             });
         });
+    }
+
+    /**
+     * The constructs' guards against the void and against walls, in one arena. A Purpur Sentry lunging east at an iron
+     * golem across a gap 2 wide and 4 deep pulls up at its edge, on its own side and on its feet. A Chorus Weaver stays
+     * asleep with a survival player 3 off behind a wall, and wakes once the wall is gone; rooted again, it stands square
+     * to the grid in the middle of its block. Three Lumen Wisps near one player holding Lumen: two follow, the third
+     * doesn't.
+     */
+    private static void constructsEdgesWallsAndSwarms(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 1, 5));
+        List<String> bad = new ArrayList<>();
+        // the gap: x 4-5, z 3-7, from the floor down 4
+        for (int x = 4; x <= 5; x++) {
+            for (int z = 3; z <= 7; z++) {
+                for (int y = 0; y >= -3; y--) level.setBlock(helper.absolutePos(new BlockPos(x, y, z)), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+            }
+        }
+        var sentry = helper.spawn(com.panda.promisedend.registry.ModEntities.PURPUR_SENTRY.get(), new BlockPos(1, 1, 5));
+        var golem = helper.spawn(net.minecraft.world.entity.EntityTypes.IRON_GOLEM, new BlockPos(8, 1, 5));
+        golem.setNoAi(true);
+        double gapX = helper.absolutePos(new BlockPos(4, 0, 0)).getX();
+        // the wall: x 2, z 8-10, three high, between the weaver at (1, 9) and the player at (4, 9)
+        var weaver = helper.spawn(com.panda.promisedend.registry.ModEntities.CHORUS_WEAVER.get(), new BlockPos(1, 1, 9));
+        for (int z = 8; z <= 10; z++) {
+            for (int y = 1; y <= 3; y++) level.setBlock(helper.absolutePos(new BlockPos(2, y, z)), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3);
+        }
+        var walker = helper.makeMockServerPlayerInLevel();
+        walker.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        net.minecraft.world.phys.Vec3 wv = weaver.position();
+        walker.snapTo(wv.x + 3, wv.y, wv.z, 90, 0);
+        // the wisps' player, far from the weaver
+        var holder = helper.makeMockServerPlayerInLevel();
+        holder.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        BlockPos h = helper.absolutePos(new BlockPos(8, 1, 1));
+        holder.snapTo(h.getX() + 0.5, h.getY(), h.getZ() + 0.5, 0, 0);
+        holder.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(ModItems.LUMEN.get()));
+        List<com.panda.promisedend.entity.LumenWisp> wisps = new ArrayList<>();
+        for (int x = 7; x <= 9; x++) wisps.add(helper.spawn(com.panda.promisedend.registry.ModEntities.LUMEN_WISP.get(), new BlockPos(x, 3, 2)));
+        int[] began = {-1}, woke = {-1}, lungeAt = {-1}, recoverAt = {-1}, wispsDone = {0};
+        for (int t = 1; t <= 190; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (began[0] < 0) {
+                    if (level.isPositionEntityTicking(at)) {
+                        began[0] = tick;
+                        sentry.setTarget(golem);
+                        sentry.raiseShield();
+                    } else if (tick == 60) helper.fail("the arena's chunk wasn't entity-ticking by tick 60");
+                    return;
+                }
+                int in = tick - began[0];
+                if (lungeAt[0] < 0) {
+                    sentry.setTarget(golem);
+                    if (sentry.state() == com.panda.promisedend.entity.PurpurSentry.State.LUNGE) lungeAt[0] = in;
+                }
+                if (lungeAt[0] > 0 && recoverAt[0] < 0 && sentry.state() == com.panda.promisedend.entity.PurpurSentry.State.RECOVER) recoverAt[0] = in;
+                if (recoverAt[0] > 0 && in == recoverAt[0] + 3) {
+                    double front = sentry.getX() + sentry.getBbWidth() / 2;
+                    PromisedEnd.LOGGER.info("[constructs_edges_walls_and_swarms] the sentry pulled up {} short of the gap, at y {} (the floor's top {})",
+                            String.format("%.2f", gapX - front), String.format("%.2f", sentry.getY()), at.getY());
+                    if (front > gapX + 0.05 || sentry.getY() < at.getY() - 0.1) bad.add("the sentry's lunge went over the edge: front " + front + ", the gap at " + gapX + ", y " + sentry.getY());
+                }
+                if (in <= 20 && !weaver.disguised()) {
+                    bad.add("the weaver woke for a player behind a wall (" + in + " ticks in)");
+                    woke[0] = in;
+                }
+                if (in == 21) {
+                    for (int z = 8; z <= 10; z++) {
+                        for (int y = 1; y <= 3; y++) level.setBlock(helper.absolutePos(new BlockPos(2, y, z)), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                    }
+                }
+                if (in > 21 && woke[0] < 0 && !weaver.disguised()) {
+                    woke[0] = in;
+                    // rooted again from a skewed stand: square, in the middle of its block
+                    weaver.snapTo(weaver.getX() + 0.31, weaver.getY(), weaver.getZ() - 0.22, 37.0F, 0);
+                    weaver.disguise();
+                    double fx = weaver.getX() - Math.floor(weaver.getX()), fz = weaver.getZ() - Math.floor(weaver.getZ());
+                    float yaw = net.minecraft.util.Mth.wrapDegrees(weaver.getYRot());
+                    PromisedEnd.LOGGER.info("[constructs_edges_walls_and_swarms] the weaver woke {} ticks after the wall went; rooted again at {} {} in its block, facing {}",
+                            in - 21, String.format("%.2f", fx), String.format("%.2f", fz), yaw);
+                    if (Math.abs(fx - 0.5) > 1e-6 || Math.abs(fz - 0.5) > 1e-6 || Math.abs(yaw % 90) > 1e-3) bad.add("rooted again off the grid: " + fx + ", " + fz + ", facing " + yaw);
+                }
+                if (in == 30 && woke[0] < 0) bad.add("the weaver didn't wake 9 ticks after the wall went");
+                if (in == 60) {
+                    long following = wisps.stream().filter(wisp -> wisp.following() == holder).count();
+                    PromisedEnd.LOGGER.info("[constructs_edges_walls_and_swarms] three wisps near one player with Lumen: {} follow", following);
+                    if (following != com.panda.promisedend.entity.LumenWisp.MAX_FOLLOWERS) bad.add(following + " wisps followed one player");
+                    wispsDone[0] = 1;
+                }
+                if (recoverAt[0] > 0 && in >= recoverAt[0] + 3 && wispsDone[0] == 1 && woke[0] > 0) {
+                    if (!bad.isEmpty()) helper.fail("constructs: " + bad);
+                    else helper.succeed();
+                    wispsDone[0] = 2;
+                }
+                if (tick == 190 && wispsDone[0] != 2) helper.fail("the test ran out (lunge " + lungeAt[0] + ", recover " + recoverAt[0] + ", woke " + woke[0] + "): " + bad);
+            });
+        }
     }
 
     /** The constructs' recipes: Rift Dust recharges a cracked anchor, and four Ancient Purpur Scrap make four Ancient Purpur. */

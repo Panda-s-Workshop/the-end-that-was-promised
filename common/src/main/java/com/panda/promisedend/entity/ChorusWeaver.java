@@ -201,7 +201,7 @@ public class ChorusWeaver extends Monster implements GeoEntity {
                 getNavigation().stop();
                 setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));
                 Player near = level.getNearestPlayer(getX(), getY(), getZ(), REVEAL_RANGE,
-                        p -> p instanceof Player pl && !pl.isCreative() && !pl.isSpectator() && hasLineOfSight(pl));
+                        p -> p instanceof Player pl && pl.canBeSeenAsEnemy() && hasLineOfSight(pl));
                 if (near != null) {
                     setTarget(near);
                     reveal();
