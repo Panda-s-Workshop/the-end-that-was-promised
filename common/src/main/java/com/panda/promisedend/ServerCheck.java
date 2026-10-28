@@ -414,15 +414,22 @@ public final class ServerCheck {
             int chunks = 0, vents = 0;
             BlockPos first = null;
             var origin = net.minecraft.world.level.ChunkPos.containing(at);
-            for (int cx = origin.x() - 4; cx <= origin.x() + 4; cx++) {
-                for (int cz = origin.z() - 4; cz <= origin.z() + 4; cz++) {
-                    var middle = new BlockPos(cx * 16 + 8, 64, cz * 16 + 8);
-                    if (!end.getBiome(middle).is(key)) continue;
-                    chunks++;
-                    for (BlockPos p : BlockPos.betweenClosed(cx * 16, 24, cz * 16, cx * 16 + 15, 140, cz * 16 + 15)) {
-                        if (!end.getBlockState(p).is(ModBlocks.UPDRAFT_VENT.get())) continue;
-                        vents++;
-                        if (first == null) first = p.immutable();
+            // within 4 chunks, or 8 where the biome has fewer than 30 there: at one vent in 3.5 chunks, 11 chunks give 3
+            // vents on average, and the 1-in-5 floor below then failed a fair world about 4 runs in 10
+            for (int r = 4; r <= 8 && chunks < 30; r += 4) {
+                chunks = 0;
+                vents = 0;
+                first = null;
+                for (int cx = origin.x() - r; cx <= origin.x() + r; cx++) {
+                    for (int cz = origin.z() - r; cz <= origin.z() + r; cz++) {
+                        var middle = new BlockPos(cx * 16 + 8, 64, cz * 16 + 8);
+                        if (!end.getBiome(middle).is(key)) continue;
+                        chunks++;
+                        for (BlockPos p : BlockPos.betweenClosed(cx * 16, 24, cz * 16, cx * 16 + 15, 140, cz * 16 + 15)) {
+                            if (!end.getBlockState(p).is(ModBlocks.UPDRAFT_VENT.get())) continue;
+                            vents++;
+                            if (first == null) first = p.immutable();
+                        }
                     }
                 }
             }
