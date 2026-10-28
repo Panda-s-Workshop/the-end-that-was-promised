@@ -75,6 +75,12 @@ public final class EndGameTests {
         FUNCTIONS.register("construct_recipes", () -> EndGameTests::constructRecipes);
         FUNCTIONS.register("constructs_edges_walls_and_swarms", () -> EndGameTests::constructsEdgesWallsAndSwarms);
         FUNCTIONS.register("construct_spawns_keep_to_their_lands", () -> EndGameTests::constructSpawnsKeepToTheirLands);
+        FUNCTIONS.register("arrival_by_coordinates", () -> EndGameTests::arrivalByCoordinates);
+        FUNCTIONS.register("ward_sets_back", () -> EndGameTests::wardSetsBack);
+        FUNCTIONS.register("seals_drop_the_ward", () -> EndGameTests::sealsDropTheWard);
+        FUNCTIONS.register("ward_bounces_pearls", () -> EndGameTests::wardBouncesPearls);
+        FUNCTIONS.register("arrival_off_is_vanilla", () -> EndGameTests::arrivalOffIsVanilla);
+        FUNCTIONS.register("return_gate_sends_home", () -> EndGameTests::returnGateSendsHome);
         FUNCTIONS.register("crystal_warden_beam_cap_and_rest", () -> EndGameTests::crystalWardenBeamCapAndRest);
         FUNCTIONS.register("crystal_warden_ignores_the_dragon", () -> EndGameTests::crystalWardenIgnoresTheDragon);
         FUNCTIONS.register("crystal_warden_shatters_and_drops", () -> EndGameTests::crystalWardenShattersAndDrops);
@@ -3562,6 +3568,265 @@ public final class EndGameTests {
             @Override public boolean dragonWrath() { return previous.dragonWrath(); }
             @Override public int maxWrath() { return previous.maxWrath(); }
         };
+    }
+
+    /**
+     * An End portal in the Overworld at (1503, 64, -287) sets a player down in the End in the portal's direction, its
+     * distance held in the band (1100-2500; the portal is 1530 out), within the search's reach of that point, on the
+     * floor of a Waystation whose Return Gate is in its middle, facing the centre. The same portal again: the same
+     * place, no second Waystation. The first arrival gives the Promise Codex, the second doesn't. (The test server's End
+     * is a flat floor, so this is the no-ground path, an islet; real ground is the server check's.)
+     */
+    private static void arrivalByCoordinates(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        List<String> bad = new ArrayList<>();
+        if (end == null) {
+            helper.fail("no End level");
+            return;
+        }
+        var player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        com.panda.promisedend.logic.Arrivals.forget(server, player.getUUID());
+        BlockPos portal = new BlockPos(1503, 64, -287);
+        int before = com.panda.promisedend.logic.Arrivals.built(server).size();
+        var first = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        if (first == null) {
+            helper.fail("no arrival for a portal in the Overworld");
+            return;
+        }
+        if (first.newLevel() != end) bad.add("the arrival isn't in the End: " + first.newLevel().dimension());
+        var at = first.position();
+        double out = Math.hypot(at.x, at.z), angle = Math.atan2(at.z, at.x), want = Math.atan2(-287.5, 1503.5);
+        PromisedEnd.LOGGER.info("[arrival_by_coordinates] set down at {} ({} out, {} rad; the portal's {} rad)", at, Math.round(out), String.format("%.3f", angle), String.format("%.3f", want));
+        if (out < com.panda.promisedend.logic.Arrival.NEAREST - com.panda.promisedend.logic.Arrival.SEARCH || out > com.panda.promisedend.logic.Arrival.FARTHEST + com.panda.promisedend.logic.Arrival.SEARCH) bad.add("set down " + out + " out");
+        double[] point = com.panda.promisedend.logic.Arrival.target(1503.5, -287.5);
+        if (Math.hypot(at.x - point[0], at.z - point[1]) > com.panda.promisedend.logic.Arrival.SEARCH + 8) bad.add("set down " + Math.hypot(at.x - point[0], at.z - point[1]) + " from the portal's point");
+        var built = com.panda.promisedend.logic.Arrivals.built(server);
+        if (built.size() != before + 1) bad.add("the first arrival built " + (built.size() - before) + " Waystations");
+        else {
+            BlockPos gate = built.getLast();
+            if (!end.getBlockState(gate).is(ModBlocks.RETURN_GATE.get())) bad.add("no Return Gate in the Waystation's middle: " + end.getBlockState(gate));
+            if (!com.panda.promisedend.logic.Arrivals.stand(gate).equals(at)) bad.add("not set down on the Waystation's floor: " + at + ", the gate " + gate);
+            if (!end.getBlockState(BlockPos.containing(at).below()).isFaceSturdy(end, BlockPos.containing(at).below(), net.minecraft.core.Direction.UP)) bad.add("nothing to stand on under " + at);
+            if (!end.getBlockState(BlockPos.containing(at)).isAir() || !end.getBlockState(BlockPos.containing(at).above()).isAir()) bad.add("no room to stand at " + at);
+            int chests = 0;
+            for (BlockPos q : BlockPos.betweenClosed(gate.offset(-6, 0, -6), gate.offset(6, 3, 6))) if (end.getBlockState(q).is(net.minecraft.world.level.block.Blocks.CHEST)) chests++;
+            if (chests != 1) bad.add(chests + " chests at the Waystation");
+        }
+        float yaw = net.minecraft.util.Mth.wrapDegrees(first.yRot()), face = com.panda.promisedend.logic.Arrival.facingCentre(at.x, at.z);
+        if (Math.abs(net.minecraft.util.Mth.wrapDegrees(yaw - face)) > 1) bad.add("facing " + yaw + ", not the centre (" + face + ")");
+        var again = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        if (again == null || !again.position().equals(at)) bad.add("the same portal again set down at " + (again == null ? null : again.position()));
+        if (com.panda.promisedend.logic.Arrivals.built(server).size() != before + 1) bad.add("the same portal again built another Waystation");
+        // the greeting, as the teleport runs it after the move
+        first.postTeleportTransition().onTransition(player);
+        again.postTeleportTransition().onTransition(player);
+        int codices = player.getInventory().countItem(ModItems.PROMISE_CODEX.get());
+        if (codices != 1) bad.add(codices + " Promise Codices after two arrivals");
+        player.discard();
+        if (!bad.isEmpty()) helper.fail("arrival: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A real player on the server's list, in {@code mode}: the test helper's mock server player always reports
+     * creative, which the Ward lets by. Take it off the list ({@code getPlayerList().remove}) when the test ends.
+     */
+    private static net.minecraft.server.level.ServerPlayer realPlayer(GameTestHelper helper, net.minecraft.world.level.GameType mode) {
+        var level = helper.getLevel();
+        var cookie = net.minecraft.server.network.CommonListenerCookie.createInitial(new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "test-walker"), false);
+        var player = new net.minecraft.server.level.ServerPlayer(level.getServer(), level, cookie.gameProfile(), cookie.clientInformation());
+        var connection = new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+        new io.netty.channel.embedded.EmbeddedChannel(connection);
+        level.getServer().getPlayerList().placeNewPlayer(connection, player, cookie);
+        player.setGameMode(mode);
+        return player;
+    }
+
+    /**
+     * The Ancients' Ward, with every seal mended: a survival player who steps from 3 outside it to 2 inside, on one
+     * tick, is set back where they were; a creative or spectating player crossing isn't; a survival player found 100
+     * inside is sent home (out of the End); a player riding a pig across is set back with the pig, still riding. With
+     * every seal broken the same step is let through. The seals are left mended.
+     */
+    private static void wardSetsBack(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        List<String> bad = new ArrayList<>();
+        if (end == null) {
+            helper.fail("no End level");
+            return;
+        }
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        int r = com.panda.promisedend.EndConfig.wardRadius();
+        List<net.minecraft.server.level.ServerPlayer> players = new ArrayList<>();
+        java.util.function.Function<net.minecraft.world.level.GameType, net.minecraft.server.level.ServerPlayer> player = mode -> {
+            var p = realPlayer(helper, mode);
+            players.add(p);
+            return p;
+        };
+        // a step across: placed outside, a tick of the Ward, placed inside, another tick; where it ends up
+        java.util.function.BiFunction<net.minecraft.server.level.ServerPlayer, Double, Double> cross = (p, from) -> {
+            wardAt(end, p, from);
+            com.panda.promisedend.logic.AncientWard.tick(p);
+            wardAt(end, p, r - 2.0);
+            com.panda.promisedend.logic.AncientWard.tick(p);
+            return p.getX();
+        };
+        if (!com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("the Ward doesn't stand with every seal mended");
+        var walker = player.apply(net.minecraft.world.level.GameType.SURVIVAL);
+        double x = cross.apply(walker, r + 3.0);
+        PromisedEnd.LOGGER.info("[ward_sets_back] stepped to {} inside: set back to {}", r - 2, walker.position());
+        if (walker.level() != end || Math.abs(x - (r + 3.0)) > 0.01) bad.add("a survival player 2 inside was left at " + walker.position() + " in " + walker.level().dimension());
+        for (var mode : List.of(net.minecraft.world.level.GameType.CREATIVE, net.minecraft.world.level.GameType.SPECTATOR)) {
+            var exempt = player.apply(mode);
+            if (Math.abs(cross.apply(exempt, r + 3.0) - (r - 2.0)) > 0.01) bad.add("a " + mode.getName() + " player was set back to " + exempt.position());
+        }
+        var deep = player.apply(net.minecraft.world.level.GameType.SURVIVAL);
+        wardAt(end, deep, r - 100.0);
+        com.panda.promisedend.logic.AncientWard.tick(deep);
+        if (deep.level() == end) bad.add("a survival player 100 inside stayed in the End at " + deep.position());
+        // riding: the pig is moved across with its rider on it, and both go back
+        var rider = player.apply(net.minecraft.world.level.GameType.SURVIVAL);
+        var pig = net.minecraft.world.entity.EntityTypes.PIG.create(end, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        end.getChunk(BlockPos.containing(r + 3.0, 80, 0));
+        pig.snapTo(r + 3.0, 80, 0.5, 0, 0);
+        pig.setNoAi(true);
+        pig.setNoGravity(true);
+        end.addFreshEntity(pig);
+        wardAt(end, rider, r + 3.0);
+        if (!rider.startRiding(pig, true, false)) bad.add("the rider couldn't mount the pig");
+        com.panda.promisedend.logic.AncientWard.tick(rider);
+        pig.teleportTo(end, r - 2.0, 80, 0.5, java.util.Set.of(), 0, 0, false);
+        com.panda.promisedend.logic.AncientWard.tick(rider);
+        PromisedEnd.LOGGER.info("[ward_sets_back] rode to {} inside: the pig at {}, the rider {} riding at {}", r - 2, pig.position(), rider.isPassenger() ? "still" : "not", rider.position());
+        if (pig.getX() < r) bad.add("the mount was left inside at " + pig.position());
+        if (rider.getVehicle() != pig) bad.add("the rider was taken off the mount");
+        pig.discard();
+        // every seal broken: let through
+        for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
+        var free = player.apply(net.minecraft.world.level.GameType.SURVIVAL);
+        if (Math.abs(cross.apply(free, r + 3.0) - (r - 2.0)) > 0.01) bad.add("with every seal broken a player was set back to " + free.position());
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        for (var p : players) server.getPlayerList().remove(p);
+        if (!bad.isEmpty()) helper.fail("ward: " + bad);
+        helper.succeed();
+    }
+
+    /** Puts a player in the End at ({@code x}, 80, 0.5). */
+    private static void wardAt(net.minecraft.server.level.ServerLevel end, net.minecraft.server.level.ServerPlayer p, double x) {
+        end.getChunk(BlockPos.containing(x, 80, 0));
+        p.teleport(new net.minecraft.world.level.portal.TeleportTransition(end, new net.minecraft.world.phys.Vec3(x, 80, 0.5), net.minecraft.world.phys.Vec3.ZERO, 0, 0,
+                net.minecraft.world.level.portal.TeleportTransition.DO_NOTHING));
+    }
+
+    /**
+     * A pearl thrown inward at the Ward, by a survival player 20 outside it, bounces off: on the Ward's tick it is put
+     * back outside and flies outward. With every seal broken it flies on. The seals are left mended.
+     */
+    private static void wardBouncesPearls(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        List<String> bad = new ArrayList<>();
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        int r = com.panda.promisedend.EndConfig.wardRadius();
+        var thrower = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        wardAt(end, thrower, r + 20.0);
+        for (boolean standing : new boolean[] {true, false}) {
+            if (!standing) for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
+            var pearl = new net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl(net.minecraft.world.entity.EntityTypes.ENDER_PEARL, end);
+            pearl.snapTo(r - 1.0, 82, 0.5, 0, 0);
+            pearl.setDeltaMovement(-1.0, 0, 0);
+            end.addFreshEntity(pearl);
+            com.panda.promisedend.logic.AncientWard.tick(server);
+            PromisedEnd.LOGGER.info("[ward_bounces_pearls] the Ward {}: the pearl at {} moving {}", standing ? "up" : "down", pearl.position(), pearl.getDeltaMovement());
+            if (standing && (pearl.getX() < r || pearl.getDeltaMovement().x <= 0)) bad.add("a pearl went through the Ward: at " + pearl.position() + " moving " + pearl.getDeltaMovement());
+            if (!standing && (pearl.getX() > r || pearl.getDeltaMovement().x >= 0)) bad.add("with the Ward down a pearl was turned: at " + pearl.position() + " moving " + pearl.getDeltaMovement());
+            pearl.discard();
+        }
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        server.getPlayerList().remove(thrower);
+        if (!bad.isEmpty()) helper.fail("pearls: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * With {@code arrival.by_coordinates} off, an End portal is vanilla's (no arrival of ours) and the Ward never
+     * stands, whatever the seals.
+     */
+    private static void arrivalOffIsVanilla(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        List<String> bad = new ArrayList<>();
+        var previous = com.panda.promisedend.EndConfig.current();
+        com.panda.promisedend.EndConfig.use(new com.panda.promisedend.EndConfig.Source() {
+            @Override public boolean terrainEnabled() { return previous.terrainEnabled(); }
+            @Override public int edgeDistance() { return previous.edgeDistance(); }
+            @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
+            @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
+            @Override public boolean dragonWrath() { return previous.dragonWrath(); }
+            @Override public int maxWrath() { return previous.maxWrath(); }
+            @Override public boolean arrivalByCoordinates() { return false; }
+        });
+        try {
+            com.panda.promisedend.logic.AncientWard.reset(server);
+            int before = com.panda.promisedend.logic.Arrivals.built(server).size();
+            if (com.panda.promisedend.logic.Arrivals.destination(level, null, new BlockPos(-900, 64, 1800)) != null) bad.add("an arrival of ours with it off");
+            if (com.panda.promisedend.logic.Arrivals.built(server).size() != before) bad.add("a Waystation built with it off");
+            if (com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("the Ward stands with it off");
+        } finally {
+            com.panda.promisedend.EndConfig.use(previous);
+        }
+        if (!bad.isEmpty()) helper.fail("off: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The seals: with none broken the Ward stands; it still stands with two; the third drops it. A seal broken twice
+     * breaks once. Mended, it stands again.
+     */
+    private static void sealsDropTheWard(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        List<String> bad = new ArrayList<>();
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        if (!com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("down with no seal broken");
+        if (!com.panda.promisedend.logic.AncientWard.breakSeal(server, 0)) bad.add("the first seal didn't break");
+        if (com.panda.promisedend.logic.AncientWard.breakSeal(server, 0)) bad.add("the first seal broke twice");
+        com.panda.promisedend.logic.AncientWard.breakSeal(server, 1);
+        if (!com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("down with two seals broken");
+        com.panda.promisedend.logic.AncientWard.breakSeal(server, 2);
+        if (com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("still standing with all three broken");
+        if (com.panda.promisedend.logic.AncientWard.broken(server) != com.panda.promisedend.logic.AncientWard.ALL) bad.add("broken " + com.panda.promisedend.logic.AncientWard.broken(server));
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        if (!com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("down after every seal was mended");
+        if (!bad.isEmpty()) helper.fail("seals: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * The Return Gate sends a player to their respawn point, out of the End, as the exit portal does; a pig goes
+     * nowhere. It can't be broken, has no item, and gives light.
+     */
+    private static void returnGateSendsHome(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var end = level.getServer().getLevel(net.minecraft.world.level.Level.END);
+        List<String> bad = new ArrayList<>();
+        var gate = (com.panda.promisedend.block.ReturnGateBlock) ModBlocks.RETURN_GATE.get();
+        var state = gate.defaultBlockState();
+        var player = helper.makeMockServerPlayerInLevel();
+        var home = gate.getPortalDestination(end, player, BlockPos.ZERO);
+        if (home == null) bad.add("no way home for a player");
+        else if (home.newLevel().dimension() == net.minecraft.world.level.Level.END) bad.add("the gate sends a player into the End");
+        var pig = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, new BlockPos(1, 1, 1));
+        if (gate.getPortalDestination(end, pig, BlockPos.ZERO) != null) bad.add("the gate sends a pig somewhere");
+        if (state.getDestroySpeed(level, BlockPos.ZERO) >= 0) bad.add("the gate can be broken");
+        if (gate.asItem() != net.minecraft.world.item.Items.AIR) bad.add("the gate has an item");
+        if (state.getLightEmission() < 10) bad.add("the gate gives light " + state.getLightEmission());
+        player.discard();
+        if (!bad.isEmpty()) helper.fail("return gate: " + bad);
+        helper.succeed();
     }
 
     private static void fillBiome(net.minecraft.server.level.ServerLevel level, BlockPos at, String biome) {

@@ -17,6 +17,8 @@ public final class NeoForgeConfig implements EndConfig.Source {
     private static final ModConfigSpec.BooleanValue DRAGON_PHASE3;
     private static final ModConfigSpec.BooleanValue DRAGON_WRATH;
     private static final ModConfigSpec.IntValue MAX_WRATH;
+    private static final ModConfigSpec.BooleanValue ARRIVAL;
+    private static final ModConfigSpec.IntValue WARD_RADIUS;
 
     static {
         B.push("terrain");
@@ -36,6 +38,12 @@ public final class NeoForgeConfig implements EndConfig.Source {
                 .define("wrath", true);
         MAX_WRATH = B.comment("The highest Wrath a world reaches.")
                 .defineInRange("max_wrath", 5, 0, 5);
+        B.pop();
+        B.push("arrival");
+        ARRIVAL = B.comment("An End portal sets you down in the outer End in the portal's direction, at an Ancient Waystation with a way home, and the Ancients' Ward keeps everyone from the dragon until three guardians' seals break. Off: vanilla's platform and the dragon at once.")
+                .define("by_coordinates", true);
+        WARD_RADIUS = B.comment("The Ancients' Ward's radius round the End's centre, in blocks.")
+                .defineInRange("ward_radius", 640, 300, 800);
         B.pop();
     }
 
@@ -70,6 +78,16 @@ public final class NeoForgeConfig implements EndConfig.Source {
     @Override
     public boolean dragonPhase3() {
         return loaded() ? DRAGON_PHASE3.get() : EndConfig.DEFAULTS.dragonPhase3();
+    }
+
+    @Override
+    public boolean arrivalByCoordinates() {
+        return loaded() ? ARRIVAL.get() : EndConfig.DEFAULTS.arrivalByCoordinates();
+    }
+
+    @Override
+    public int wardRadius() {
+        return loaded() ? WARD_RADIUS.get() : EndConfig.DEFAULTS.wardRadius();
     }
 
     @Override

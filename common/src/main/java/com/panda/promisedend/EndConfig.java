@@ -21,6 +21,19 @@ public final class EndConfig {
 
         /** The highest Wrath a world reaches (0 to 5). */
         int maxWrath();
+
+        /**
+         * An End portal sets a player down in the outer End by the portal's direction, at an Ancient Waystation, and the
+         * Ancients' Ward keeps the dragon until three seals break. Off: vanilla's platform and fight, no Ward.
+         */
+        default boolean arrivalByCoordinates() {
+            return true;
+        }
+
+        /** The Ancients' Ward's radius round the End's centre, in blocks. */
+        default int wardRadius() {
+            return 640;
+        }
     }
 
     public static final Source DEFAULTS = new Source() {
@@ -67,5 +80,13 @@ public final class EndConfig {
 
     public static int maxWrath() {
         return source.maxWrath();
+    }
+
+    public static boolean arrivalByCoordinates() {
+        return source.arrivalByCoordinates();
+    }
+
+    public static int wardRadius() {
+        return source.wardRadius();
     }
 }

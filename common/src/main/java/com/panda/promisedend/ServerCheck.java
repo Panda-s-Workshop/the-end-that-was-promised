@@ -143,6 +143,7 @@ public final class ServerCheck {
         if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_BARRENS, "barrens' fallback mycelium", ModBlocks.VOID_MYCELIUM.get(), 200, 64));
         if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback vines", ModBlocks.VOID_BERRY_VINE.get(), 130, 64));
         add.accept(wrath(server));
+        add.accept(arrivals(server, end, terrain));
         return failures.isEmpty() ? null : String.join(" | ", failures);
     }
 
@@ -493,6 +494,52 @@ public final class ServerCheck {
         String failure = lift(end, at, "an Updraft Vent");
         end.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
         return failure;
+    }
+
+    /**
+     * Arrivals on real terrain: End portals in eight directions 1600 out (a first-ring stronghold's distance) and one
+     * 4000 out (held to the band's far edge). Each finds ground within reach (of ours with our terrain on), and the
+     * Waystation built there has its Return Gate, a floor to stand on and room above it; the same portal again comes to
+     * the same Waystation. A new world's Ward stands.
+     */
+    private static String arrivals(MinecraftServer server, net.minecraft.server.level.ServerLevel end, boolean terrain) {
+        var overworld = server.overworld();
+        java.util.List<String> bad = new java.util.ArrayList<>(), landed = new java.util.ArrayList<>();
+        if (!com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("a new world's Ward is down");
+        java.util.List<BlockPos> portals = new java.util.ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            double a = Math.PI / 4 * i + 0.3;
+            portals.add(new BlockPos((int) Math.round(1600 * Math.cos(a)), 30, (int) Math.round(1600 * Math.sin(a))));
+        }
+        portals.add(new BlockPos(-2828, 30, 2828));
+        int before = com.panda.promisedend.logic.Arrivals.built(server).size();
+        for (BlockPos portal : portals) {
+            double[] point = com.panda.promisedend.logic.Arrival.target(portal.getX() + 0.5, portal.getZ() + 0.5);
+            BlockPos ground = com.panda.promisedend.logic.Arrivals.ground(end, (int) Math.floor(point[0]), (int) Math.floor(point[1]));
+            var arrival = com.panda.promisedend.logic.Arrivals.destination(overworld, null, portal);
+            if (arrival == null) {
+                bad.add("no arrival for a portal at " + portal);
+                continue;
+            }
+            BlockPos at = BlockPos.containing(arrival.position()), gate = com.panda.promisedend.logic.Arrivals.gateAt(server, arrival.position());
+            if (gate == null) {
+                bad.add("set down at " + at + ", on no Waystation's floor");
+                continue;
+            }
+            String id = end.getBiome(gate).unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
+            landed.add(portal.getX() + "," + portal.getZ() + " -> " + at.getX() + "," + at.getY() + "," + at.getZ() + " " + id + (ground == null ? " (islet)" : ""));
+            if (ground == null) bad.add("no ground within reach of " + Math.round(point[0]) + ", " + Math.round(point[1]));
+            else if (terrain && !end.getBiome(gate).unwrapKey().map(k -> k.identifier().getNamespace().equals(PromisedEnd.MODID)).orElse(false)) bad.add("a Waystation on " + id);
+            if (!end.getBlockState(gate).is(ModBlocks.RETURN_GATE.get())) bad.add("no Return Gate at " + gate + ": " + end.getBlockState(gate));
+            if (!end.getBlockState(at.below()).isFaceSturdy(end, at.below(), net.minecraft.core.Direction.UP)) bad.add("nothing to stand on at " + at);
+            if (!end.getBlockState(at).getCollisionShape(end, at).isEmpty() || !end.getBlockState(at.above()).getCollisionShape(end, at.above()).isEmpty()) bad.add("no room to stand at " + at + ": " + end.getBlockState(at) + ", " + end.getBlockState(at.above()));
+            var again = com.panda.promisedend.logic.Arrivals.destination(overworld, null, portal);
+            if (again == null || !again.position().equals(arrival.position())) bad.add("the portal at " + portal + " again came to " + (again == null ? null : again.position()));
+        }
+        int built = com.panda.promisedend.logic.Arrivals.built(server).size() - before;
+        PromisedEnd.LOGGER.info("[promisedend servercheck] arrivals, {} Waystations built: {}", built, landed);
+        if (built != portals.size()) bad.add(built + " Waystations for " + portals.size() + " portals");
+        return bad.isEmpty() ? null : "arrivals: " + String.join("; ", bad);
     }
 
     /**

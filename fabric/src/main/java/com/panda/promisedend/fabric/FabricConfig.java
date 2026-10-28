@@ -21,6 +21,8 @@ final class FabricConfig implements EndConfig.Source {
     private final boolean dragonPhase3;
     private final boolean dragonWrath;
     private final int maxWrath;
+    private final boolean arrivalByCoordinates;
+    private final int wardRadius;
 
     private FabricConfig(Properties p) {
         EndConfig.Source d = EndConfig.DEFAULTS;
@@ -30,6 +32,8 @@ final class FabricConfig implements EndConfig.Source {
         dragonPhase3 = Boolean.parseBoolean(p.getProperty("dragon.phase3", String.valueOf(d.dragonPhase3())).trim());
         dragonWrath = Boolean.parseBoolean(p.getProperty("dragon.wrath", String.valueOf(d.dragonWrath())).trim());
         maxWrath = clamp(p.getProperty("dragon.max_wrath"), d.maxWrath(), 0, 5);
+        arrivalByCoordinates = Boolean.parseBoolean(p.getProperty("arrival.by_coordinates", String.valueOf(d.arrivalByCoordinates())).trim());
+        wardRadius = clamp(p.getProperty("arrival.ward_radius"), d.wardRadius(), 300, 800);
     }
 
     static FabricConfig load() {
@@ -73,6 +77,8 @@ final class FabricConfig implements EndConfig.Source {
             {"dragon.phase3", String.valueOf(d.dragonPhase3()), "below a quarter of its health the dragon calls Crystal Wardens to its pillars (3 to 5 by Wrath) and dives with void breath (true/false)"},
             {"dragon.wrath", String.valueOf(d.dragonWrath()), "each dragon killed raises the world's Wrath by 1 for a stronger dragon, more Wardens and a bigger hoard; false: every fight is the first (true/false)"},
             {"dragon.max_wrath", String.valueOf(d.maxWrath()), "the highest Wrath a world reaches (0-5)"},
+            {"arrival.by_coordinates", String.valueOf(d.arrivalByCoordinates()), "an End portal sets you down in the outer End in the portal's direction, at an Ancient Waystation with a way home, and the Ancients' Ward keeps everyone from the dragon until three guardians' seals break; false: vanilla's platform and the dragon at once (true/false)"},
+            {"arrival.ward_radius", String.valueOf(d.wardRadius()), "the Ancients' Ward's radius round the End's centre, in blocks (300-800; past 800 it could reach the arrivals)"},
         };
     }
 
@@ -83,6 +89,16 @@ final class FabricConfig implements EndConfig.Source {
         } catch (NumberFormatException e) {
             return fallback;
         }
+    }
+
+    @Override
+    public boolean arrivalByCoordinates() {
+        return arrivalByCoordinates;
+    }
+
+    @Override
+    public int wardRadius() {
+        return wardRadius;
     }
 
     @Override

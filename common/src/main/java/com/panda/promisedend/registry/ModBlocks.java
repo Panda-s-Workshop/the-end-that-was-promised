@@ -142,6 +142,10 @@ public final class ModBlocks {
     public static final DeferredBlock<com.panda.promisedend.block.WispLightBlock> WISP_LIGHT = BLOCKS.registerBlock("wisp_light",
             com.panda.promisedend.block.WispLightBlock::new, p -> p.replaceable().noCollision().noOcclusion().noLootTable().instabreak()
                     .lightLevel(s -> 13).sound(SoundType.EMPTY).pushReaction(PushReaction.POPPED));
+    /** The Ancient Waystation's way home: steps a player to their respawn point; no item, can't be broken. */
+    public static final DeferredBlock<com.panda.promisedend.block.ReturnGateBlock> RETURN_GATE = BLOCKS.registerBlock("return_gate",
+            com.panda.promisedend.block.ReturnGateBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).noOcclusion().noLootTable()
+                    .strength(-1.0F, 3600000.0F).lightLevel(s -> 12).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE));
     /** Lumen's lamp: a full light, as the sea lantern and glowstone, in a polished voidstone cage. */
     public static final DeferredBlock<Block> LUMEN_LAMP = simple("lumen_lamp",
             p -> p.mapColor(MapColor.SAND).strength(1.0F).sound(SoundType.GLASS).lightLevel(s -> 15));

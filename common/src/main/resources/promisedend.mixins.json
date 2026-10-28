@@ -3,6 +3,6 @@
   "minVersion": "0.8",
   "package": "com.panda.promisedend.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": ["AnvilMenuMixin", "PlayerMixin", "ServerPlayerGameModeMixin", "TheEndBiomeSourceMixin", "TheEndGatewayBlockEntityMixin"],
+  "mixins": ["AnvilMenuMixin", "EndPortalBlockMixin", "EnderDragonFightMixin", "PlayerMixin", "ServerPlayerGameModeMixin", "TheEndBiomeSourceMixin", "TheEndGatewayBlockEntityMixin"],
   "injectors": { "defaultRequire": 1 }
 }
