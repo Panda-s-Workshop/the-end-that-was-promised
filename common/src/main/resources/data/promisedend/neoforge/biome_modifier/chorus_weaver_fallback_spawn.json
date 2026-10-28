@@ -1,9 +1,0 @@
-{
-  "type": "neoforge:add_spawns",
-  "biomes": "#promisedend:grove_fallback",
-  "spawners": {
-    "type": "promisedend:chorus_weaver",
-    "count": 1,
-    "weight": 2
-  }
-}

@@ -101,8 +101,14 @@ class EndRegionsTest {
             for (int i = 0; i < 20; i++) {
                 double a = 2.0 * (-Math.PI + 0.15707963267948966 * i);
                 double ux = Math.cos(a), uz = Math.sin(a);
-                for (int d = 768; d <= 1300; d += 16) {
+                for (int d = 768; d <= 1600; d += 16) {
                     assertNotEquals(EndRegions.Theme.VANILLA, EndRegions.theme(seed, ux * d, uz * d), "seed " + seed + ", gateway " + i + ", " + d + " out");
+                    // and no terrain class there is a vanilla biome, the Crystal theme's small islands included
+                    if (d < 1100) continue;
+                    for (Terrain t : new Terrain[] {Terrain.HIGHLANDS, Terrain.MIDLANDS, Terrain.BARRENS, Terrain.ISLANDS}) {
+                        Biome b = EndRegions.pick(seed, chunk(ux * d), chunk(uz * d), t, EDGE);
+                        assertFalse(b.vanilla(), "seed " + seed + ", gateway " + i + ", " + d + " out, " + t + ": " + b);
+                    }
                 }
                 for (int d = 2600; d <= 7000; d += 64) if (EndRegions.theme(seed, ux * d, uz * d) == EndRegions.Theme.VANILLA) far++;
             }

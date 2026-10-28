@@ -324,7 +324,7 @@ public class ChorusWeaver extends Monster implements GeoEntity {
         if (!Monster.checkAnyLightMonsterSpawnRules(type, level, reason, pos, random)) return false;
         if (reason != EntitySpawnReason.NATURAL) return true;
         if (!Constructs.terrainAllows(level, pos, com.panda.promisedend.registry.ModTags.GROVE_FALLBACK)) return false;
-        return level.getEntitiesOfClass(ChorusWeaver.class, new AABB(pos).inflate(32)).size() < LOCAL_CAP;
+        return Constructs.roomFor(level, pos, ChorusWeaver.class, LOCAL_CAP);
     }
 
     @Override

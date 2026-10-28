@@ -336,7 +336,7 @@ public class RiftStalker extends Monster implements GeoEntity {
         if (!Monster.checkAnyLightMonsterSpawnRules(type, level, reason, pos, random)) return false;
         if (reason != EntitySpawnReason.NATURAL) return true;
         if (!Constructs.terrainAllows(level, pos, com.panda.promisedend.registry.ModTags.VOIDSCAR_FALLBACK)) return false;
-        return level.getEntitiesOfClass(RiftStalker.class, new AABB(pos).inflate(32)).size() < LOCAL_CAP;
+        return Constructs.roomFor(level, pos, RiftStalker.class, LOCAL_CAP);
     }
 
     // ---- a construct, not a creature ------------------------------------------------------------

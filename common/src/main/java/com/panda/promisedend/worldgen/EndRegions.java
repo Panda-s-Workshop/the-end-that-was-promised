@@ -86,9 +86,10 @@ public final class EndRegions {
     /** Region cell size in blocks (proposed). */
     public static final int CELL = 512;
     /**
-     * No region centred nearer than this is vanilla's theme: the end gateways throw a player out to 768-1300 blocks (vanilla
-     * looks for land from 1024, up to 256 either way), and every point there has its region's centre within about 615,
-     * so the first step out lands in one of ours.
+     * Where the gateways land is ours: no region centred nearer than this is vanilla's theme (the gateways throw a player
+     * out to about 1000-1500 blocks, and every point there has its region's centre within about 615), and nearer than
+     * this the Crystal theme's small islands are the Skyfall Archipelago. The gateway's own search (its mixin) does the
+     * rest, past an island's edge still in the main island's biome.
      */
     public static final int GATEWAY_LANDING_CLEAR = 2000;
     /** How far the Unfinished Edge's boundary wanders in and out, in blocks (proposed). */
@@ -136,7 +137,8 @@ public final class EndRegions {
             return distance >= RIM_INNER && distance <= RIM_OUTER ? Biome.SHATTERED_RIM : Biome.THE_END;
         }
         if (distance > edgeRadius(seed, x, z, edgeDistance)) return Biome.UNFINISHED_EDGE;
-        return theme(seed, x, z).biome(terrain);
+        Biome picked = theme(seed, x, z).biome(terrain);
+        return picked == Biome.SMALL_END_ISLANDS && distance < GATEWAY_LANDING_CLEAR ? Biome.SKYFALL_ARCHIPELAGO : picked;
     }
 
     /** The Edge's boundary in the direction of (x, z): the base distance plus smooth seeded wobble. */

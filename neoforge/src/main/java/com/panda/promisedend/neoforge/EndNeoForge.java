@@ -21,6 +21,8 @@ public final class EndNeoForge {
     public EndNeoForge(IEventBus modBus, ModContainer container) {
         PromisedEnd.init();
         modBus.addListener((RegisterEvent e) -> DeferredRegister.all().forEach(register -> registerInto(e, register)));
+        modBus.addListener((RegisterEvent e) -> e.register(net.neoforged.neoforge.registries.NeoForgeRegistries.Keys.BIOME_MODIFIER_SERIALIZERS,
+                helper -> helper.register(com.panda.promisedend.PromisedEnd.id("construct_fallback_spawns"), ConstructFallbackSpawns.CODEC)));
         modBus.addListener((net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent e) ->
                 com.panda.promisedend.registry.ModEntities.attributes((type, attributes) -> e.put(type, attributes.build())));
         modBus.addListener((net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent e) ->

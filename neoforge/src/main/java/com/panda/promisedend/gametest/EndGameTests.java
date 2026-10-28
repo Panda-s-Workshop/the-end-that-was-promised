@@ -74,6 +74,7 @@ public final class EndGameTests {
         FUNCTIONS.register("constructs_stats_and_drops", () -> EndGameTests::constructsStatsAndDrops);
         FUNCTIONS.register("construct_recipes", () -> EndGameTests::constructRecipes);
         FUNCTIONS.register("constructs_edges_walls_and_swarms", () -> EndGameTests::constructsEdgesWallsAndSwarms);
+        FUNCTIONS.register("construct_spawns_keep_to_their_lands", () -> EndGameTests::constructSpawnsKeepToTheirLands);
         FUNCTIONS.register("crystal_warden_beam_cap_and_rest", () -> EndGameTests::crystalWardenBeamCapAndRest);
         FUNCTIONS.register("crystal_warden_ignores_the_dragon", () -> EndGameTests::crystalWardenIgnoresTheDragon);
         FUNCTIONS.register("crystal_warden_shatters_and_drops", () -> EndGameTests::crystalWardenShattersAndDrops);
@@ -153,7 +154,9 @@ public final class EndGameTests {
      */
     private static final java.util.Set<String> ALONE = java.util.Set.of("dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
             "warden_heals_dragon", "dragon_void_breath_dive", "void_breath_dodged", "called_wardens_take_turns",
-            "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops");
+            "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops",
+            // counts constructs within 32 blocks, which reaches into the arenas beside it
+            "construct_spawns_keep_to_their_lands");
 
     private EndGameTests() {}
 
@@ -3341,32 +3344,6 @@ public final class EndGameTests {
                 if (!done.equals(biomes.subList(0, i + 1).stream().map(b -> "outer/visit_" + b).toList())) bad.add("after standing in " + biomes.get(i) + ": " + done);
             }
         }
-        // Seven Shores: each of the outer End's seven marked off once its own visit is done, and done with the seventh
-        var all = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.ALL_SEVEN);
-        if (all == null) bad.add("no advancement " + com.panda.promisedend.logic.OuterProgress.ALL_SEVEN);
-        else {
-            if (!all.value().parent().equals(java.util.Optional.of(com.panda.promisedend.logic.OuterProgress.ENTER_OUTER))) bad.add("all_seven isn't under outer/enter_outer");
-            if (all.value().requirements().size() != com.panda.promisedend.logic.OuterProgress.SEVEN.size()) bad.add("all_seven needs " + all.value().requirements().size() + " things, not the seven");
-            var seven = helper.makeMockServerPlayerInLevel();
-            for (int i = 0; i < com.panda.promisedend.logic.OuterProgress.SEVEN.size(); i++) {
-                var visit = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.visit(com.panda.promisedend.logic.OuterProgress.SEVEN.get(i)));
-                if (visit == null) continue;
-                seven.getAdvancements().award(visit, "visited");
-                com.panda.promisedend.logic.OuterProgress.allSeven(seven);
-                boolean finished = seven.getAdvancements().getOrStartProgress(all).isDone(), last = i == com.panda.promisedend.logic.OuterProgress.SEVEN.size() - 1;
-                if (finished != last) bad.add("all_seven " + (finished ? "done" : "not done") + " after " + (i + 1) + " of the seven");
-            }
-            // the Wilds' four don't count towards it
-            var wild = helper.makeMockServerPlayerInLevel();
-            for (String biome : List.of("bloom_meadows", "chorus_canopy", "void_fungus_barrens", "hanging_gardens")) {
-                var visit = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.visit(biome));
-                if (visit != null) wild.getAdvancements().award(visit, "visited");
-            }
-            com.panda.promisedend.logic.OuterProgress.allSeven(wild);
-            if (wild.getAdvancements().getOrStartProgress(all).getCompletedCriteria().iterator().hasNext()) bad.add("the Wilds' visits counted towards all_seven");
-            seven.discard();
-            wild.discard();
-        }
         var end = server.getLevel(net.minecraft.world.level.Level.END);
         if (end == null) bad.add("no End level on the test server");
         else if (enter != null && visits.size() == biomes.size()) {
@@ -3398,6 +3375,31 @@ public final class EndGameTests {
             if (!far.equals(List.of("outer/enter_outer"))) bad.add("1100 blocks out, with terrain on: " + far);
             List<String> elsewhere = tickAt.apply(fresh.get(), to.apply(level, new BlockPos(1100, 200, 0)));
             if (!elsewhere.isEmpty()) bad.add("1100 blocks out in the test level: " + elsewhere);
+            // Seven Shores, through the outer End's own check: each of the seven marked off once its visit is done, done
+            // with the seventh; the Wilds' four don't count
+            var all = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.ALL_SEVEN);
+            if (all == null) bad.add("no advancement " + com.panda.promisedend.logic.OuterProgress.ALL_SEVEN);
+            else {
+                if (!all.value().parent().equals(java.util.Optional.of(com.panda.promisedend.logic.OuterProgress.ENTER_OUTER))) bad.add("all_seven isn't under outer/enter_outer");
+                if (all.value().requirements().size() != com.panda.promisedend.logic.OuterProgress.SEVEN.size()) bad.add("all_seven needs " + all.value().requirements().size() + " things, not the seven");
+                var seven = fresh.get();
+                for (int i = 0; i < com.panda.promisedend.logic.OuterProgress.SEVEN.size(); i++) {
+                    var visit = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.visit(com.panda.promisedend.logic.OuterProgress.SEVEN.get(i)));
+                    if (visit == null) continue;
+                    seven.getAdvancements().award(visit, "visited");
+                    tickAt.apply(seven, to.apply(end, new BlockPos(1100, 200, 0)));
+                    boolean finished = seven.getAdvancements().getOrStartProgress(all).isDone(), last = i == com.panda.promisedend.logic.OuterProgress.SEVEN.size() - 1;
+                    if (finished != last) bad.add("all_seven " + (finished ? "done" : "not done") + " after " + (i + 1) + " of the seven");
+                }
+                // the Wilds' four don't count towards it
+                var wild = fresh.get();
+                for (String biome : List.of("bloom_meadows", "chorus_canopy", "void_fungus_barrens", "hanging_gardens")) {
+                    var visit = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.visit(biome));
+                    if (visit != null) wild.getAdvancements().award(visit, "visited");
+                }
+                tickAt.apply(wild, to.apply(end, new BlockPos(1100, 200, 0)));
+                if (wild.getAdvancements().getOrStartProgress(all).getCompletedCriteria().iterator().hasNext()) bad.add("the Wilds' visits counted towards all_seven");
+            }
             // with terrain off, each biome's marker is what its terrain-off feature builds: in its tag, and it earns that
             // visit 4 blocks off (the check's reach) and not 5; with terrain on the same spot earns none
             var random = net.minecraft.util.RandomSource.create(1);
@@ -3460,6 +3462,108 @@ public final class EndGameTests {
     }
 
     /** Sets the biome of the 17-block cube round {@code at}, as {@code /fillbiome} does (which needs the chunks loaded). */
+    /**
+     * Where the constructs may spawn by themselves. With the terrain on, each keeps to its own land: on the vanilla
+     * biome its land falls back to (the Weaver's highlands, the Stalker's barrens, the Wisp's midlands) it is turned
+     * away, and in its own land it isn't. With the terrain off it is let in there. The Wisp's whole spawn rule is checked
+     * too (the other two also need a dark, hard enough world, which the test server's difficulty decides). Each one's
+     * local cap: with one fewer than the cap within 32 there is room, with the cap there isn't; the Wisp's whole rule
+     * (on the arena's floor) turns one away at its cap.
+     */
+    private static void constructSpawnsKeepToTheirLands(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        record Gate(String name, String own, String fallback, net.minecraft.tags.TagKey<net.minecraft.world.level.biome.Biome> tag) {}
+        List<Gate> gates = List.of(
+                new Gate("chorus_weaver", "promisedend:chorus_thicket", "minecraft:end_highlands", com.panda.promisedend.registry.ModTags.GROVE_FALLBACK),
+                new Gate("rift_stalker", "promisedend:voidscar_wastes", "minecraft:end_barrens", com.panda.promisedend.registry.ModTags.VOIDSCAR_FALLBACK),
+                new Gate("lumen_wisp", "promisedend:lumen_mire", "minecraft:end_midlands", com.panda.promisedend.registry.ModTags.MIRE_FALLBACK));
+        // each construct's fallback spawn is the same land its spawn rule lets in with the terrain off
+        for (Gate gate : gates) {
+            var spawn = com.panda.promisedend.entity.Constructs.FALLBACK_SPAWNS.stream()
+                    .filter(f -> net.minecraft.world.entity.EntityType.getKey(f.type().get()).getPath().equals(gate.name())).findFirst();
+            if (spawn.isEmpty()) bad.add("no terrain-off fallback spawn for " + gate.name());
+            else if (!spawn.get().biomes().equals(gate.tag())) bad.add(gate.name() + "'s fallback spawn is in " + spawn.get().biomes().location() + ", not " + gate.tag().location());
+        }
+        var previous = com.panda.promisedend.EndConfig.current();
+        try {
+            for (int i = 0; i < gates.size(); i++) {
+                Gate gate = gates.get(i);
+                BlockPos own = new BlockPos(7000 + 64 * i, 120, 7000), fallback = new BlockPos(7000 + 64 * i, 120, 7064);
+                fillBiome(level, own, gate.own());
+                fillBiome(level, fallback, gate.fallback());
+                for (BlockPos at : List.of(own, fallback)) level.setBlockAndUpdate(at.below(), net.minecraft.world.level.block.Blocks.END_STONE.defaultBlockState());
+                if (!level.getBiome(fallback).is(gate.tag())) {
+                    bad.add(gate.fallback() + " isn't in " + gate.tag().location() + " (or fillbiome didn't take)");
+                    continue;
+                }
+                for (boolean terrain : new boolean[] {true, false}) {
+                    com.panda.promisedend.EndConfig.use(terrain ? previous : terrainOff(previous));
+                    boolean inOwn = com.panda.promisedend.entity.Constructs.terrainAllows(level, own, gate.tag());
+                    boolean inFallback = com.panda.promisedend.entity.Constructs.terrainAllows(level, fallback, gate.tag());
+                    PromisedEnd.LOGGER.info("[construct_spawns_keep_to_their_lands] {} with the terrain {}: own land {}, {} {}", gate.name(), terrain ? "on" : "off", inOwn, gate.fallback(), inFallback);
+                    if (!inOwn) bad.add(gate.name() + " turned away from its own land with the terrain " + (terrain ? "on" : "off"));
+                    if (inFallback == terrain) bad.add(gate.name() + (terrain ? " let in on " : " turned away from ") + gate.fallback() + " with the terrain " + (terrain ? "on" : "off"));
+                    if (gate.name().equals("lumen_wisp")) {
+                        var type = com.panda.promisedend.registry.ModEntities.LUMEN_WISP.get();
+                        boolean wOwn = com.panda.promisedend.entity.LumenWisp.canSpawn(type, level, net.minecraft.world.entity.EntitySpawnReason.NATURAL, own, level.getRandom());
+                        boolean wFallback = com.panda.promisedend.entity.LumenWisp.canSpawn(type, level, net.minecraft.world.entity.EntitySpawnReason.NATURAL, fallback, level.getRandom());
+                        if (!wOwn) bad.add("a wisp may not spawn in the mire with the terrain " + (terrain ? "on" : "off"));
+                        if (wFallback == terrain) bad.add("a wisp " + (terrain ? "may" : "may not") + " spawn on the midlands with the terrain " + (terrain ? "on" : "off"));
+                    }
+                }
+            }
+        } finally {
+            com.panda.promisedend.EndConfig.use(previous);
+        }
+        // the local caps, in the arena once its chunk ticks entities (entities added before then aren't found)
+        record Cap(net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type, Class<? extends net.minecraft.world.entity.Entity> kind, int cap) {}
+        List<Cap> caps = List.of(new Cap(com.panda.promisedend.registry.ModEntities.CHORUS_WEAVER.get(), com.panda.promisedend.entity.ChorusWeaver.class, com.panda.promisedend.entity.ChorusWeaver.LOCAL_CAP),
+                new Cap(com.panda.promisedend.registry.ModEntities.RIFT_STALKER.get(), com.panda.promisedend.entity.RiftStalker.class, com.panda.promisedend.entity.RiftStalker.LOCAL_CAP),
+                new Cap(com.panda.promisedend.registry.ModEntities.LUMEN_WISP.get(), com.panda.promisedend.entity.LumenWisp.class, com.panda.promisedend.entity.LumenWisp.LOCAL_CAP));
+        BlockPos spot = helper.absolutePos(new BlockPos(2, 1, 2));
+        boolean[] done = {false};
+        for (int t = 1; t <= 80; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (done[0]) return;
+                if (!level.isPositionEntityTicking(spot)) {
+                    if (tick == 80) helper.fail("the arena's chunk wasn't entity-ticking by tick 80");
+                    return;
+                }
+                done[0] = true;
+                for (Cap c : caps) {
+                    String name = net.minecraft.world.entity.EntityType.getKey(c.type()).getPath();
+                    List<net.minecraft.world.entity.Entity> made = new ArrayList<>();
+                    for (int k = 0; k < c.cap(); k++) {
+                        if (k == c.cap() - 1 && !com.panda.promisedend.entity.Constructs.roomFor(level, spot, c.kind(), c.cap())) bad.add("no room for a " + name + " with " + k + " near");
+                        var e = helper.spawn(c.type(), new BlockPos(1 + 2 * k, 1, 4));
+                        e.setNoAi(true);
+                        made.add(e);
+                    }
+                    if (com.panda.promisedend.entity.Constructs.roomFor(level, spot, c.kind(), c.cap())) bad.add("room for a " + name + " with " + c.cap() + " within 32");
+                    if (c.kind() == com.panda.promisedend.entity.LumenWisp.class && com.panda.promisedend.entity.LumenWisp.canSpawn(com.panda.promisedend.registry.ModEntities.LUMEN_WISP.get(),
+                            level, net.minecraft.world.entity.EntitySpawnReason.NATURAL, spot, level.getRandom())) bad.add("a wisp may spawn with " + c.cap() + " within 32");
+                    made.forEach(net.minecraft.world.entity.Entity::discard);
+                }
+                if (!bad.isEmpty()) helper.fail("construct spawns: " + bad);
+                else helper.succeed();
+            });
+        }
+    }
+
+    /** {@code previous} with the terrain off. */
+    private static com.panda.promisedend.EndConfig.Source terrainOff(com.panda.promisedend.EndConfig.Source previous) {
+        return new com.panda.promisedend.EndConfig.Source() {
+            @Override public boolean terrainEnabled() { return false; }
+            @Override public int edgeDistance() { return previous.edgeDistance(); }
+            @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
+            @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
+            @Override public boolean dragonWrath() { return previous.dragonWrath(); }
+            @Override public int maxWrath() { return previous.maxWrath(); }
+        };
+    }
+
     private static void fillBiome(net.minecraft.server.level.ServerLevel level, BlockPos at, String biome) {
         for (int cx = (at.getX() - 8) >> 4; cx <= (at.getX() + 8) >> 4; cx++) {
             for (int cz = (at.getZ() - 8) >> 4; cz <= (at.getZ() + 8) >> 4; cz++) level.getChunk(cx, cz);

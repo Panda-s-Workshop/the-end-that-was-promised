@@ -45,7 +45,10 @@ public final class ServerCheck {
         else PromisedEnd.LOGGER.error("[promisedend servercheck] FAIL: {}", failure);
     }
 
-    /** The constructs our terrain-off fallback adds to vanilla's biomes are in those biomes' spawn lists. */
+    /**
+     * The constructs our terrain-off fallback adds to vanilla's biomes are in those biomes' spawn lists with the
+     * terrain off, and not with it on (vanilla's quarter keeps its own spawns).
+     */
     private static String fallbackSpawns(net.minecraft.server.level.ServerLevel end) {
         var biomes = end.registryAccess().lookupOrThrow(Registries.BIOME);
         record Want(String biome, net.minecraft.world.entity.EntityType<?> type, net.minecraft.world.entity.MobCategory category) {}
@@ -55,9 +58,13 @@ public final class ServerCheck {
             var biome = biomes.getOrThrow(net.minecraft.resources.ResourceKey.create(Registries.BIOME, Identifier.withDefaultNamespace(want.biome())));
             var spawns = biome.value().getAttributes().applyModifier(net.minecraft.world.attribute.EnvironmentAttributes.NATURAL_MOB_SPAWNS,
                     net.minecraft.world.level.biome.MobSpawnSettings.EMPTY);
-            boolean has = spawns.getMobsInCategory(want.category()).unwrap().stream().anyMatch(w -> w.value().type() == want.type());
-            PromisedEnd.LOGGER.info("[promisedend servercheck] {} spawns {}: {}", want.biome(), net.minecraft.world.entity.EntityType.getKey(want.type()), has);
-            if (!has) return want.biome() + " doesn't spawn " + net.minecraft.world.entity.EntityType.getKey(want.type()) + " (the terrain-off fallback)";
+            // a category with nothing in it is no list at all
+            var list = spawns.getMobsInCategory(want.category());
+            boolean has = list != null && list.unwrap().stream().anyMatch(w -> w.value().type() == want.type());
+            boolean wanted = !EndConfig.terrainEnabled();
+            PromisedEnd.LOGGER.info("[promisedend servercheck] {} spawns {}: {} (terrain {})", want.biome(), net.minecraft.world.entity.EntityType.getKey(want.type()), has, wanted ? "off" : "on");
+            if (has != wanted) return want.biome() + (has ? " spawns " : " doesn't spawn ") + net.minecraft.world.entity.EntityType.getKey(want.type())
+                    + " with the terrain " + (wanted ? "off" : "on");
         }
         return null;
     }
@@ -88,46 +95,55 @@ public final class ServerCheck {
         }
         PromisedEnd.LOGGER.info("[promisedend servercheck] voidstone within {} of {}: {}", RADIUS, centre, voidstone);
         if (voidstone < 200) return "too little Voidstone around x=300: " + voidstone;
-        String failure = construct(end, centre.above(26));
-        if (failure == null) failure = fallbackSpawns(end);
-        if (failure == null) failure = strips(end, centre.above(40));
-        if (failure == null) failure = updraft(end, centre.above(50));
-        if (failure == null && terrain) failure = biome(end, "chorus_thicket", "Chorus Thicket", ModBlocks.CHORUS_LOG.get(), 30);
-        if (failure == null && terrain) failure = biome(end, "lumen_mire", "Lumen Mire", ModBlocks.VOID_WATER.get(), 60);
-        if (failure == null && terrain) failure = biome(end, "resonant_spires", "Resonant Spires", ModBlocks.RESONITE_BLOCK.get(), 100);
-        if (failure == null && terrain) failure = biome(end, "skyfall_archipelago", "Skyfall Archipelago", ModBlocks.DRIFT_BLOSSOM.get(), 15);
-        if (failure == null && terrain) failure = generatedVent(end);
-        if (failure == null && terrain) failure = biome(end, "voidscar_wastes", "Voidscar Wastes", ModBlocks.VOIDSTEEL_SCRAP_ORE.get(), 8);
-        if (failure == null && terrain) failure = biome(end, net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("voidscar_wastes")), "Voidscar Wastes' edges",
-                ModBlocks.CRUMBLING_VOIDSTONE.get(), 20, 64);
-        if (failure == null && terrain) failure = shores(end, "voidscar_wastes", 0.85);
-        if (failure == null && terrain) failure = shores(end, "skyfall_archipelago", 0.85);
-        if (failure == null && terrain) failure = biome(end, "shulker_reefs", "Shulker Reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 150);
-        if (failure == null && terrain) failure = biome(end, "hollow_highlands", "Hollow Highlands", ModBlocks.ECHO_AMBER_CLUSTER.get(), 5);
-        if (failure == null && terrain) failure = biome(end, "bloom_meadows", "Bloom Meadows", ModBlocks.ENDER_BLOOM.get(), 15);
-        if (failure == null && terrain) failure = biome(end, "chorus_canopy", "Chorus Canopy", ModBlocks.CHORUS_LEAVES.get(), 2000);
-        if (failure == null && terrain) failure = biome(end, "void_fungus_barrens", "Void Fungus Barrens", ModBlocks.VOID_MUSHROOM_BLOCK.get(), 50);
-        if (failure == null && terrain) failure = biome(end, "hanging_gardens", "Hanging Gardens", ModBlocks.VOID_BERRY_VINE.get(), 250);
+        // every check runs, so one run shows all of a world's numbers; the failures are reported together
+        java.util.List<String> failures = new java.util.ArrayList<>();
+        java.util.function.Consumer<String> add = f -> { if (f != null) failures.add(f); };
+        add.accept(construct(end, centre.above(26)));
+        add.accept(fallbackSpawns(end));
+        add.accept(strips(end, centre.above(40)));
+        add.accept(updraft(end, centre.above(50)));
+        if (terrain) add.accept(biome(end, "chorus_thicket", "Chorus Thicket", ModBlocks.CHORUS_LOG.get(), 30));
+        if (terrain) add.accept(biome(end, "lumen_mire", "Lumen Mire", ModBlocks.VOID_WATER.get(), 60));
+        if (terrain) add.accept(biome(end, "resonant_spires", "Resonant Spires", ModBlocks.RESONITE_BLOCK.get(), 100));
+        if (terrain) add.accept(biome(end, "skyfall_archipelago", "Skyfall Archipelago", ModBlocks.DRIFT_BLOSSOM.get(), 15));
+        if (terrain) add.accept(generatedVent(end));
+        if (terrain) add.accept(gatewayLandings(end));
+        // the scars are few and the Voidscar's islands scattered: counted within 64 (seeds 1-16: 45-270, a third of the
+        // fewest the bar)
+        if (terrain) add.accept(biome(end, net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("voidscar_wastes")), "Voidscar Wastes",
+                ModBlocks.VOIDSTEEL_SCRAP_ORE.get(), 15, 64));
+        if (terrain) add.accept(biome(end, net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("voidscar_wastes")), "Voidscar Wastes' edges",
+                ModBlocks.CRUMBLING_VOIDSTONE.get(), 20, 64));
+        // seeds 1-16 on the real heightmap: the Skyfall 100 % on every one, the Voidscar 79-100 % (98 % pooled)
+        if (terrain) add.accept(shores(end, "voidscar_wastes", 0.7));
+        if (terrain) add.accept(shores(end, "skyfall_archipelago", 0.9));
+        if (terrain) add.accept(biome(end, "shulker_reefs", "Shulker Reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 150));
+        if (terrain) add.accept(biome(end, "hollow_highlands", "Hollow Highlands", ModBlocks.ECHO_AMBER_CLUSTER.get(), 5));
+        if (terrain) add.accept(biome(end, "bloom_meadows", "Bloom Meadows", ModBlocks.ENDER_BLOOM.get(), 15));
+        if (terrain) add.accept(biome(end, "chorus_canopy", "Chorus Canopy", ModBlocks.CHORUS_LEAVES.get(), 2000));
+        if (terrain) add.accept(biome(end, "void_fungus_barrens", "Void Fungus Barrens", ModBlocks.VOID_MUSHROOM_BLOCK.get(), 50));
+        if (terrain) add.accept(biome(end, "hanging_gardens", "Hanging Gardens", ModBlocks.VOID_BERRY_VINE.get(), 250));
         // terrain off: the fallbacks on vanilla's biomes, the Thicket's groves and the Spires' formations on its highlands, the Mire's pools on its midlands
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback groves", ModBlocks.CHORUS_LOG.get(), 10, 64);
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback pools", ModBlocks.VOID_WATER.get(), 8, 64);
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback spires", ModBlocks.RESONITE_BLOCK.get(), 50, 64);
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback groves", ModBlocks.CHORUS_LOG.get(), 10, 64));
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback pools", ModBlocks.VOID_WATER.get(), 8, 64));
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback spires", ModBlocks.RESONITE_BLOCK.get(), 50, 64));
         // and the Skyfall's blossoms on its small islands
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback blossoms", ModBlocks.DRIFT_BLOSSOM.get(), 3, 64);
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback blossoms", ModBlocks.DRIFT_BLOSSOM.get(), 3, 64));
         // and the Voidscar's scars on its barrens
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_BARRENS, "barrens' fallback scars", ModBlocks.VOIDSTEEL_SCRAP_ORE.get(), 3, 64);
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_BARRENS, "barrens' fallback scars", ModBlocks.VOIDSTEEL_SCRAP_ORE.get(), 3, 64));
         // and the Reefs' growths on its midlands
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 20, 64);
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 20, 64));
         // and the Hollow Highlands' caverns in its highlands
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback caverns", ModBlocks.ECHO_AMBER_CLUSTER.get(), 3, 64);
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback caverns", ModBlocks.ECHO_AMBER_CLUSTER.get(), 3, 64));
         // and Bloom Meadows' flowers on its midlands
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback blooms", ModBlocks.ENDER_BLOOM.get(), 3, 64);
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, "midlands' fallback blooms", ModBlocks.ENDER_BLOOM.get(), 3, 64));
         // and the rest of the Wilds: the Canopy's trees on its highlands, the Barrens' mycelium, the Gardens' vines; each at least about a
         // quarter of the fewest seen (on either loader), so a fall in density shows
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback canopy", ModBlocks.CHORUS_LEAVES.get(), 300, 64);
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.END_BARRENS, "barrens' fallback mycelium", ModBlocks.VOID_MYCELIUM.get(), 200, 64);
-        if (failure == null && !terrain) failure = biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback vines", ModBlocks.VOID_BERRY_VINE.get(), 130, 64);
-        return failure != null ? failure : wrath(server);
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, "highlands' fallback canopy", ModBlocks.CHORUS_LEAVES.get(), 300, 64));
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.END_BARRENS, "barrens' fallback mycelium", ModBlocks.VOID_MYCELIUM.get(), 200, 64));
+        if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback vines", ModBlocks.VOID_BERRY_VINE.get(), 130, 64));
+        add.accept(wrath(server));
+        return failures.isEmpty() ? null : String.join(" | ", failures);
     }
 
     /**
@@ -181,8 +197,9 @@ public final class ServerCheck {
     /** As above within {@code radius} blocks: a sparse fallback wants a wider look than a biome of ours. */
     private static String biome(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key,
                                 String name, net.minecraft.world.level.block.Block block, int minimum, int radius) {
-        // the best few places, in turn: an End City standing in a biome's middle claims its chunks, and its features
-        // keep out of them (world seed -8559988421388743695: the Spires' best place had no spire within 32)
+        // the best few places, in turn, but only past one a structure claims: an End City standing in a biome's middle
+        // claims its chunks, and its features keep out of them (world seed -8559988421388743695: the Spires' best place
+        // had no spire within 32)
         java.util.List<BlockPos> places = spots(end, key, radius);
         if (places.isEmpty()) return "no " + name + " within 6400 blocks";
         String what = block.getName().getString(), failure = null;
@@ -200,6 +217,8 @@ public final class ServerCheck {
             PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} {} within {} blocks ({} chunks round it a structure claims)", name, at, count, what, radius, claimed);
             if (count >= minimum) return null;
             if (failure == null) failure = "only " + count + " " + what + " in the " + name + " at " + at;
+            // the next place only stands in for one a structure took: too few where nothing is claimed is a failure
+            if (claimed == 0) break;
         }
         return failure;
     }
@@ -248,32 +267,44 @@ public final class ServerCheck {
     }
 
     /**
-     * Of the void-current columns over a biome's middle (every 4 blocks within 128 of {@link #spot}), the share a ride's
-     * end there washes ashore from ({@link com.panda.promisedend.logic.VoidCurrent#shore} at the hold's middle height):
-     * at least {@code minimum} (three seeds gave 92-100 %). Heights are the generator's (no chunks), so features on an
-     * island's top don't count.
+     * Of the void-current columns over a biome's middle (every 4 blocks within 128 of each of its best places, from
+     * {@link #spots}, until 60 are counted), the share a ride's end there washes ashore from
+     * ({@link com.panda.promisedend.logic.VoidCurrent#shore} at the hold's middle height): at least {@code minimum}. Heights are the generated chunks' heightmap, the one a ride reads in game: the Skyfall's
+     * islets and the Voidscar's islands are built by features, which the generator's own heights leave out.
      */
     private static String shores(net.minecraft.server.level.ServerLevel end, String id, double minimum) {
         var key = net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id(id));
-        BlockPos at = spot(end, key, 40);
-        if (at == null) return "no " + id + " to count shores in";
+        var places = spots(end, key, 40);
+        if (places.isEmpty()) return "no " + id + " to count shores in";
         long seed = com.panda.promisedend.logic.VoidCurrents.seed(end);
-        var generator = end.getChunkSource().getGenerator();
-        var random = end.getChunkSource().randomState();
-        var heights = new java.util.HashMap<Long, Integer>();
-        java.util.function.IntBinaryOperator top = (x, z) -> heights.computeIfAbsent(net.minecraft.world.level.ChunkPos.pack(x, z),
-                k -> generator.getBaseHeight(x, z, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, end, random));
-        int columns = 0, ashore = 0;
-        for (int dx = -128; dx <= 128; dx += 4) {
-            for (int dz = -128; dz <= 128; dz += 4) {
-                int x = at.getX() + dx, z = at.getZ() + dz;
-                if (!end.getUncachedNoiseBiome(x >> 2, com.panda.promisedend.logic.VoidCurrents.BIOME_Y >> 2, z >> 2).is(key)) continue;
-                if (!com.panda.promisedend.logic.VoidCurrent.inCurrent(seed, x, z)) continue;
-                columns++;
-                if (com.panda.promisedend.logic.VoidCurrent.shore(x, (int) com.panda.promisedend.logic.VoidCurrent.HOLD_MID, z, top) != null) ashore++;
+        java.util.function.IntBinaryOperator top = (x, z) -> end.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+        java.util.Set<Long> counted = new java.util.HashSet<>();
+        int columns = 0, ashore = 0, used = 0;
+        // the best places in turn until 60 columns are counted: one Voidscar strip can hold only a handful
+        for (BlockPos at : places) {
+            if (columns >= 60 || used == 4) break;
+            used++;
+            // the chunks generated, so the heights are the ones a ride reads in game, islets and islands from features too
+            int reach = 128 + com.panda.promisedend.logic.VoidCurrent.SHORE_REACH + 1;
+            for (int cx = (at.getX() - reach) >> 4; cx <= (at.getX() + reach) >> 4; cx++) {
+                for (int cz = (at.getZ() - reach) >> 4; cz <= (at.getZ() + reach) >> 4; cz++) end.getChunk(cx, cz);
             }
+            int here = 0, hereAshore = 0;
+            for (int dx = -128; dx <= 128; dx += 4) {
+                for (int dz = -128; dz <= 128; dz += 4) {
+                    int x = at.getX() + dx, z = at.getZ() + dz;
+                    if (!counted.add(net.minecraft.world.level.ChunkPos.pack(x, z))) continue;
+                    if (!end.getUncachedNoiseBiome(x >> 2, com.panda.promisedend.logic.VoidCurrents.BIOME_Y >> 2, z >> 2).is(key)) continue;
+                    if (!com.panda.promisedend.logic.VoidCurrent.inCurrent(seed, x, z)) continue;
+                    here++;
+                    if (com.panda.promisedend.logic.VoidCurrent.shore(x, (int) com.panda.promisedend.logic.VoidCurrent.HOLD_MID, z, top) != null) hereAshore++;
+                }
+            }
+            columns += here;
+            ashore += hereAshore;
+            PromisedEnd.LOGGER.info("[promisedend servercheck] {} round {}: a shore in reach from {} of {} current columns", id, at, hereAshore, here);
         }
-        PromisedEnd.LOGGER.info("[promisedend servercheck] {} round {}: a shore in reach from {} of {} current columns ({})", id, at, ashore, columns,
+        PromisedEnd.LOGGER.info("[promisedend servercheck] {}, {} places: a shore in reach from {} of {} current columns ({})", id, used, ashore, columns,
                 columns == 0 ? "-" : String.format(java.util.Locale.ROOT, "%.0f %%", 100.0 * ashore / columns));
         if (columns < 20) return "too few current columns in the " + id + " to count shores: " + columns;
         if (ashore < minimum * columns) return "a shore in reach from only " + ashore + " of " + columns + " current columns in the " + id;
@@ -465,6 +496,49 @@ public final class ServerCheck {
     }
 
     /**
+     * Where the twenty outer gateways drop a player on this world: vanilla's own exit search (from 1024 out along the
+     * gateway's line, back past land and on past void) for each, with the chunks it reads generated, then vanilla's
+     * spot in the chunk it lands in (or, where it finds none and builds an island, the column). Every landing must be
+     * in one of our lands, never a vanilla biome.
+     */
+    private static String gatewayLandings(net.minecraft.server.level.ServerLevel end) {
+        java.lang.reflect.Method tentative, chunkAt, spot;
+        try {
+            var gateway = net.minecraft.world.level.block.entity.TheEndGatewayBlockEntity.class;
+            tentative = gateway.getDeclaredMethod("findExitPortalXZPosTentative", net.minecraft.server.level.ServerLevel.class, BlockPos.class);
+            chunkAt = gateway.getDeclaredMethod("getChunk", Level.class, net.minecraft.world.phys.Vec3.class);
+            spot = gateway.getDeclaredMethod("findValidSpawnInChunk", net.minecraft.world.level.chunk.LevelChunk.class);
+            for (var m : java.util.List.of(tentative, chunkAt, spot)) m.setAccessible(true);
+        } catch (ReflectiveOperationException e) {
+            return "no gateway exit search: " + e;
+        }
+        java.util.List<String> landed = new java.util.ArrayList<>(), bad = new java.util.ArrayList<>();
+        int nearest = Integer.MAX_VALUE, farthest = 0;
+        for (int i = 0; i < 20; i++) {
+            // where the dragon fight puts gateway i
+            double a = 2.0 * (-Math.PI + 0.15707963267948966 * i);
+            BlockPos from = new BlockPos(net.minecraft.util.Mth.floor(96.0 * Math.cos(a)), 75, net.minecraft.util.Mth.floor(96.0 * Math.sin(a)));
+            BlockPos at;
+            try {
+                var xz = (net.minecraft.world.phys.Vec3) tentative.invoke(null, end, from);
+                at = (BlockPos) spot.invoke(null, chunkAt.invoke(null, end, xz));
+                if (at == null) at = BlockPos.containing(xz.x, 75, xz.z);
+            } catch (ReflectiveOperationException e) {
+                return "gateway " + i + "'s exit search: " + e;
+            }
+            var biome = end.getBiome(at);
+            String id = biome.unwrapKey().map(k -> k.identifier().toString()).orElse("?");
+            int out = (int) Math.sqrt((double) at.getX() * at.getX() + (double) at.getZ() * at.getZ());
+            nearest = Math.min(nearest, out);
+            farthest = Math.max(farthest, out);
+            landed.add(i + " " + id.substring(id.indexOf(':') + 1) + " " + out);
+            if (!id.startsWith(PromisedEnd.MODID + ":")) bad.add("gateway " + i + " lands " + out + " out on " + id);
+        }
+        PromisedEnd.LOGGER.info("[promisedend servercheck] gateway landings, {}-{} out: {}", nearest, farthest, landed);
+        return bad.isEmpty() ? null : String.join("; ", bad);
+    }
+
+    /**
      * A vent the Skyfall Archipelago's worldgen sank into an islet's edge, in the generated biome (generated by
      * {@link #biome} just before): its block entity came from worldgen and ticks without a client, as the placed one does.
      * With it, how often the vents place: over the chunks within 64 blocks of a Skyfall's and a Voidscar's spot whose
@@ -475,21 +549,20 @@ public final class ServerCheck {
         String failure = null;
         for (String id : java.util.List.of("skyfall_archipelago", "voidscar_wastes")) {
             var key = net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id(id));
-            BlockPos at = spot(end, key, 32);
-            if (at == null) return "no " + id + " within 6400 blocks";
-            int chunks = 0, vents = 0;
+            var places = spots(end, key, 32);
+            if (places.isEmpty()) return "no " + id + " within 6400 blocks";
+            int chunks = 0, vents = 0, used = 0;
             BlockPos first = null;
-            var origin = net.minecraft.world.level.ChunkPos.containing(at);
-            // within 4 chunks, or 8 where the biome has fewer than 30 there: at one vent in 3.5 chunks, 11 chunks give 3
-            // vents on average, and the 1-in-5 floor below then failed a fair world about 4 runs in 10
-            for (int r = 4; r <= 8 && chunks < 30; r += 4) {
-                chunks = 0;
-                vents = 0;
-                first = null;
-                for (int cx = origin.x() - r; cx <= origin.x() + r; cx++) {
-                    for (int cz = origin.z() - r; cz <= origin.z() + r; cz++) {
-                        var middle = new BlockPos(cx * 16 + 8, 64, cz * 16 + 8);
-                        if (!end.getBiome(middle).is(key)) continue;
+            java.util.Set<Long> counted = new java.util.HashSet<>();
+            // the biome's chunks within 8 of its best places in turn, until 120 are counted
+            for (BlockPos at : places) {
+                if (chunks >= 120 || used == 4) break;
+                used++;
+                var origin = net.minecraft.world.level.ChunkPos.containing(at);
+                for (int cx = origin.x() - 8; cx <= origin.x() + 8; cx++) {
+                    for (int cz = origin.z() - 8; cz <= origin.z() + 8; cz++) {
+                        if (!counted.add(net.minecraft.world.level.ChunkPos.pack(cx, cz))) continue;
+                        if (!end.getBiome(new BlockPos(cx * 16 + 8, 64, cz * 16 + 8)).is(key)) continue;
                         chunks++;
                         for (BlockPos p : BlockPos.betweenClosed(cx * 16, 24, cz * 16, cx * 16 + 15, 140, cz * 16 + 15)) {
                             if (!end.getBlockState(p).is(ModBlocks.UPDRAFT_VENT.get())) continue;
@@ -499,15 +572,17 @@ public final class ServerCheck {
                     }
                 }
             }
-            PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} generated Updraft Vents in {} of its chunks (1 in {})", id, at, vents, chunks,
+            PromisedEnd.LOGGER.info("[promisedend servercheck] {}, {} places: {} generated Updraft Vents in {} of its chunks (1 in {})", id, used, vents, chunks,
                     vents == 0 ? "none" : String.format(java.util.Locale.ROOT, "%.1f", chunks / (double) vents));
-            if (first == null) return "no generated Updraft Vent in the " + id + " round " + at;
-            // one chunk in two tries, and about one in 3.5 places (seen: 1 in 2.4-2.8 on land-rich spots); a fair world
-            // falls below the binomial's 1 % lower bound once in a hundred, where a flat 1-in-5 floor on 26 chunks failed
-            // one in seven (a sparse Voidscar, 5 in 26); edges not found at all give none
-            double rate = 1 / 3.5;
-            int floor = Math.max(1, (int) Math.floor(chunks * rate - 2.33 * Math.sqrt(chunks * rate * (1 - rate))));
-            if (vents < floor) return "only " + vents + " generated Updraft Vents in " + chunks + " chunks of the " + id + " round " + at + " (the floor is " + floor + ")";
+            if (first == null) return "no generated Updraft Vent in the " + id;
+            if (chunks < 60) return "only " + chunks + " chunks of the " + id + " to count vents in";
+            // each biome's own rate, measured on seeds 1-16 twice (the Skyfall 779 vents in 1673 chunks, the Voidscar 394
+            // in 1073), and its spread from place to place, half again a binomial's (vents come by islands): the floor is
+            // 2.33 of those spreads under the rate, which a fair world falls below about once in a hundred and a vent at
+            // half its rate falls below in most worlds
+            double rate = id.equals("skyfall_archipelago") ? 0.47 : 0.36;
+            int floor = Math.max(1, (int) Math.floor(chunks * rate - 2.33 * 1.5 * Math.sqrt(chunks * rate * (1 - rate))));
+            if (vents < floor) return "only " + vents + " generated Updraft Vents in " + chunks + " chunks of the " + id + " (the floor is " + floor + ")";
             if (failure == null && id.equals("skyfall_archipelago")) failure = lift(end, first, "the generated vent at " + first);
         }
         return failure;

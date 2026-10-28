@@ -61,14 +61,12 @@ public final class EndFabric implements ModInitializer {
             }
         });
 
-        // terrain.enabled=false: the constructs come to vanilla's biomes their lands' features went to (only then: each
-        // one's canSpawn turns them away while the terrain is on); NeoForge reads the same from its biome modifiers
-        BiomeModifications.addSpawn(BiomeSelectors.tag(com.panda.promisedend.registry.ModTags.GROVE_FALLBACK), net.minecraft.world.entity.MobCategory.MONSTER,
-                com.panda.promisedend.registry.ModEntities.CHORUS_WEAVER.get(), 2, 1, 1);
-        BiomeModifications.addSpawn(BiomeSelectors.tag(com.panda.promisedend.registry.ModTags.VOIDSCAR_FALLBACK), net.minecraft.world.entity.MobCategory.MONSTER,
-                com.panda.promisedend.registry.ModEntities.RIFT_STALKER.get(), 2, 1, 1);
-        BiomeModifications.addSpawn(BiomeSelectors.tag(com.panda.promisedend.registry.ModTags.MIRE_FALLBACK), net.minecraft.world.entity.MobCategory.AMBIENT,
-                com.panda.promisedend.registry.ModEntities.LUMEN_WISP.get(), 5, 1, 2);
+        // terrain.enabled=false: the constructs come to vanilla's biomes their lands' features went to, and only then
+        // (with the terrain on, vanilla's quarter keeps its spawns); NeoForge reads the same list in its biome modifier
+        for (var spawn : com.panda.promisedend.entity.Constructs.FALLBACK_SPAWNS) {
+            BiomeModifications.addSpawn(BiomeSelectors.tag(spawn.biomes()).and(context -> !EndConfig.terrainEnabled()), spawn.category(),
+                    spawn.type().get(), spawn.weight(), spawn.min(), spawn.max());
+        }
         // terrain.enabled=false: a copy of the Rim's debris goes on every End biome in #promisedend:rim_fallback, where
         // the feature keeps to the ring; NeoForge reads the same from data/promisedend/neoforge/biome_modifier/
         BiomeModifications.addFeature(BiomeSelectors.tag(TagKey.create(Registries.BIOME, PromisedEnd.id("rim_fallback"))),

@@ -144,7 +144,7 @@ public class LumenWisp extends PathfinderMob implements GeoEntity {
         if (reason != EntitySpawnReason.NATURAL) return true;
         if (!level.getBlockState(pos.below()).isSolid()) return false;
         if (!Constructs.terrainAllows(level, pos, com.panda.promisedend.registry.ModTags.MIRE_FALLBACK)) return false;
-        return level.getEntitiesOfClass(LumenWisp.class, new AABB(pos).inflate(32)).size() < LOCAL_CAP;
+        return Constructs.roomFor(level, pos, LumenWisp.class, LOCAL_CAP);
     }
 
     // ---- a construct, not a creature ------------------------------------------------------------
