@@ -45,6 +45,12 @@ public final class ModEntities {
     /** The dragon's dive mark: no body, never saved, seen from as far as the fight. */
     public static final Supplier<EntityType<DiveMark>> DIVE_MARK = ENTITIES.registerEntityType("dive_mark",
             DiveMark::new, MobCategory.MISC, b -> b.sized(0.5F, 0.1F).clientTrackingRange(10).updateInterval(10).noSave().noSummon().fireImmune());
+    /**
+     * A Drift Islet: 3x3 and a block thick. Clients step it themselves, so the server's position updates are only a
+     * check once a second; seen from 160 blocks, across a gap.
+     */
+    public static final Supplier<EntityType<com.panda.promisedend.entity.DriftIslet>> DRIFT_ISLET = ENTITIES.registerEntityType("drift_islet",
+            com.panda.promisedend.entity.DriftIslet::new, MobCategory.MISC, b -> b.sized(3.0F, 1.0F).clientTrackingRange(10).updateInterval(20).fireImmune());
 
     /** Every construct's attributes, for the loader's attribute registration. */
     public static void attributes(BiConsumer<EntityType<? extends LivingEntity>, AttributeSupplier.Builder> sink) {

@@ -85,12 +85,15 @@ public final class Arrivals {
         for (Station built : stored.waystations) {
             if (near(built.point(), point) || near(built.gate(), point)) return built.gate();
         }
+        long t0 = System.nanoTime();
         BlockPos centre = ground(end, (int) Math.floor(point[0]), (int) Math.floor(point[1]));
         if (centre == null) centre = islet(end, (int) Math.floor(point[0]), (int) Math.floor(point[1]));
+        long t1 = System.nanoTime();
         build(end, centre);
         stored.waystations.add(new Station(BlockPos.containing(point[0], 0, point[1]), centre));
         stored.setDirty();
-        PromisedEnd.LOGGER.info("[promisedend] built an Ancient Waystation at {} for an arrival at {}, {}", centre, Math.round(point[0]), Math.round(point[1]));
+        PromisedEnd.LOGGER.info("[promisedend] built an Ancient Waystation at {} for an arrival at {}, {} (found in {} ms, built in {} ms)", centre,
+                Math.round(point[0]), Math.round(point[1]), (t1 - t0) / 1_000_000, (System.nanoTime() - t1) / 1_000_000);
         return centre;
     }
 
@@ -180,14 +183,24 @@ public final class Arrivals {
         stored.setDirty();
         ItemStack codex = new ItemStack(ModItems.PROMISE_CODEX.get());
         player.getInventory().placeItemBackInInventory(codex, net.minecraft.util.Prediction.SERVER_ONLY);
-        player.sendSystemMessage(Component.translatable("arrival.promisedend.first"));
-        // which way in: the Ward's wall is out of sight from here, hundreds of blocks off
+        greeting(player).forEach(player::sendSystemMessage);
+    }
+
+    /**
+     * What a first arrival is told: what the Waystation is; with the Ward up, which way in and how far (its wall is out
+     * of sight from here, hundreds of blocks off); and that a pearl in hand shows the way.
+     */
+    public static List<Component> greeting(Entity player) {
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.translatable("arrival.promisedend.first"));
         if (AncientWard.stands(player.level().getServer())) {
             double out = Math.hypot(player.getX(), player.getZ());
             int toWard = (int) Math.round(out - EndConfig.wardRadius());
-            player.sendSystemMessage(Component.translatable("arrival.promisedend.ward", toWard,
+            lines.add(Component.translatable("arrival.promisedend.ward", toWard,
                     Component.translatable("direction.promisedend." + Arrival.compass(-player.getX(), -player.getZ()))));
         }
+        lines.add(Component.translatable("arrival.promisedend.pearl"));
+        return lines;
     }
 
     private static boolean near(BlockPos at, double[] point) {

@@ -74,6 +74,7 @@ public final class PromisedEnd {
         com.panda.promisedend.logic.OuterProgress.tick(player);
         com.panda.promisedend.logic.CaveDark.tick(player);
         com.panda.promisedend.logic.AncientWard.tick(player);
+        com.panda.promisedend.logic.PearlGuide.tick(player);
     }
 
     public static Identifier id(String path) {

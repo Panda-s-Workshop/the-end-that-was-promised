@@ -144,6 +144,7 @@ public final class ServerCheck {
         if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback vines", ModBlocks.VOID_BERRY_VINE.get(), 130, 64));
         add.accept(wrath(server));
         add.accept(arrivals(server, end, terrain));
+        add.accept(driftRoutes(end));
         return failures.isEmpty() ? null : String.join(" | ", failures);
     }
 
@@ -494,6 +495,91 @@ public final class ServerCheck {
         String failure = lift(end, at, "an Updraft Vent");
         end.setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
         return failure;
+    }
+
+    /**
+     * Drift Islets on real terrain: every route whose start lies in two places of 20x20 chunks, 1100-1420 out on the
+     * east and on the west, generated with the chunks along it; as many as the search itself finds from those chunks. Each has its islet, lying at its first end or on its way; its two edges are ground with
+     * 12-96 blocks of void between; its corridor is clear at the islet's height and a rider's; its moorings stand.
+     */
+    private static String driftRoutes(net.minecraft.server.level.ServerLevel end) {
+        var structure = end.registryAccess().lookupOrThrow(Registries.STRUCTURE).getValue(PromisedEnd.id("drift_route"));
+        if (structure == null) return "no drift_route structure";
+        java.util.List<com.panda.promisedend.logic.DriftGap.Gap> gaps = new java.util.ArrayList<>();
+        int chunks = 0, searched = 0;
+        long searchNanos = 0;
+        var gen = end.getChunkSource().getGenerator();
+        var noise = end.getChunkSource().randomState();
+        int floor = end.getMinY() + 1;
+        // two places, 20x20 chunks each: 1100-1420 out on the east, and on the west
+        for (int[] at : new int[][] {{1100 >> 4, -10}, {-(1420 >> 4), -10}}) for (int cx = at[0]; cx < at[0] + 20; cx++) {
+            for (int cz = at[1]; cz < at[1] + 20; cz++) {
+                chunks++;
+                // the search alone, on the generator's heights, from the chunk's middle: every gap it finds must have its route
+                long t0 = System.nanoTime();
+                searched += com.panda.promisedend.logic.DriftGap.all((gx, gz) -> gen.getBaseHeight(gx, gz, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, end, noise),
+                        floor, cx * 16 + 8, cz * 16 + 8).size();
+                searchNanos += System.nanoTime() - t0;
+                var start = end.getChunk(cx, cz).getAllStarts().get(structure);
+                if (start == null || !start.isValid()) continue;
+                for (var piece : start.getPieces()) {
+                    if (piece instanceof com.panda.promisedend.worldgen.DriftRouteStructure.Piece route) gaps.add(route.gap());
+                }
+            }
+        }
+        java.util.List<String> bad = new java.util.ArrayList<>(), seen = new java.util.ArrayList<>();
+        int posts = 0, clearedAll = 0;
+        for (var gap : gaps) {
+            var route = gap.route();
+            // the chunks along it, so its islet and its far end are there
+            for (int k = 0; k <= gap.width() + 1; k += 8) end.getChunk(BlockPos.containing(gap.ex() + gap.dx() * k, gap.he(), gap.ez() + gap.dz() * k));
+            end.getChunk(BlockPos.containing(gap.fx(), gap.hf(), gap.fz()));
+            var box = new net.minecraft.world.phys.AABB(Math.min(route.ax(), route.bx()) - 2, Math.min(route.ay(), route.by()) - 1, Math.min(route.az(), route.bz()) - 2,
+                    Math.max(route.ax(), route.bx()) + 2, Math.max(route.ay(), route.by()) + 2, Math.max(route.az(), route.bz()) + 2);
+            // its own islet: another route's may lie in the box, beside it at a shared corner
+            var found = end.getEntities(com.panda.promisedend.registry.ModEntities.DRIFT_ISLET.get(), box, e -> route.equals(e.route()));
+            int islets = found.size();
+            // as on its first ticks: it clears what worldgen next door grew into its way
+            int cleared = 0;
+            for (var islet : found) cleared += Math.max(0, islet.clearWay());
+            clearedAll += cleared;
+            BlockPos near = new BlockPos(gap.ex(), gap.he() - 1, gap.ez()), far = new BlockPos(gap.fx(), gap.hf() - 1, gap.fz());
+            boolean ends = !end.getBlockState(near).isAir() && !end.getBlockState(far).isAir();
+            int blocked = 0;
+            int lx = gap.dz() != 0 ? 1 : 0, lz = gap.dx() != 0 ? 1 : 0;
+            for (int j = 1; j <= gap.width(); j++) {
+                for (int l = -1; l <= 1; l++) {
+                    for (int y = gap.lowAt(j) - 1; y <= gap.highAt(j) + 1; y++) {
+                        if (!end.getBlockState(new BlockPos(gap.ex() + gap.dx() * j + lx * l, y, gap.ez() + gap.dz() * j + lz * l)).getCollisionShape(end, near).isEmpty()) blocked++;
+                    }
+                }
+            }
+            int lit = 0;
+            for (int[] e : new int[][] {{gap.ex(), gap.ez(), gap.he()}, {gap.fx(), gap.fz(), gap.hf()}}) {
+                for (int side : new int[] {-2, 2}) {
+                    if (end.getBlockState(new BlockPos(e[0] + lx * side, e[2] + 2, e[1] + lz * side)).is(net.minecraft.world.level.block.Blocks.END_ROD)) lit++;
+                }
+            }
+            posts += lit;
+            if (lit != 4) bad.add("a route at " + near + " has " + lit + " of its 4 mooring posts");
+            String id = end.getBiome(near).unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
+            seen.add(gap.ex() + "," + gap.ez() + " " + (gap.dx() != 0 ? "x" : "z") + gap.width() + (gap.he() == gap.hf() ? "" : " " + gap.he() + "-" + gap.hf()) + " " + id + (islets == 1 ? "" : " islets " + islets) + (ends ? "" : " no edge") + (blocked == 0 ? "" : " blocked " + blocked));
+            if (islets != 1) bad.add(islets + " islets on the route at " + near);
+            if (!ends) bad.add("a route at " + near + " has no ground at an end");
+            if (blocked > 0) bad.add("a route at " + near + " has " + blocked + " blocks in its corridor");
+            if (gap.width() < com.panda.promisedend.logic.DriftRoute.SHORTEST || gap.width() > com.panda.promisedend.logic.DriftRoute.LONGEST) bad.add("a route at " + near + " crosses " + gap.width());
+        }
+        for (int i = 0; i < gaps.size(); i++) {
+            for (int j = i + 1; j < gaps.size(); j++) {
+                if (com.panda.promisedend.logic.DriftGap.clash(gaps.get(i), gaps.get(j))) bad.add("the routes " + gaps.get(i) + " and " + gaps.get(j) + " meet");
+            }
+        }
+        PromisedEnd.LOGGER.info("[promisedend servercheck] drift routes in {} chunks: {} (the search finds {}; {} mooring posts, {} blocks cleared from their ways): {}", chunks, gaps.size(), searched, posts, clearedAll, seen);
+        PromisedEnd.LOGGER.info("[promisedend servercheck] the drift route search: {} ms for {} chunks, {} ms a chunk (on generated terrain, so the heights were the generator's own)",
+                searchNanos / 1_000_000, chunks, String.format(java.util.Locale.ROOT, "%.2f", searchNanos / 1e6 / chunks));
+        if (gaps.size() != searched) bad.add(gaps.size() + " routes where the search finds " + searched);
+        if (searched == 0) PromisedEnd.LOGGER.warn("[promisedend servercheck] no gap for a drift route in {} chunks on this world", chunks);
+        return bad.isEmpty() ? null : "drift routes: " + String.join("; ", bad);
     }
 
     /**

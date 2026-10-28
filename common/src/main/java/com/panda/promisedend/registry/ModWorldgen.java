@@ -27,6 +27,10 @@ public final class ModWorldgen {
 
     private static final DeferredRegister<MapCodec<? extends StructurePlacement>> PLACEMENTS = DeferredRegister.create(Registries.STRUCTURE_PLACEMENT, PromisedEnd.MODID);
 
+    private static final DeferredRegister<net.minecraft.world.level.levelgen.structure.StructureType<?>> STRUCTURE_TYPES = DeferredRegister.create(Registries.STRUCTURE_TYPE, PromisedEnd.MODID);
+
+    private static final DeferredRegister<net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType> STRUCTURE_PIECES = DeferredRegister.create(Registries.STRUCTURE_PIECE, PromisedEnd.MODID);
+
     public static final Supplier<MapCodec<RimDebrisFeature>> RIM_DEBRIS = FEATURE_TYPES.register("rim_debris", () -> RimDebrisFeature.CODEC);
     public static final Supplier<MapCodec<ChorusGroveFeature>> CHORUS_GROVE = FEATURE_TYPES.register("chorus_grove", () -> ChorusGroveFeature.CODEC);
     public static final Supplier<MapCodec<MirePoolFeature>> MIRE_POOL = FEATURE_TYPES.register("mire_pool", () -> MirePoolFeature.CODEC);
@@ -47,6 +51,10 @@ public final class ModWorldgen {
     public static final Supplier<MapCodec<com.panda.promisedend.worldgen.UnclaimedFilter>> UNCLAIMED = MODIFIERS.register("unclaimed",
             () -> com.panda.promisedend.worldgen.UnclaimedFilter.CODEC);
     public static final Supplier<MapCodec<RingSpreadPlacement>> RING_SPREAD = PLACEMENTS.register("ring_spread", () -> RingSpreadPlacement.CODEC);
+    public static final Supplier<net.minecraft.world.level.levelgen.structure.StructureType<com.panda.promisedend.worldgen.DriftRouteStructure>> DRIFT_ROUTE =
+            STRUCTURE_TYPES.register("drift_route", () -> () -> com.panda.promisedend.worldgen.DriftRouteStructure.CODEC);
+    public static final Supplier<net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType> DRIFT_ROUTE_PIECE =
+            STRUCTURE_PIECES.register("drift_route", () -> com.panda.promisedend.worldgen.DriftRouteStructure.Piece::new);
 
     private ModWorldgen() {}
 }

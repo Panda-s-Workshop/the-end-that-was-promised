@@ -1,0 +1,7 @@
+{
+  "type": "promisedend:drift_route",
+  "biomes": "#promisedend:has_drift_islets",
+  "step": "top_layer_modification",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "#promisedend:outer_end",
+    "promisedend:shattered_rim",
+    "minecraft:end_highlands",
+    "minecraft:end_midlands",
+    "minecraft:end_barrens",
+    "minecraft:small_end_islands"
+  ]
+}

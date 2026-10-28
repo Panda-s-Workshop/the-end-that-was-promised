@@ -79,7 +79,14 @@ public final class EndGameTests {
         FUNCTIONS.register("ward_sets_back", () -> EndGameTests::wardSetsBack);
         FUNCTIONS.register("seals_drop_the_ward", () -> EndGameTests::sealsDropTheWard);
         FUNCTIONS.register("ward_bounces_pearls", () -> EndGameTests::wardBouncesPearls);
+        FUNCTIONS.register("pearl_shows_the_way", () -> EndGameTests::pearlShowsTheWay);
         FUNCTIONS.register("arrival_off_is_vanilla", () -> EndGameTests::arrivalOffIsVanilla);
+        FUNCTIONS.register("drift_islet_carries", () -> EndGameTests::driftIsletCarries);
+        FUNCTIONS.register("drift_islet_blocked_turns", () -> EndGameTests::driftIsletBlockedTurns);
+        FUNCTIONS.register("drift_islet_saves", () -> EndGameTests::driftIsletSaves);
+        FUNCTIONS.register("drift_islet_headroom_turns", () -> EndGameTests::driftIsletHeadroomTurns);
+        FUNCTIONS.register("drift_islet_keeps_rider_aloft", () -> EndGameTests::driftIsletKeepsRiderAloft);
+        FUNCTIONS.register("drift_islet_lifts_the_sunk", () -> EndGameTests::driftIsletLiftsTheSunk);
         FUNCTIONS.register("return_gate_sends_home", () -> EndGameTests::returnGateSendsHome);
         FUNCTIONS.register("crystal_warden_beam_cap_and_rest", () -> EndGameTests::crystalWardenBeamCapAndRest);
         FUNCTIONS.register("crystal_warden_ignores_the_dragon", () -> EndGameTests::crystalWardenIgnoresTheDragon);
@@ -144,7 +151,7 @@ public final class EndGameTests {
             java.util.Map.entry("crystal_warden_beam_cap_and_rest", 220), java.util.Map.entry("wrath_increments_on_kill", 260),
             java.util.Map.entry("dragon_drops_scales", 240), java.util.Map.entry("void_water_slows", 160),
             java.util.Map.entry("dragon_phase3_triggers", 460), java.util.Map.entry("updraft_lifts_entity", 360),
-            java.util.Map.entry("echo_amber_flares", 180), java.util.Map.entry("current_carries_entity", 560),
+            java.util.Map.entry("echo_amber_flares", 180), java.util.Map.entry("cave_dark_held_off", 200), java.util.Map.entry("drift_islet_blocked_turns", 160), java.util.Map.entry("drift_islet_headroom_turns", 160), java.util.Map.entry("current_carries_entity", 560),
             java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("lumen_wisp_lights_the_way", 460),
             java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("constructs_edges_walls_and_swarms", 200), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260));
     /**
@@ -162,7 +169,9 @@ public final class EndGameTests {
             "warden_heals_dragon", "dragon_void_breath_dive", "void_breath_dodged", "called_wardens_take_turns",
             "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops",
             // counts constructs within 32 blocks, which reaches into the arenas beside it
-            "construct_spawns_keep_to_their_lands");
+            "construct_spawns_keep_to_their_lands",
+            // waits on the light engine, which in a busy batch never lit its cluster's light in 175 ticks (P100)
+            "cave_dark_held_off");
 
     private EndGameTests() {}
 
@@ -3625,6 +3634,14 @@ public final class EndGameTests {
         again.postTeleportTransition().onTransition(player);
         int codices = player.getInventory().countItem(ModItems.PROMISE_CODEX.get());
         if (codices != 1) bad.add(codices + " Promise Codices after two arrivals");
+        // what it says, where it set them down: the Waystation, the way in with the Ward up, the pearl
+        player.snapTo(at.x, at.y, at.z, 0, 0);
+        var said = com.panda.promisedend.logic.Arrivals.greeting(player).stream()
+                .map(c -> c.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t ? t.getKey() : c.getString()).toList();
+        PromisedEnd.LOGGER.info("[arrival_by_coordinates] the greeting: {}", said);
+        var lines = com.panda.promisedend.logic.AncientWard.stands(server) ? List.of("arrival.promisedend.first", "arrival.promisedend.ward", "arrival.promisedend.pearl")
+                : List.of("arrival.promisedend.first", "arrival.promisedend.pearl");
+        if (!said.equals(lines)) bad.add("the greeting said " + said);
         player.discard();
         if (!bad.isEmpty()) helper.fail("arrival: " + bad);
         helper.succeed();
@@ -3634,12 +3651,29 @@ public final class EndGameTests {
      * A real player on the server's list, in {@code mode}: the test helper's mock server player always reports
      * creative, which the Ward lets by. Take it off the list ({@code getPlayerList().remove}) when the test ends.
      */
+    /** Each real player's channel, whose outbound side holds the packets the server sent them. */
+    private static final java.util.Map<java.util.UUID, io.netty.channel.embedded.EmbeddedChannel> CHANNELS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The packets of {@code type} the server has sent a real player since the last call (the rest are dropped). */
+    private static <T> List<T> sent(net.minecraft.server.level.ServerPlayer player, Class<T> type) {
+        List<T> out = new ArrayList<>();
+        var channel = CHANNELS.get(player.getUUID());
+        if (channel == null) return out;
+        for (Object m; (m = channel.readOutbound()) != null; ) {
+            if (type.isInstance(m)) out.add(type.cast(m));
+            else if (m instanceof net.minecraft.network.protocol.BundlePacket<?> bundle) {
+                for (var inner : bundle.subPackets()) if (type.isInstance(inner)) out.add(type.cast(inner));
+            }
+        }
+        return out;
+    }
+
     private static net.minecraft.server.level.ServerPlayer realPlayer(GameTestHelper helper, net.minecraft.world.level.GameType mode) {
         var level = helper.getLevel();
         var cookie = net.minecraft.server.network.CommonListenerCookie.createInitial(new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "test-walker"), false);
         var player = new net.minecraft.server.level.ServerPlayer(level.getServer(), level, cookie.gameProfile(), cookie.clientInformation());
         var connection = new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
-        new io.netty.channel.embedded.EmbeddedChannel(connection);
+        CHANNELS.put(player.getUUID(), new io.netty.channel.embedded.EmbeddedChannel(connection));
         level.getServer().getPlayerList().placeNewPlayer(connection, player, cookie);
         player.setGameMode(mode);
         return player;
@@ -3734,21 +3768,104 @@ public final class EndGameTests {
         int r = com.panda.promisedend.EndConfig.wardRadius();
         var thrower = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
         wardAt(end, thrower, r + 20.0);
-        for (boolean standing : new boolean[] {true, false}) {
-            if (!standing) for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
-            var pearl = new net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl(net.minecraft.world.entity.EntityTypes.ENDER_PEARL, end);
-            pearl.snapTo(r - 1.0, 82, 0.5, 0, 0);
-            pearl.setDeltaMovement(-1.0, 0, 0);
-            end.addFreshEntity(pearl);
-            com.panda.promisedend.logic.AncientWard.tick(server);
-            PromisedEnd.LOGGER.info("[ward_bounces_pearls] the Ward {}: the pearl at {} moving {}", standing ? "up" : "down", pearl.position(), pearl.getDeltaMovement());
-            if (standing && (pearl.getX() < r || pearl.getDeltaMovement().x <= 0)) bad.add("a pearl went through the Ward: at " + pearl.position() + " moving " + pearl.getDeltaMovement());
-            if (!standing && (pearl.getX() > r || pearl.getDeltaMovement().x >= 0)) bad.add("with the Ward down a pearl was turned: at " + pearl.position() + " moving " + pearl.getDeltaMovement());
-            pearl.discard();
+        // the pearl's chunk, 21 inward, holds entities once the player's own chunks load round them (a test before
+        // this one may have loaded it, or not)
+        helper.runAfterDelay(5, () -> {
+            // mended again: the seal tests beside this one ran in those ticks
+            com.panda.promisedend.logic.AncientWard.reset(server);
+            for (boolean standing : new boolean[] {true, false}) {
+                if (!standing) for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
+                var pearl = new net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl(net.minecraft.world.entity.EntityTypes.ENDER_PEARL, end);
+                pearl.snapTo(r - 1.0, 82, 0.5, 0, 0);
+                pearl.setDeltaMovement(-1.0, 0, 0);
+                end.addFreshEntity(pearl);
+                com.panda.promisedend.logic.AncientWard.tick(server);
+                PromisedEnd.LOGGER.info("[ward_bounces_pearls] the Ward {}: the pearl at {} moving {}", standing ? "up" : "down", pearl.position(), pearl.getDeltaMovement());
+                if (standing && (pearl.getX() < r || pearl.getDeltaMovement().x <= 0)) bad.add("a pearl went through the Ward: at " + pearl.position() + " moving " + pearl.getDeltaMovement());
+                if (!standing && (pearl.getX() > r || pearl.getDeltaMovement().x >= 0)) bad.add("with the Ward down a pearl was turned: at " + pearl.position() + " moving " + pearl.getDeltaMovement());
+                pearl.discard();
+            }
+            com.panda.promisedend.logic.AncientWard.reset(server);
+            server.getPlayerList().remove(thrower);
+            if (!bad.isEmpty()) helper.fail("pearls: " + bad);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * An Ender Pearl in hand shows the way in: a survival player 1000 out in the End is shown it with a pearl in either
+     * hand and not without; 100 out (the main island in sight), a spectator, or in the Overworld, not. The way points
+     * at the centre.
+     */
+    private static void pearlShowsTheWay(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        List<String> bad = new ArrayList<>();
+        var p = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        var pearl = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ENDER_PEARL);
+        wardAt(end, p, 1000.0);
+        if (com.panda.promisedend.logic.PearlGuide.guides(p)) bad.add("shown the way with no pearl");
+        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, pearl.copy());
+        if (!com.panda.promisedend.logic.PearlGuide.guides(p)) bad.add("not shown the way 1000 out with a pearl in hand");
+        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+        p.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, pearl.copy());
+        if (!com.panda.promisedend.logic.PearlGuide.guides(p)) bad.add("not shown the way with a pearl in the off hand");
+        wardAt(end, p, 100.0);
+        if (com.panda.promisedend.logic.PearlGuide.guides(p)) bad.add("shown the way 100 out");
+        wardAt(end, p, 1000.0);
+        p.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);
+        if (com.panda.promisedend.logic.PearlGuide.guides(p)) bad.add("a spectator shown the way");
+        p.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        p.teleport(new net.minecraft.world.level.portal.TeleportTransition(server.overworld(), new net.minecraft.world.phys.Vec3(1000, 100, 0.5), net.minecraft.world.phys.Vec3.ZERO, 0, 0,
+                net.minecraft.world.level.portal.TeleportTransition.DO_NOTHING));
+        if (com.panda.promisedend.logic.PearlGuide.guides(p)) bad.add("shown the way in the Overworld");
+        double[] way = com.panda.promisedend.logic.PearlGuide.way(1000, -1000);
+        if (Math.abs(way[0] + Math.sqrt(0.5)) > 1e-9 || Math.abs(way[1] - Math.sqrt(0.5)) > 1e-9) bad.add("the way from (1000, -1000) is " + java.util.Arrays.toString(way));
+        // the motes: 12 ticks, a mote each 3 to the holder alone, a trail to a point 6 inward; a player beside, without
+        // a pearl, sent none
+        wardAt(end, p, 1000.0);
+        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, pearl.copy());
+        var other = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        wardAt(end, other, 1001.0);
+        sent(p, Object.class);
+        sent(other, Object.class);
+        for (int t = 0; t < 12; t++) {
+            p.tickCount = t;
+            other.tickCount = t;
+            com.panda.promisedend.logic.PearlGuide.tick(p);
+            com.panda.promisedend.logic.PearlGuide.tick(other);
         }
-        com.panda.promisedend.logic.AncientWard.reset(server);
-        server.getPlayerList().remove(thrower);
-        if (!bad.isEmpty()) helper.fail("pearls: " + bad);
+        var motes = sent(p, net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket.class);
+        int others = sent(other, net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket.class).size();
+        PromisedEnd.LOGGER.info("[pearl_shows_the_way] 12 ticks with a pearl: {} motes to the holder, {} to the player beside", motes.size(), others);
+        if (motes.size() != 12 / com.panda.promisedend.logic.PearlGuide.EVERY) bad.add(motes.size() + " motes in 12 ticks");
+        if (others != 0) bad.add(others + " motes to a player beside, with no pearl");
+        for (var m : motes) {
+            if (!(m.particle() instanceof net.minecraft.core.particles.TrailParticleOption trail)) {
+                bad.add("a mote of " + m.particle().getType());
+                continue;
+            }
+            if (trail.target().x - m.x() > -com.panda.promisedend.logic.PearlGuide.REACH + 0.01) bad.add("a mote drifting to " + trail.target() + " from x " + m.x() + ", not inward");
+        }
+        // off with arrivals by coordinates off
+        var previous = com.panda.promisedend.EndConfig.current();
+        com.panda.promisedend.EndConfig.use(new com.panda.promisedend.EndConfig.Source() {
+            @Override public boolean terrainEnabled() { return previous.terrainEnabled(); }
+            @Override public int edgeDistance() { return previous.edgeDistance(); }
+            @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
+            @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
+            @Override public boolean dragonWrath() { return previous.dragonWrath(); }
+            @Override public int maxWrath() { return previous.maxWrath(); }
+            @Override public boolean arrivalByCoordinates() { return false; }
+        });
+        try {
+            if (com.panda.promisedend.logic.PearlGuide.guides(p)) bad.add("shown the way with arrivals by coordinates off");
+        } finally {
+            com.panda.promisedend.EndConfig.use(previous);
+        }
+        server.getPlayerList().remove(other);
+        server.getPlayerList().remove(p);
+        if (!bad.isEmpty()) helper.fail("pearl guide: " + bad);
         helper.succeed();
     }
 
@@ -3826,6 +3943,176 @@ public final class EndGameTests {
         if (state.getLightEmission() < 10) bad.add("the gate gives light " + state.getLightEmission());
         player.discard();
         if (!bad.isEmpty()) helper.fail("return gate: " + bad);
+        helper.succeed();
+    }
+
+    /** A Drift Islet in the arena on a 7-block route along x at y 3, leaving its first mooring at once. */
+    private static com.panda.promisedend.entity.DriftIslet islet(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var a = helper.absoluteVec(new net.minecraft.world.phys.Vec3(2.5, 3, 5.5));
+        var b = helper.absoluteVec(new net.minecraft.world.phys.Vec3(9.5, 3, 5.5));
+        var islet = com.panda.promisedend.registry.ModEntities.DRIFT_ISLET.get().create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        islet.setRoute(new com.panda.promisedend.logic.DriftRoute(a.x, a.y, a.z, b.x, b.y, b.z), new com.panda.promisedend.logic.DriftRoute.State(0, 1, 0));
+        level.addFreshEntity(islet);
+        return islet;
+    }
+
+    /**
+     * A pig set on a Drift Islet rides it across: after the 7-block crossing (47 ticks at 3 blocks a second) the islet
+     * waits at its far mooring and the pig is still on it, carried the same 7 blocks. Something standing on it stands
+     * on its top (it is a collision box).
+     */
+    private static void driftIsletCarries(GameTestHelper helper) {
+        var islet = islet(helper);
+        var pig = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, new BlockPos(2, 4, 5));
+        pig.setNoAi(true);
+        // a pig without AI doesn't fall: set on the top
+        pig.snapTo(islet.getX(), islet.getBoundingBox().maxY, islet.getZ(), 0, 0);
+        double[] start = {0, 0};
+        helper.runAtTickTime(5, () -> {
+            start[0] = pig.getX() - islet.getX();
+            start[1] = pig.getY() - islet.getBoundingBox().maxY;
+            PromisedEnd.LOGGER.info("[drift_islet_carries] tick 5: the pig {} off the islet's middle, {} over its top", start[0], start[1]);
+            if (Math.abs(start[1]) > 0.05) helper.fail("the pig isn't standing on the islet's top: " + start[1] + " over it");
+        });
+        helper.runAtTickTime(60, () -> {
+            var to = islet.route();
+            double off = pig.getX() - islet.getX();
+            PromisedEnd.LOGGER.info("[drift_islet_carries] tick 60: the islet at {} ({} of the way, waiting {}), the pig at {}", islet.position(), islet.state().s, islet.state().wait, pig.position());
+            if (islet.state().s != 1) helper.fail("the islet hasn't crossed: " + islet.state().s + " of the way");
+            else if (Math.abs(islet.getX() - to.bx()) > 1e-6) helper.fail("the islet isn't at its far mooring: " + islet.position());
+            else if (Math.abs(off - start[0]) > 0.3 || Math.abs(pig.getY() - islet.getBoundingBox().maxY) > 0.05) helper.fail("the pig wasn't carried: " + off + " off the middle (was " + start[0] + "), at " + pig.position());
+            else {
+                islet.discard();
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * A Drift Islet is saved with its route, its place on it, its way and its wait, and that its way was cleared: a copy
+     * loaded from what it saved is at the same place and goes on the same way.
+     */
+    private static void driftIsletSaves(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var islet = islet(helper);
+        for (int t = 0; t < 20; t++) islet.tick();
+        if (islet.clearWay() < 0) helper.fail("the arena's chunks aren't loaded");
+        var out = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, level.registryAccess());
+        islet.saveWithoutId(out);
+        var copy = com.panda.promisedend.registry.ModEntities.DRIFT_ISLET.get().create(level, net.minecraft.world.entity.EntitySpawnReason.LOAD);
+        copy.load(net.minecraft.world.level.storage.TagValueInput.create(net.minecraft.util.ProblemReporter.DISCARDING, level.registryAccess(), out.buildResult()));
+        List<String> bad = new ArrayList<>();
+        if (!copy.route().equals(islet.route())) bad.add("route " + copy.route() + ", saved " + islet.route());
+        if (Math.abs(copy.state().s - islet.state().s) > 1e-9 || copy.state().dir != islet.state().dir || copy.state().wait != islet.state().wait)
+            bad.add("state " + copy.state().s + "/" + copy.state().dir + "/" + copy.state().wait + ", saved " + islet.state().s + "/" + islet.state().dir + "/" + islet.state().wait);
+        if (copy.position().distanceTo(islet.position()) > 1e-6) bad.add("at " + copy.position() + ", saved at " + islet.position());
+        if (!islet.cleared() || copy.cleared() != islet.cleared()) bad.add("cleared " + islet.cleared() + ", loaded " + copy.cleared());
+        PromisedEnd.LOGGER.info("[drift_islet_saves] saved {} of the way going {}, loaded {} going {}", islet.state().s, islet.state().dir, copy.state().s, copy.state().dir);
+        islet.discard();
+        copy.discard();
+        if (!bad.isEmpty()) helper.fail("drift islet save: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A block in a Drift Islet's way turns it back: it never reaches the block, stands a second, and goes back the way it
+     * came, all the way to its first mooring.
+     */
+    private static void driftIsletBlockedTurns(GameTestHelper helper) {
+        blockedTurns(helper, new BlockPos(7, 3, 5), "drift_islet_blocked_turns");
+    }
+
+    /** A block at a rider's head height over its way turns it back as well, so it doesn't scrape a rider off. */
+    private static void driftIsletHeadroomTurns(GameTestHelper helper) {
+        blockedTurns(helper, new BlockPos(7, 5, 5), "drift_islet_headroom_turns");
+    }
+
+    private static void blockedTurns(GameTestHelper helper, BlockPos block, String name) {
+        // a block a player put there after the islet cleared its way, which it does once, as it first ticks
+        var islet = islet(helper);
+        if (islet.clearWay() < 0) helper.fail("the arena's chunks aren't loaded");
+        helper.setBlock(block, net.minecraft.world.level.block.Blocks.STONE);
+        double wall = helper.absoluteVec(net.minecraft.world.phys.Vec3.atLowerCornerOf(block)).x;
+        double start = islet.getX();
+        double[] farthest = {Double.NEGATIVE_INFINITY};
+        int[] turnedAt = {-1};
+        helper.onEachTick(() -> {
+            farthest[0] = Math.max(farthest[0], islet.getBoundingBox().maxX);
+            if (turnedAt[0] < 0 && islet.turns() > 0) turnedAt[0] = (int) helper.getTick();
+        });
+        helper.runAtTickTime(120, () -> {
+            PromisedEnd.LOGGER.info("[{}] turned at tick {}, the islet's front got to {} (the block at {}), now at {} (it started at {})", name, turnedAt[0], farthest[0], wall,
+                    islet.getX(), start);
+            if (islet.turns() < 1) helper.fail("never turned");
+            else if (farthest[0] > wall + 1e-6) helper.fail("ran into the block: its front at " + farthest[0]);
+            else if (Math.abs(islet.getX() - start) > 1e-6) helper.fail("not back at its first mooring: at " + islet.getX() + ", started at " + start);
+            else {
+                islet.discard();
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * A survival player standing on a Drift Islet on a dedicated server isn't kicked for flying: each tick it clears
+     * the count the server kicks floating players at, and their fall distance; a player beside it keeps both. Single
+     * player never counts floating, so no scenario can show this.
+     */
+    private static void driftIsletKeepsRiderAloft(GameTestHelper helper) {
+        var islet = islet(helper);
+        islet.setRoute(islet.route(), new com.panda.promisedend.logic.DriftRoute.State(0, 1, com.panda.promisedend.logic.DriftRoute.WAIT));
+        var on = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        var beside = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        var level = helper.getLevel();
+        on.teleportTo(level, islet.getX(), islet.getBoundingBox().maxY, islet.getZ(), java.util.Set.of(), 0, 0, true);
+        beside.teleportTo(level, islet.getX() + 6, islet.getBoundingBox().maxY, islet.getZ(), java.util.Set.of(), 0, 0, true);
+        List<String> bad = new ArrayList<>();
+        try {
+            var floating = net.minecraft.server.network.ServerGamePacketListenerImpl.class.getDeclaredField("aboveGroundTickCount");
+            floating.setAccessible(true);
+            for (var p : List.of(on, beside)) {
+                p.fallDistance = 10;
+                floating.setInt(p.connection, 50);
+            }
+            islet.tick();
+            int a = floating.getInt(on.connection), b = floating.getInt(beside.connection);
+            PromisedEnd.LOGGER.info("[drift_islet_keeps_rider_aloft] on it: floating {}, fall distance {}; beside it: {}, {}", a, on.fallDistance, b, beside.fallDistance);
+            if (a != 0 || on.fallDistance != 0) bad.add("a rider kept floating " + a + " and fall distance " + on.fallDistance);
+            if (b != 50 || beside.fallDistance != 10) bad.add("a player beside it had floating " + b + " and fall distance " + beside.fallDistance);
+        } catch (ReflectiveOperationException e) {
+            bad.add(e.toString());
+        }
+        level.getServer().getPlayerList().remove(on);
+        level.getServer().getPlayerList().remove(beside);
+        islet.discard();
+        if (!bad.isEmpty()) helper.fail("drift islet riders: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Something sunk into a Drift Islet's top from above (loaded before it, or a client that had its player before the
+     * islet) is lifted onto it, not left to fall through; something under it is left alone.
+     */
+    private static void driftIsletLiftsTheSunk(GameTestHelper helper) {
+        var islet = islet(helper);
+        islet.setRoute(islet.route(), new com.panda.promisedend.logic.DriftRoute.State(0, 1, com.panda.promisedend.logic.DriftRoute.WAIT));
+        var sunk = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, new BlockPos(2, 4, 5));
+        var under = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, new BlockPos(2, 1, 5));
+        for (var pig : List.of(sunk, under)) pig.setNoAi(true);
+        double top = islet.getBoundingBox().maxY;
+        sunk.snapTo(islet.getX(), top - 0.3, islet.getZ(), 0, 0);
+        under.snapTo(islet.getX(), islet.getBoundingBox().minY - under.getBbHeight() + 0.2, islet.getZ(), 0, 0);
+        double underY = under.getY();
+        islet.tick();
+        PromisedEnd.LOGGER.info("[drift_islet_lifts_the_sunk] the sunk pig now at {} (the top {}); the one under at {} (was {})", sunk.getY(), top, under.getY(), underY);
+        List<String> bad = new ArrayList<>();
+        if (Math.abs(sunk.getY() - top) > 1e-6) bad.add("the sunk pig left at " + sunk.getY() + ", the top at " + top);
+        if (Math.abs(under.getY() - underY) > 1e-6) bad.add("the pig under it moved to " + under.getY());
+        islet.discard();
+        sunk.discard();
+        under.discard();
+        if (!bad.isEmpty()) helper.fail("drift islet lift: " + bad);
         helper.succeed();
     }
 
