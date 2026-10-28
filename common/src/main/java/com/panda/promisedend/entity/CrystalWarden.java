@@ -8,13 +8,11 @@ import com.geckolib.animation.RawAnimation;
 import com.geckolib.util.GeckoLibUtil;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.registry.ModSounds;
-import com.panda.promisedend.registry.ModTags;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -255,7 +253,7 @@ public class CrystalWarden extends Monster implements GeoEntity {
     /** It guards the dragon's fight: never the dragon, never another construct, even when one of them hits it. */
     @Override
     public boolean canAttack(LivingEntity target) {
-        return super.canAttack(target) && !(target instanceof EnderDragon) && !target.is(ModTags.CONSTRUCTS);
+        return super.canAttack(target) && Constructs.mayAttack(target);
     }
 
     /** Starts the lock-on at a target (public for GameTests). */
@@ -407,13 +405,7 @@ public class CrystalWarden extends Monster implements GeoEntity {
     /** It shatters at once instead of tipping over: shards of its crystal, then gone (its loot and xp drop on death). */
     @Override
     protected void tickDeath() {
-        if (level() instanceof ServerLevel server && !isRemoved()) {
-            double y = getY() + getBbHeight() * 0.6;
-            server.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STAINED_GLASS.pink().defaultBlockState()), getX(), y, getZ(), 40, 0.35, 0.45, 0.35, 0.15);
-            server.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.PURPUR_BLOCK.defaultBlockState()), getX(), y, getZ(), 20, 0.4, 0.5, 0.4, 0.1);
-            server.sendParticles(ParticleTypes.END_ROD, getX(), y, getZ(), 8, 0.3, 0.4, 0.3, 0.06);
-            remove(RemovalReason.KILLED);
-        }
+        Constructs.shatter(this, Blocks.STAINED_GLASS.pink().defaultBlockState(), Blocks.PURPUR_BLOCK.defaultBlockState());
     }
 
     @Override
