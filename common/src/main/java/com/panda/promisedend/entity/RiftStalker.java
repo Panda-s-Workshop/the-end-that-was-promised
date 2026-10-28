@@ -80,6 +80,8 @@ public class RiftStalker extends Monster implements GeoEntity {
     public static final float MODEL_SCALE = 1.25F;
     /** At most this many stalkers within 32 blocks for one more to spawn. */
     public static final int LOCAL_CAP = 2;
+    /** The tag a player gets once told what to do when one comes out behind them (the hint is said once). */
+    public static final String HINTED = "promisedend.rift_stalker_hinted";
 
     public enum State { HUNT, GATHER, STRIKE, FROZEN }
 
@@ -294,6 +296,11 @@ public class RiftStalker extends Monster implements GeoEntity {
         rift(level, to);
         playSound(ModSounds.RIFT_STALKER_BLINK.get(), 1.0F, 1.0F);
         blinks++;
+        // the first time one comes out behind a player, its rule, once
+        if (target instanceof net.minecraft.server.level.ServerPlayer player && !player.entityTags().contains(HINTED)) {
+            player.addTag(HINTED);
+            player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("hint.promisedend.rift_stalker.turn"));
+        }
     }
 
     /** The rift it goes through: a burst of the Voidscar's own motes, and the portal's reversed. */

@@ -148,6 +148,7 @@
   "entity.promisedend.lumen_wisp": "Lumen Wisp",
   "entity.promisedend.purpur_sentry": "Purpur Sentry",
   "entity.promisedend.rift_stalker": "Rift Stalker",
+  "hint.promisedend.rift_stalker.turn": "Something is behind you. Turn and look at it",
   "hint.promisedend.updraft_vent.sink": "Sneak to sink",
   "hint.promisedend.void_current.ashore": "The current washes you ashore",
   "hint.promisedend.void_current.caught": "A void current has you: it lets go within 20 seconds",
