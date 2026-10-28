@@ -89,6 +89,27 @@ class EndRegionsTest {
         }
     }
 
+    /**
+     * Where the twenty end gateways throw a player (vanilla puts them 96 out at every 18 degrees and looks for land
+     * along each from 1024 blocks, up to 256 either way), no region is vanilla's own theme, on five seeds; further out
+     * vanilla's theme still turns up.
+     */
+    @Test
+    void gatewaysLandInOurs() {
+        int far = 0;
+        for (long seed : new long[] {SEED, 42L, -7L, 987654321L, 20261025L}) {
+            for (int i = 0; i < 20; i++) {
+                double a = 2.0 * (-Math.PI + 0.15707963267948966 * i);
+                double ux = Math.cos(a), uz = Math.sin(a);
+                for (int d = 768; d <= 1300; d += 16) {
+                    assertNotEquals(EndRegions.Theme.VANILLA, EndRegions.theme(seed, ux * d, uz * d), "seed " + seed + ", gateway " + i + ", " + d + " out");
+                }
+                for (int d = 2600; d <= 7000; d += 64) if (EndRegions.theme(seed, ux * d, uz * d) == EndRegions.Theme.VANILLA) far++;
+            }
+        }
+        assertTrue(far > 0, "vanilla's theme never turns up past the gateways' ring");
+    }
+
     @Test
     void everyBiomeIsReachableAndSharesAreSane() {
         Map<Biome, Integer> count = new EnumMap<>(Biome.class);

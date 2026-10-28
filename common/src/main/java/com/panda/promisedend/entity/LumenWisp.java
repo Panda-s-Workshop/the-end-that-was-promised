@@ -41,8 +41,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * The Lumen Wisp: the Ancients' lamplighter, a small passive construct drifting low over the Lumen Mire. A player
  * holding Lumen within {@link #NOTICE_RANGE} draws it: it flies at their shoulder and lights the way behind it, a
- * {@link ModBlocks#WISP_LIGHT} every {@link #TRAIL_EVERY} ticks that goes out {@link #TRAIL_TICKS} later. When it
- * breaks it leaves its light where it was for {@link #DEATH_LIGHT_TICKS} (30 s). It never fights.
+ * {@link ModBlocks#WISP_LIGHT} every {@link #TRAIL_EVERY} ticks that goes out {@link #TRAIL_TICKS} later. It chimes and
+ * glints as it takes up with someone, and no more than {@link #MAX_FOLLOWERS} follow one player. When it breaks it
+ * leaves its light where it was for {@link #DEATH_LIGHT_TICKS} (30 s). It never fights.
  */
 public class LumenWisp extends PathfinderMob implements GeoEntity {
     /** A player holding Lumen this near draws it. */
@@ -59,6 +60,8 @@ public class LumenWisp extends PathfinderMob implements GeoEntity {
     public static final double WANDER_RADIUS = 8.0, WANDER_LOW = 1.0, WANDER_HIGH = 3.5;
     /** At most this many wisps within 32 blocks for one more to spawn. */
     public static final int LOCAL_CAP = 3;
+    /** At most this many wisps follow one player: a lamp or two, not a swarm. */
+    public static final int MAX_FOLLOWERS = 2;
     public static final float MODEL_SCALE = 1.0F;
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
@@ -117,7 +120,17 @@ public class LumenWisp extends PathfinderMob implements GeoEntity {
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         if (home == null) home = blockPosition();
-        if (following != null && this.tickCount % TRAIL_EVERY == 0 && WispLightBlock.place(level, blockPosition(), TRAIL_TICKS)) lit++;
+        if (following != null && this.tickCount % TRAIL_EVERY == 0) {
+            // a light it hangs where one already burns only burns longer: count the new ones
+            boolean fresh = level.getBlockState(blockPosition()).isAir();
+            if (WispLightBlock.place(level, blockPosition(), TRAIL_TICKS) && fresh) lit++;
+        }
+    }
+
+    /** It never fights: not a player, not another construct. */
+    @Override
+    public boolean canAttack(net.minecraft.world.entity.LivingEntity target) {
+        return false;
     }
 
     // ---- spawning: drifting over the Lumen Mire's moss, in any light ----------------------------------------------
@@ -128,8 +141,9 @@ public class LumenWisp extends PathfinderMob implements GeoEntity {
     }
 
     public static boolean canSpawn(EntityType<LumenWisp> type, ServerLevelAccessor level, EntitySpawnReason reason, BlockPos pos, RandomSource random) {
-        if (reason != EntitySpawnReason.NATURAL && reason != EntitySpawnReason.CHUNK_GENERATION) return true;
+        if (reason != EntitySpawnReason.NATURAL) return true;
         if (!level.getBlockState(pos.below()).isSolid()) return false;
+        if (!Constructs.terrainAllows(level, pos, com.panda.promisedend.registry.ModTags.MIRE_FALLBACK)) return false;
         return level.getEntitiesOfClass(LumenWisp.class, new AABB(pos).inflate(32)).size() < LOCAL_CAP;
     }
 
@@ -188,7 +202,14 @@ public class LumenWisp extends PathfinderMob implements GeoEntity {
         }
 
         private @Nullable Player find() {
-            return level().getNearestPlayer(getX(), getY(), getZ(), NOTICE_RANGE, e -> e instanceof Player p && !p.isSpectator() && holdsLumen(p));
+            return level().getNearestPlayer(getX(), getY(), getZ(), NOTICE_RANGE,
+                    e -> e instanceof Player p && !p.isSpectator() && holdsLumen(p) && followers(p) < MAX_FOLLOWERS);
+        }
+
+        /** How many other wisps follow {@code player}. */
+        private int followers(Player player) {
+            return level().getEntitiesOfClass(LumenWisp.class, player.getBoundingBox().inflate(NOTICE_RANGE * 1.5),
+                    w -> w != LumenWisp.this && w.following() == player).size();
         }
 
         @Override
@@ -212,6 +233,14 @@ public class LumenWisp extends PathfinderMob implements GeoEntity {
             look = look.normalize();
             Vec3 spot = following.position().add(-look.x * 1.2 + look.z * 1.0, FOLLOW_HEIGHT, -look.z * 1.2 - look.x * 1.0);
             if (position().distanceTo(spot) > 0.6) getMoveControl().setWantedPosition(spot.x, spot.y, spot.z, distanceTo(following) > FOLLOW_NEAR * 2 ? 1.4 : 0.8);
+        }
+
+        @Override
+        public void start() {
+            // it takes up with them: a chime and a glint, so the Lumen's pull is seen the first time
+            playSound(net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME, 1.0F, 1.6F);
+            if (level() instanceof ServerLevel server)
+                server.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, getX(), getY() + getBbHeight() * 0.5, getZ(), 6, 0.2, 0.2, 0.2, 0.02);
         }
 
         @Override

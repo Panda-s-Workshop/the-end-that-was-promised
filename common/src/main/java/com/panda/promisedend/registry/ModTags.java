@@ -50,6 +50,13 @@ public final class ModTags {
     /** The biomes a void current runs under, and those it runs under only while our terrain is off. */
     public static final TagKey<net.minecraft.world.level.biome.Biome> VOID_CURRENTS = TagKey.create(Registries.BIOME, PromisedEnd.id("void_currents"));
     public static final TagKey<net.minecraft.world.level.biome.Biome> VOID_CURRENTS_FALLBACK = TagKey.create(Registries.BIOME, PromisedEnd.id("void_currents_fallback"));
+    /**
+     * Vanilla's biomes a biome's features (and constructs) go to while our terrain is off: the Thicket's on the
+     * highlands, the Mire's on the midlands, the Voidscar's on the barrens.
+     */
+    public static final TagKey<net.minecraft.world.level.biome.Biome> GROVE_FALLBACK = TagKey.create(Registries.BIOME, PromisedEnd.id("grove_fallback"));
+    public static final TagKey<net.minecraft.world.level.biome.Biome> MIRE_FALLBACK = TagKey.create(Registries.BIOME, PromisedEnd.id("mire_fallback"));
+    public static final TagKey<net.minecraft.world.level.biome.Biome> VOIDSCAR_FALLBACK = TagKey.create(Registries.BIOME, PromisedEnd.id("voidscar_fallback"));
     /** The Ancients' constructs: they never turn on each other or on the dragon they guard. */
     public static final TagKey<EntityType<?>> CONSTRUCTS = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("constructs"));
 

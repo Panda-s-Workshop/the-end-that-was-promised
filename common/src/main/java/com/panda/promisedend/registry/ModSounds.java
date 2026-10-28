@@ -33,6 +33,12 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> RIFT_STALKER_BLINK = sound("entity.rift_stalker.blink");
     public static final Supplier<SoundEvent> RIFT_STALKER_STRIKE = sound("entity.rift_stalker.strike");
     public static final Supplier<SoundEvent> RIFT_STALKER_FREEZE = sound("entity.rift_stalker.freeze");
+    public static final Supplier<SoundEvent> PURPUR_SENTRY_AMBIENT = sound("entity.purpur_sentry.ambient");
+    public static final Supplier<SoundEvent> PURPUR_SENTRY_HURT = sound("entity.purpur_sentry.hurt");
+    public static final Supplier<SoundEvent> PURPUR_SENTRY_DEATH = sound("entity.purpur_sentry.death");
+    public static final Supplier<SoundEvent> PURPUR_SENTRY_SHIELD = sound("entity.purpur_sentry.shield");
+    public static final Supplier<SoundEvent> PURPUR_SENTRY_BLOCK = sound("entity.purpur_sentry.block");
+    public static final Supplier<SoundEvent> PURPUR_SENTRY_LUNGE = sound("entity.purpur_sentry.lunge");
     public static final Supplier<SoundEvent> DRAGON_CALL_WARDENS = sound("entity.ender_dragon.call_wardens");
     public static final Supplier<SoundEvent> DRAGON_HOARD_APPEARS = sound("block.dragon_hoard.appear");
     public static final Supplier<SoundEvent> DRAGON_VOID_BREATH_GATHER = sound("entity.ender_dragon.void_breath_gather");

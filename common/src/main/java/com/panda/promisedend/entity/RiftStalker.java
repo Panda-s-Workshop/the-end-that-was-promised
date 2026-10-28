@@ -27,7 +27,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
@@ -45,9 +44,11 @@ import org.jspecify.annotations.Nullable;
 /**
  * The Rift Stalker: a lanky voidstone construct with a rift for a heart, hunting the Voidscar Wastes. Every
  * {@link #BLINK_EVERY} ticks it gathers itself into the rift for half a second, blinks to just behind its target and
- * strikes there {@link #STRIKE_HIT} ticks later; a hit makes it blink at once. A player looking straight at it freezes
- * it where it stands (the opposite of an enderman): it neither moves nor strikes, and its blink waits. So a stalker is
- * fought by turning to face it, and a blink is answered by turning round before it strikes.
+ * strikes there {@link #STRIKE_HIT} ticks later; a blow from someone near makes it blink at once, and so does standing
+ * next to it (it gathers {@link #UP_CLOSE_BLINK} ticks later). That blink and strike is its only attack: it walks up
+ * but never paws. A player looking straight at it freezes it where it stands (the opposite of an enderman): it neither
+ * moves nor strikes, and its blink waits. So a stalker is fought by turning to face it, and a blink is answered by
+ * turning round before it strikes.
  *
  * <p>Its state is synced ({@link #state()}), so clients play the clips.
  */
@@ -60,13 +61,21 @@ public class RiftStalker extends Monster implements GeoEntity {
     public static final double BLINK_BEHIND = 2.0;
     /** The gather clip is 0.5 s: it draws into the rift, then blinks. */
     public static final int GATHER_TICKS = 10;
-    /** The strike clip is 0.5 s; the blow lands on its 6th tick, at a target within {@link #STRIKE_REACH}. */
-    public static final int STRIKE_TICKS = 10, STRIKE_HIT = 6;
+    /**
+     * The strike clip is 0.7 s; the blow lands on its 10th tick (blades raised from the 2nd), at a target within
+     * {@link #STRIKE_REACH}: half a second to turn round.
+     */
+    public static final int STRIKE_TICKS = 14, STRIKE_HIT = 10;
     public static final double STRIKE_REACH = 3.0;
     /** The strike's damage: its attack, 6. */
     public static final double DAMAGE = 6.0;
-    /** A player this near, looking at it this straight (the enderman's own test), freezes it. */
+    /** A player this near, looking at it this straight (twice as forgiving as the enderman's 0.025), freezes it. */
     public static final double STARE_RANGE = 32.0, STARE_TOLERANCE = 0.05;
+    /** Frozen, it stays held this many ticks after the stare leaves it, so an aim that wavers doesn't flicker it. */
+    public static final int FREEZE_HOLD = 4;
+    /** Its target within this, it doesn't wait out its blink: it gathers in {@link #UP_CLOSE_BLINK} ticks at most. */
+    public static final double UP_CLOSE = 4.0;
+    public static final int UP_CLOSE_BLINK = 30;
     /** The renderer draws the rig at this scale; the hitbox is measured at it. */
     public static final float MODEL_SCALE = 1.25F;
     /** At most this many stalkers within 32 blocks for one more to spawn. */
@@ -89,6 +98,8 @@ public class RiftStalker extends Monster implements GeoEntity {
     private int blinkIn = BLINK_EVERY;
     /** While above 0, a stare doesn't hold it: it was hit and is already on its way. */
     private int shaken;
+    /** Ticks since a stare last held it, while it is frozen. */
+    private int unseen;
     /** Blinks and blows landed since it loaded (not saved): GameTests and the harness count them. */
     private int blinks, strikes;
 
@@ -115,7 +126,7 @@ public class RiftStalker extends Monster implements GeoEntity {
 
     @Override
     protected void registerGoals() {
-        this.goalSelector.addGoal(2, new Hunting<>(new MeleeAttackGoal(this, 1.0, false)));
+        this.goalSelector.addGoal(2, new Hunting<>(new ApproachGoal(this, 1.0, BLINK_BEHIND)));
         this.goalSelector.addGoal(6, new Hunting<>(new WaterAvoidingRandomStrollGoal(this, 0.7)));
         this.goalSelector.addGoal(7, new Hunting<>(new LookAtPlayerGoal(this, Player.class, 10.0F)));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
@@ -165,8 +176,12 @@ public class RiftStalker extends Monster implements GeoEntity {
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         boolean hurt = super.hurtServer(level, source, amount);
-        // hit, it slips into the rift at once, and a stare can't hold it until it is out the other side
-        if (hurt && isAlive() && (state() == State.HUNT || state() == State.FROZEN) && getTarget() != null) {
+        // hit by someone near, it slips into the rift at once, and a stare can't hold it until it is out the other
+        // side; fire, a fall or a shot from afar doesn't send it
+        if (hurt && isAlive() && (state() == State.HUNT || state() == State.FROZEN)
+                && source.getEntity() instanceof LivingEntity attacker && distanceTo(attacker) <= BLINK_RANGE) {
+            if (getTarget() == null && canAttack(attacker)) setTarget(attacker);
+            if (getTarget() == null) return hurt;
             this.shaken = GATHER_TICKS + 1; // through the tick it blinks on
             startGather();
         }
@@ -177,7 +192,9 @@ public class RiftStalker extends Monster implements GeoEntity {
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         if (shaken > 0) shaken--;
-        if (shaken <= 0 && stared(level)) {
+        boolean stared = shaken <= 0 && stared(level);
+        if (stared) this.unseen = 0;
+        if (stared || state() == State.FROZEN && ++unseen < FREEZE_HOLD) {
             if (state() != State.FROZEN) {
                 // caught mid-blink or mid-blow, it loses it: the next blink waits its whole time
                 if (state() != State.HUNT) this.blinkIn = BLINK_EVERY;
@@ -196,6 +213,7 @@ public class RiftStalker extends Monster implements GeoEntity {
                     this.blinkIn = Math.max(blinkIn, GATHER_TICKS * 2);
                     return;
                 }
+                if (distanceTo(target) <= UP_CLOSE) this.blinkIn = Math.min(blinkIn, UP_CLOSE_BLINK);
                 if (--blinkIn <= 0) {
                     if (canBlinkAt(target)) startGather();
                     else this.blinkIn = 20; // out of sight or too far: try again in a second
@@ -309,7 +327,8 @@ public class RiftStalker extends Monster implements GeoEntity {
 
     public static boolean canSpawn(EntityType<RiftStalker> type, ServerLevelAccessor level, EntitySpawnReason reason, BlockPos pos, RandomSource random) {
         if (!Monster.checkAnyLightMonsterSpawnRules(type, level, reason, pos, random)) return false;
-        if (reason != EntitySpawnReason.NATURAL && reason != EntitySpawnReason.CHUNK_GENERATION) return true;
+        if (reason != EntitySpawnReason.NATURAL) return true;
+        if (!Constructs.terrainAllows(level, pos, com.panda.promisedend.registry.ModTags.VOIDSCAR_FALLBACK)) return false;
         return level.getEntitiesOfClass(RiftStalker.class, new AABB(pos).inflate(32)).size() < LOCAL_CAP;
     }
 
@@ -322,7 +341,7 @@ public class RiftStalker extends Monster implements GeoEntity {
 
     @Override
     protected @Nullable SoundEvent getAmbientSound() {
-        return state() == State.FROZEN ? null : ModSounds.RIFT_STALKER_AMBIENT.get();
+        return state() == State.HUNT ? ModSounds.RIFT_STALKER_AMBIENT.get() : null;
     }
 
     @Override

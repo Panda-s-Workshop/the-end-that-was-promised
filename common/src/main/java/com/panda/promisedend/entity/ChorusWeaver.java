@@ -6,6 +6,7 @@ import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.animation.AnimationController;
 import com.geckolib.animation.RawAnimation;
 import com.geckolib.util.GeckoLibUtil;
+import com.panda.promisedend.registry.ModParticles;
 import com.panda.promisedend.registry.ModSounds;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -51,8 +52,10 @@ import org.jspecify.annotations.Nullable;
  * The Chorus Weaver: a construct of chorus wood grown among the Thicket's plants and standing as one of them, still
  * and silent, until a player comes within {@link #REVEAL_RANGE} (or it is hurt). Then it unfurls, and every
  * {@link #LASH_COOLDOWN} ticks, at a target in sight within {@link #LASH_RANGE}, it throws a root vine: half a second
- * drawn back, then the vine lands, slowing the target (Slowness IV, 2 s) and pulling it towards the weaver, where it
- * strikes. With no target near for {@link #DISGUISE_AFTER} ticks it roots again, as a plant.
+ * drawn back (chorus motes gathering at it), then the vine lands, slowing the target (Slowness IV, 2 s) and pulling it
+ * towards the weaver over the ground between them, where it strikes. With no target near for {@link #DISGUISE_AFTER}
+ * ticks it roots again, as a plant, square to the grid and in the middle of its block, as the Thicket's plants stand.
+ * A player wakes it only from where it can see them: not through a wall.
  *
  * <p>Its state is synced ({@link #state()}, {@link #lashTargetId()}), so clients play the clips; the vine is drawn as
  * chorus particles along its line when it lands.
@@ -72,6 +75,9 @@ public class ChorusWeaver extends Monster implements GeoEntity {
     public static final int SLOW_TICKS = 40, SLOW_AMPLIFIER = 3;
     /** The pull: this fast towards the weaver, and up a little so it drags over the ground's lips. */
     public static final double PULL = 1.1, PULL_UP = 0.3;
+    /** It pulls a target no nearer than this, and only over ground: no solid block this far under the line, no pull. */
+    public static final double PULL_STOP = 1.2, PULL_EASE = 0.35;
+    public static final int PULL_DROP = 4;
     /** Ticks with no target before it roots again as a plant. */
     public static final int DISGUISE_AFTER = 200;
     /** The renderer draws the rig at this scale; the hitbox is measured at it. */
@@ -166,6 +172,16 @@ public class ChorusWeaver extends Monster implements GeoEntity {
         setTarget(null);
         getNavigation().stop();
         this.alone = 0;
+        // a plant grows square in its block: turned to the nearest quarter, set in the middle if there is room
+        float yaw = Math.round(getYRot() / 90.0F) * 90.0F;
+        double x = Mth.floor(getX()) + 0.5, z = Mth.floor(getZ()) + 0.5;
+        if (!level().noCollision(this, getDimensions(getPose()).makeBoundingBox(x, getY(), z))) {
+            x = getX();
+            z = getZ();
+        }
+        snapTo(x, getY(), z, yaw, 0);
+        this.yBodyRot = yaw;
+        this.yHeadRot = yaw;
     }
 
     @Override
@@ -184,7 +200,8 @@ public class ChorusWeaver extends Monster implements GeoEntity {
                 // still as a plant: no turning to whoever walks by
                 getNavigation().stop();
                 setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));
-                Player near = level.getNearestPlayer(getX(), getY(), getZ(), REVEAL_RANGE, p -> p instanceof Player pl && !pl.isCreative() && !pl.isSpectator());
+                Player near = level.getNearestPlayer(getX(), getY(), getZ(), REVEAL_RANGE,
+                        p -> p instanceof Player pl && !pl.isCreative() && !pl.isSpectator() && hasLineOfSight(pl));
                 if (near != null) {
                     setTarget(near);
                     reveal();
@@ -207,7 +224,11 @@ public class ChorusWeaver extends Monster implements GeoEntity {
                 getNavigation().stop();
                 LivingEntity lashed = level.getEntity(lashTargetId()) instanceof LivingEntity l ? l : null;
                 if (lashed != null) getLookControl().setLookAt(lashed, 360.0F, 90.0F);
-                if (++stateTicks == LASH_WINDUP && lashed != null && canLash(lashed)) land(level, lashed);
+                ++stateTicks;
+                // drawn back, the vine gathers at its arm: lit chorus motes, so the windup reads in the End's dark
+                if (stateTicks < LASH_WINDUP && stateTicks % 2 == 0)
+                    level.sendParticles(ModParticles.CHORUS_VINE.get(), getX(), getY() + getBbHeight() * 0.7, getZ(), 3, 0.35, 0.3, 0.35, 0.0);
+                if (stateTicks == LASH_WINDUP && lashed != null && canLash(lashed)) land(level, lashed);
                 if (stateTicks >= LASH_TICKS) {
                     setState(State.ACTIVE, null);
                     this.cooldown = LASH_COOLDOWN;
@@ -238,22 +259,44 @@ public class ChorusWeaver extends Monster implements GeoEntity {
         Vec3 to = position().subtract(target.position());
         Vec3 flat = new Vec3(to.x, 0, to.z);
         double d = flat.length();
-        if (d > 1e-4) {
+        if (d > 1e-4 && groundBetween(level, target.position(), position())) {
             // no further than to its reach: pulled to the weaver, not past it
-            double speed = Math.min(PULL, (d - 1.2) * 0.35);
+            double speed = Math.min(PULL, (d - PULL_STOP) * PULL_EASE);
             Vec3 pull = flat.scale(Math.max(0, speed) / d).add(0, PULL_UP, 0);
             target.setDeltaMovement(pull);
+            // to the trackers, and (syncVelocity) to a pulled player's own client too
             target.needsSync = true;
+            target.syncVelocity = true;
         }
         lashes++;
         playSound(ModSounds.CHORUS_WEAVER_VINE_HIT.get(), 1.2F, 1.0F);
         Vec3 from = getEyePosition().subtract(0, 0.4, 0), at = target.position().add(0, target.getBbHeight() * 0.5, 0);
-        int steps = (int) Math.ceil(from.distanceTo(at) * 2);
-        var vine = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.CHORUS_PLANT.defaultBlockState());
+        int steps = (int) Math.ceil(from.distanceTo(at) * 3);
+        // the vine is lit motes along its line (a block's chips take the End's dim light and vanish), chips of chorus
+        // among them for its stuff
+        var chips = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.CHORUS_PLANT.defaultBlockState());
         for (int i = 0; i <= steps; i++) {
             Vec3 p = from.lerp(at, i / (double) steps);
-            level.sendParticles(vine, p.x, p.y, p.z, 2, 0.05, 0.05, 0.05, 0.0);
+            level.sendParticles(ModParticles.CHORUS_VINE.get(), p.x, p.y, p.z, 1, 0.03, 0.03, 0.03, 0.0);
+            if (i % 3 == 0) level.sendParticles(chips, p.x, p.y, p.z, 1, 0.05, 0.05, 0.05, 0.0);
         }
+    }
+
+    /** Whether there is ground all along the flat line from {@code from} to {@code to}: a solid block within {@link #PULL_DROP} under each step. */
+    private boolean groundBetween(ServerLevel level, Vec3 from, Vec3 to) {
+        double d = Math.hypot(to.x - from.x, to.z - from.z);
+        int steps = Math.max(1, (int) Math.ceil(d));
+        for (int i = 0; i <= steps; i++) {
+            Vec3 p = from.lerp(to, i / (double) steps);
+            BlockPos column = BlockPos.containing(p.x, Math.max(from.y, to.y) + 0.5, p.z);
+            boolean ground = false;
+            for (int down = 0; down <= PULL_DROP && !ground; down++) {
+                BlockPos below = column.below(down);
+                ground = !level.getBlockState(below).getCollisionShape(level, below).isEmpty();
+            }
+            if (!ground) return false;
+        }
+        return true;
     }
 
     @Override
@@ -279,7 +322,8 @@ public class ChorusWeaver extends Monster implements GeoEntity {
 
     public static boolean canSpawn(EntityType<ChorusWeaver> type, ServerLevelAccessor level, EntitySpawnReason reason, BlockPos pos, RandomSource random) {
         if (!Monster.checkAnyLightMonsterSpawnRules(type, level, reason, pos, random)) return false;
-        if (reason != EntitySpawnReason.NATURAL && reason != EntitySpawnReason.CHUNK_GENERATION) return true;
+        if (reason != EntitySpawnReason.NATURAL) return true;
+        if (!Constructs.terrainAllows(level, pos, com.panda.promisedend.registry.ModTags.GROVE_FALLBACK)) return false;
         return level.getEntitiesOfClass(ChorusWeaver.class, new AABB(pos).inflate(32)).size() < LOCAL_CAP;
     }
 
@@ -302,7 +346,7 @@ public class ChorusWeaver extends Monster implements GeoEntity {
 
     @Override
     protected @Nullable SoundEvent getAmbientSound() {
-        return disguised() ? null : ModSounds.CHORUS_WEAVER_AMBIENT.get();
+        return state() == State.ACTIVE ? ModSounds.CHORUS_WEAVER_AMBIENT.get() : null;
     }
 
     @Override

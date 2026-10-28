@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:ancient_purpur_from_scrap"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_ancient_purpur_scrap": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:ancient_purpur_scrap"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_ancient_purpur_scrap"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:ancient_purpur_from_scrap"
+    ]
+  }
+}

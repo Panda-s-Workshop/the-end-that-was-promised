@@ -4,6 +4,7 @@ import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.entity.ChorusWeaver;
 import com.panda.promisedend.entity.CrystalWarden;
 import com.panda.promisedend.entity.LumenWisp;
+import com.panda.promisedend.entity.PurpurSentry;
 import com.panda.promisedend.entity.RiftStalker;
 import com.panda.promisedend.entity.DiveMark;
 import com.panda.promisedend.platform.registry.DeferredRegister;
@@ -37,6 +38,10 @@ public final class ModEntities {
     // hunched at the rig's 1.25 scale: its head's top 28 px up (2.2 blocks), its shoulders 10 px across
     public static final Supplier<EntityType<RiftStalker>> RIFT_STALKER = ENTITIES.registerEntityType("rift_stalker",
             RiftStalker::new, MobCategory.MONSTER, b -> b.sized(0.7F, 2.2F).eyeHeight(1.9F).clientTrackingRange(8));
+    // squat at the rig's 1.25 scale: its helm's top 26 px up (2.0 blocks), its shoulders 13 px across; no natural
+    // spawn (the shrines and observatories place their own)
+    public static final Supplier<EntityType<PurpurSentry>> PURPUR_SENTRY = ENTITIES.registerEntityType("purpur_sentry",
+            PurpurSentry::new, MobCategory.MONSTER, b -> b.sized(1.0F, 2.0F).eyeHeight(1.75F).clientTrackingRange(8));
     /** The dragon's dive mark: no body, never saved, seen from as far as the fight. */
     public static final Supplier<EntityType<DiveMark>> DIVE_MARK = ENTITIES.registerEntityType("dive_mark",
             DiveMark::new, MobCategory.MISC, b -> b.sized(0.5F, 0.1F).clientTrackingRange(10).updateInterval(10).noSave().noSummon().fireImmune());
@@ -47,6 +52,7 @@ public final class ModEntities {
         sink.accept(CHORUS_WEAVER.get(), ChorusWeaver.createAttributes());
         sink.accept(LUMEN_WISP.get(), LumenWisp.createAttributes());
         sink.accept(RIFT_STALKER.get(), RiftStalker.createAttributes());
+        sink.accept(PURPUR_SENTRY.get(), PurpurSentry.createAttributes());
     }
 
     /** A loader's way of registering a spawn placement (NeoForge: the event; Fabric: {@code SpawnPlacements.register}). */

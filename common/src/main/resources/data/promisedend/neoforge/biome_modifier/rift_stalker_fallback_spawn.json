@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_spawns",
+  "biomes": "#promisedend:voidscar_fallback",
+  "spawners": {
+    "type": "promisedend:rift_stalker",
+    "count": 1,
+    "weight": 2
+  }
+}

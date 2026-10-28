@@ -85,6 +85,12 @@ public final class EndRegions {
     public static final int RIM_INNER = 150, RIM_OUTER = 450;
     /** Region cell size in blocks (proposed). */
     public static final int CELL = 512;
+    /**
+     * No region centred nearer than this is vanilla's theme: the end gateways throw a player out to 768-1300 blocks (vanilla
+     * looks for land from 1024, up to 256 either way), and every point there has its region's centre within about 615,
+     * so the first step out lands in one of ours.
+     */
+    public static final int GATEWAY_LANDING_CLEAR = 2000;
     /** How far the Unfinished Edge's boundary wanders in and out, in blocks (proposed). */
     public static final int EDGE_JITTER = 600;
 
@@ -146,7 +152,7 @@ public final class EndRegions {
     /** The theme of the region whose jittered centre is nearest to (x, z): a Voronoi diagram over {@link #CELL} cells. */
     static Theme theme(long seed, double x, double z) {
         int cx = Math.floorDiv((int) Math.floor(x), CELL), cz = Math.floorDiv((int) Math.floor(z), CELL);
-        double best = Double.MAX_VALUE;
+        double best = Double.MAX_VALUE, bestX = 0, bestZ = 0;
         long bestHash = 0;
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
@@ -157,15 +163,30 @@ public final class EndRegions {
                 if (d < best) {
                     best = d;
                     bestHash = h;
+                    bestX = px;
+                    bestZ = pz;
                 }
             }
         }
         int roll = (int) Math.floorMod(Long.rotateLeft(bestHash, 42) ^ (bestHash >>> 7), 100L);
+        Theme picked = Theme.VANILLA;
         for (Theme theme : Theme.values()) {
-            if (roll < theme.weight) return theme;
+            if (roll < theme.weight) {
+                picked = theme;
+                break;
+            }
             roll -= theme.weight;
         }
-        return Theme.VANILLA;
+        if (picked != Theme.VANILLA || bestX * bestX + bestZ * bestZ >= (double) GATEWAY_LANDING_CLEAR * GATEWAY_LANDING_CLEAR) return picked;
+        // where the gateways land: one of ours instead, by the same weights among them, from other bits of the hash
+        int ours = 100 - Theme.VANILLA.weight;
+        int again = (int) Math.floorMod(Long.rotateLeft(bestHash, 13) ^ (bestHash >>> 29), (long) ours);
+        for (Theme theme : Theme.values()) {
+            if (theme == Theme.VANILLA) continue;
+            if (again < theme.weight) return theme;
+            again -= theme.weight;
+        }
+        return Theme.GROVE;
     }
 
     static long hash(long seed, int a, int b) {

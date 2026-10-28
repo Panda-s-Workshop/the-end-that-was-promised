@@ -229,6 +229,66 @@
       }
     ]
   },
+  "entity.purpur_sentry.ambient": {
+    "subtitle": "subtitles.promisedend.purpur_sentry.ambient",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.ambient",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.purpur_sentry.hurt": {
+    "subtitle": "subtitles.promisedend.purpur_sentry.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.hurt_closed",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
+  "entity.purpur_sentry.death": {
+    "subtitle": "subtitles.promisedend.purpur_sentry.death",
+    "sounds": [
+      {
+        "name": "minecraft:block.stone.break",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.purpur_sentry.shield": {
+    "subtitle": "subtitles.promisedend.purpur_sentry.shield",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.close",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.purpur_sentry.block": {
+    "subtitle": "subtitles.promisedend.purpur_sentry.block",
+    "sounds": [
+      {
+        "name": "minecraft:item.shield.block",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
+  "entity.purpur_sentry.lunge": {
+    "subtitle": "subtitles.promisedend.purpur_sentry.lunge",
+    "sounds": [
+      {
+        "name": "minecraft:item.trident.throw",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
   "entity.ender_dragon.call_wardens": {
     "subtitle": "subtitles.promisedend.ender_dragon.call_wardens",
     "sounds": [

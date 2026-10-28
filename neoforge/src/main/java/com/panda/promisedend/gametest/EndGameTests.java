@@ -71,6 +71,8 @@ public final class EndGameTests {
         FUNCTIONS.register("crystal_warden_lock_then_beam", () -> EndGameTests::crystalWardenLockThenBeam);
         FUNCTIONS.register("crystal_warden_cover_breaks_lock", () -> EndGameTests::crystalWardenCoverBreaksLock);
         FUNCTIONS.register("construct_assets_match", () -> EndGameTests::constructAssetsMatch);
+        FUNCTIONS.register("constructs_stats_and_drops", () -> EndGameTests::constructsStatsAndDrops);
+        FUNCTIONS.register("construct_recipes", () -> EndGameTests::constructRecipes);
         FUNCTIONS.register("crystal_warden_beam_cap_and_rest", () -> EndGameTests::crystalWardenBeamCapAndRest);
         FUNCTIONS.register("crystal_warden_ignores_the_dragon", () -> EndGameTests::crystalWardenIgnoresTheDragon);
         FUNCTIONS.register("crystal_warden_shatters_and_drops", () -> EndGameTests::crystalWardenShattersAndDrops);
@@ -124,6 +126,7 @@ public final class EndGameTests {
         FUNCTIONS.register("chorus_weaver_lashes", () -> EndGameTests::chorusWeaverLashes);
         FUNCTIONS.register("lumen_wisp_lights_the_way", () -> EndGameTests::lumenWispLightsTheWay);
         FUNCTIONS.register("rift_stalker_blinks_and_freezes", () -> EndGameTests::riftStalkerBlinksAndFreezes);
+        FUNCTIONS.register("purpur_sentry_shields_and_lunges", () -> EndGameTests::purpurSentryShieldsAndLunges);
         FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
         FUNCTIONS.register("biome_visits_award", () -> EndGameTests::biomeVisitsAward);
     }
@@ -134,8 +137,8 @@ public final class EndGameTests {
             java.util.Map.entry("dragon_drops_scales", 240), java.util.Map.entry("void_water_slows", 160),
             java.util.Map.entry("dragon_phase3_triggers", 460), java.util.Map.entry("updraft_lifts_entity", 360),
             java.util.Map.entry("echo_amber_flares", 180), java.util.Map.entry("current_carries_entity", 560),
-            java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("lumen_wisp_lights_the_way", 320),
-            java.util.Map.entry("rift_stalker_blinks_and_freezes", 220));
+            java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("lumen_wisp_lights_the_way", 460),
+            java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -766,6 +769,76 @@ public final class EndGameTests {
                 .map(h -> h.value().assemble(input)).orElse(ItemStack.EMPTY);
         if (!out.is(ModBlocks.UPDRAFT_VENT.get().asItem()) || out.getCount() != 1) helper.fail("the vent recipe makes " + out);
         helper.succeed();
+    }
+
+    /**
+     * The four constructs against their numbers: each one's health, armour and blow; none of them may attack
+     * another construct; and each, killed by a player, shatters (gone the tick after) and drops its material.
+     */
+    private static void constructsStatsAndDrops(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        List<String> bad = new ArrayList<>();
+        record Expect(net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type, double health, double armour,
+                double attack, net.minecraft.world.item.Item drop) {}
+        List<Expect> all = List.of(
+                new Expect(com.panda.promisedend.registry.ModEntities.PURPUR_SENTRY.get(), 40, 8, com.panda.promisedend.entity.PurpurSentry.DAMAGE, ModItems.ANCIENT_PURPUR_SCRAP.get()),
+                new Expect(com.panda.promisedend.registry.ModEntities.RIFT_STALKER.get(), 28, 2, com.panda.promisedend.entity.RiftStalker.DAMAGE, ModItems.RIFT_DUST.get()),
+                new Expect(com.panda.promisedend.registry.ModEntities.CHORUS_WEAVER.get(), 34, 4, -1, ModItems.CHORUS_RESIN.get()),
+                new Expect(com.panda.promisedend.registry.ModEntities.LUMEN_WISP.get(), 6, 0, -1, ModItems.LUMEN.get()));
+        List<net.minecraft.world.entity.Mob> mobs = new ArrayList<>();
+        for (int i = 0; i < all.size(); i++) {
+            Expect e = all.get(i);
+            var mob = helper.spawn(e.type(), new BlockPos(1 + i * 2, 2, 4));
+            mobs.add(mob);
+            String name = net.minecraft.world.entity.EntityType.getKey(e.type()).getPath();
+            double health = mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+            double armour = mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR);
+            if (health != e.health() || armour != e.armour()) bad.add(name + " is " + health + " / " + armour + ", the table says " + e.health() + " / " + e.armour());
+            if (e.attack() >= 0 && mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) != e.attack())
+                bad.add(name + " hits for " + mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE));
+        }
+        for (var a : mobs) {
+            for (var b : mobs) {
+                if (a != b && a.canAttack(b)) bad.add(net.minecraft.world.entity.EntityType.getKey(a.getType()).getPath() + " may attack the " + net.minecraft.world.entity.EntityType.getKey(b.getType()).getPath());
+            }
+            if (!a.canAttack(player) && !(a instanceof com.panda.promisedend.entity.LumenWisp)) bad.add(net.minecraft.world.entity.EntityType.getKey(a.getType()).getPath() + " may not attack a player");
+        }
+        helper.runAfterDelay(2, () -> {
+            for (var mob : mobs) mob.hurtServer(level, level.damageSources().playerAttack(player), 1000.0F);
+            helper.runAfterDelay(3, () -> {
+                for (int i = 0; i < all.size(); i++) {
+                    var mob = mobs.get(i);
+                    Expect e = all.get(i);
+                    String name = net.minecraft.world.entity.EntityType.getKey(e.type()).getPath();
+                    if (!mob.isRemoved()) bad.add(name + " didn't shatter: still there 3 ticks after it died");
+                    var box = new net.minecraft.world.phys.AABB(mob.position(), mob.position()).inflate(2.5);
+                    boolean dropped = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box, it -> it.getItem().is(e.drop())).size() > 0;
+                    if (!dropped) bad.add(name + " dropped no " + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(e.drop()));
+                }
+                PromisedEnd.LOGGER.info("[constructs_stats_and_drops] {} constructs checked: {}", all.size(), bad.isEmpty() ? "all as the table" : bad);
+                if (!bad.isEmpty()) helper.fail("constructs: " + bad);
+                else helper.succeed();
+            });
+        });
+    }
+
+    /** The constructs' recipes: Rift Dust recharges a cracked anchor, and four Ancient Purpur Scrap make four Ancient Purpur. */
+    private static void constructRecipes(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var recipes = level.getServer().getRecipeManager();
+        List<String> bad = new ArrayList<>();
+        var recharge = net.minecraft.world.item.crafting.CraftingInput.of(2, 1,
+                List.of(new ItemStack(ModItems.CRACKED_VOID_ANCHOR.get()), new ItemStack(ModItems.RIFT_DUST.get())));
+        var anchor = recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, recharge, level).map(h -> h.value().assemble(recharge)).orElse(ItemStack.EMPTY);
+        if (!anchor.is(ModItems.VOID_ANCHOR.get())) bad.add("a cracked anchor and Rift Dust make " + anchor);
+        var scrap = new ItemStack(ModItems.ANCIENT_PURPUR_SCRAP.get());
+        var four = net.minecraft.world.item.crafting.CraftingInput.of(2, 2, List.of(scrap.copy(), scrap.copy(), scrap.copy(), scrap.copy()));
+        var purpur = recipes.getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, four, level).map(h -> h.value().assemble(four)).orElse(ItemStack.EMPTY);
+        if (!purpur.is(ModBlocks.ANCIENT_PURPUR_SET.base().get().asItem()) || purpur.getCount() != 4) bad.add("four scrap make " + purpur);
+        if (!bad.isEmpty()) helper.fail("construct recipes: " + bad);
+        else helper.succeed();
     }
 
     /**
@@ -3168,6 +3241,32 @@ public final class EndGameTests {
                 if (!done.equals(biomes.subList(0, i + 1).stream().map(b -> "outer/visit_" + b).toList())) bad.add("after standing in " + biomes.get(i) + ": " + done);
             }
         }
+        // Seven Shores: each of the outer End's seven marked off once its own visit is done, and done with the seventh
+        var all = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.ALL_SEVEN);
+        if (all == null) bad.add("no advancement " + com.panda.promisedend.logic.OuterProgress.ALL_SEVEN);
+        else {
+            if (!all.value().parent().equals(java.util.Optional.of(com.panda.promisedend.logic.OuterProgress.ENTER_OUTER))) bad.add("all_seven isn't under outer/enter_outer");
+            if (all.value().requirements().size() != com.panda.promisedend.logic.OuterProgress.SEVEN.size()) bad.add("all_seven needs " + all.value().requirements().size() + " things, not the seven");
+            var seven = helper.makeMockServerPlayerInLevel();
+            for (int i = 0; i < com.panda.promisedend.logic.OuterProgress.SEVEN.size(); i++) {
+                var visit = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.visit(com.panda.promisedend.logic.OuterProgress.SEVEN.get(i)));
+                if (visit == null) continue;
+                seven.getAdvancements().award(visit, "visited");
+                com.panda.promisedend.logic.OuterProgress.allSeven(seven);
+                boolean finished = seven.getAdvancements().getOrStartProgress(all).isDone(), last = i == com.panda.promisedend.logic.OuterProgress.SEVEN.size() - 1;
+                if (finished != last) bad.add("all_seven " + (finished ? "done" : "not done") + " after " + (i + 1) + " of the seven");
+            }
+            // the Wilds' four don't count towards it
+            var wild = helper.makeMockServerPlayerInLevel();
+            for (String biome : List.of("bloom_meadows", "chorus_canopy", "void_fungus_barrens", "hanging_gardens")) {
+                var visit = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.visit(biome));
+                if (visit != null) wild.getAdvancements().award(visit, "visited");
+            }
+            com.panda.promisedend.logic.OuterProgress.allSeven(wild);
+            if (wild.getAdvancements().getOrStartProgress(all).getCompletedCriteria().iterator().hasNext()) bad.add("the Wilds' visits counted towards all_seven");
+            seven.discard();
+            wild.discard();
+        }
         var end = server.getLevel(net.minecraft.world.level.Level.END);
         if (end == null) bad.add("no End level on the test server");
         else if (enter != null && visits.size() == biomes.size()) {
@@ -4096,7 +4195,9 @@ public final class EndGameTests {
                 "reveal", com.panda.promisedend.entity.ChorusWeaver.REVEAL_TICKS, "lash", com.panda.promisedend.entity.ChorusWeaver.LASH_TICKS)),
                 new Rig("lumen_wisp", com.panda.promisedend.entity.LumenWisp.CLIPS, java.util.Map.of()),
                 new Rig("rift_stalker", com.panda.promisedend.entity.RiftStalker.CLIPS, java.util.Map.of(
-                        "gather", com.panda.promisedend.entity.RiftStalker.GATHER_TICKS, "strike", com.panda.promisedend.entity.RiftStalker.STRIKE_TICKS)))) {
+                        "gather", com.panda.promisedend.entity.RiftStalker.GATHER_TICKS, "strike", com.panda.promisedend.entity.RiftStalker.STRIKE_TICKS)),
+                new Rig("purpur_sentry", com.panda.promisedend.entity.PurpurSentry.CLIPS, java.util.Map.of(
+                        "lunge", com.panda.promisedend.entity.PurpurSentry.LUNGE_TICKS)))) {
             var a = readJson(base + "geckolib/animations/entity/" + rig.id() + ".animation.json");
             var g = readJson(base + "geckolib/models/entity/" + rig.id() + ".geo.json");
             if (a == null || g == null) {
@@ -5420,7 +5521,8 @@ public final class EndGameTests {
                     double pull = (v.x * toward.x + v.z * toward.z) / Math.max(1e-6, Math.hypot(toward.x, toward.z));
                     PromisedEnd.LOGGER.info("[chorus_weaver_lashes] the vine landed {} ticks after waking: slowness {} for {}, pulled {} a tick towards it",
                             in - woke[0], slow == null ? "none" : slow.getAmplifier() + 1, slow == null ? 0 : slow.getDuration(), String.format("%.2f", pull));
-                    if (slow == null || slow.getAmplifier() != com.panda.promisedend.entity.ChorusWeaver.SLOW_AMPLIFIER)
+                    if (slow == null || slow.getAmplifier() != com.panda.promisedend.entity.ChorusWeaver.SLOW_AMPLIFIER
+                            || Math.abs(slow.getDuration() - com.panda.promisedend.entity.ChorusWeaver.SLOW_TICKS) > 1)
                         helper.fail("the vine's slowness: " + slow);
                     if (pull < 0.4) helper.fail("the vine pulled the pig " + pull + " a tick towards the weaver");
                     pig[0].discard();
@@ -5447,11 +5549,128 @@ public final class EndGameTests {
     }
 
     /**
+     * The Purpur Sentry. In the arena, at an iron golem (without AI) 5 blocks off, it raises its shield; a blow from in
+     * front then rings off it and one from behind lands. With the golem moved round to its side it turns no faster than
+     * {@link com.panda.promisedend.entity.PurpurSentry#TURN_RATE} a tick, and has it in front again within 30 ticks. An
+     * arrow shot at it from in front glances back off the shield, one from behind lands.
+     * {@link com.panda.promisedend.entity.PurpurSentry#SHIELD_TICKS} after the shield came up it lunges, taking the
+     * golem's 7, and while it recovers a blow from in front lands.
+     */
+    private static void purpurSentryShieldsAndLunges(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(2, 1, 2));
+        var sentry = helper.spawn(com.panda.promisedend.registry.ModEntities.PURPUR_SENTRY.get(), new BlockPos(2, 1, 2));
+        net.minecraft.world.phys.Vec3 s0 = sentry.position();
+        sentry.snapTo(s0.x, s0.y, s0.z, 0, 0);
+        sentry.setYBodyRot(0);
+        var golem = helper.spawn(net.minecraft.world.entity.EntityTypes.IRON_GOLEM, new BlockPos(2, 1, 7));
+        golem.setNoAi(true);
+        var blow = level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(net.minecraft.world.damagesource.DamageTypes.MOB_ATTACK);
+        int[] began = {-1}, shieldAt = {-1}, lungeAt = {-1}, recoverAt = {-1}, blockedBefore = {0};
+        float[] health = {0}, golemHealth = {0}, yaw = {0};
+        net.minecraft.world.entity.projectile.arrow.Arrow[] arrow = {null};
+        // an arrow on {@code side} (east +1, 3 off; west -1, 1.8 off, inside the arena), flying at the sentry's middle
+        java.util.function.IntFunction<net.minecraft.world.entity.projectile.arrow.Arrow> shoot = side -> {
+            double y = sentry.getY() + sentry.getBbHeight() * 0.5;
+            var a = new net.minecraft.world.entity.projectile.arrow.Arrow(level, sentry.getX() + (side > 0 ? 3 : -1.8), y, sentry.getZ(),
+                    new ItemStack(net.minecraft.world.item.Items.ARROW), null);
+            a.setDeltaMovement(-1.5 * side, 0, 0);
+            level.addFreshEntity(a);
+            return a;
+        };
+        for (int t = 1; t <= 250; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (began[0] < 0) {
+                    if (level.isPositionEntityTicking(at)) began[0] = tick;
+                    else if (tick == 60) helper.fail("the arena's chunk wasn't entity-ticking by tick 60");
+                    return;
+                }
+                int in = tick - began[0];
+                var state = sentry.state();
+                if (shieldAt[0] < 0) {
+                    sentry.setTarget(golem);
+                    if (state == com.panda.promisedend.entity.PurpurSentry.State.SHIELD) shieldAt[0] = in;
+                    else if (in == 40) helper.fail("the sentry didn't raise its shield at a golem 5 off: " + state);
+                    return;
+                }
+                int up = in - shieldAt[0];
+                if (up == 5) {
+                    health[0] = sentry.getHealth();
+                    sentry.hurtServer(level, new net.minecraft.world.damagesource.DamageSource(blow, golem.getEyePosition()), 4.0F);
+                    if (sentry.getHealth() != health[0] || sentry.blocked() != 1)
+                        helper.fail("a blow from in front got past the shield: health " + health[0] + " to " + sentry.getHealth() + ", blocked " + sentry.blocked());
+                    sentry.hurtServer(level, new net.minecraft.world.damagesource.DamageSource(blow, sentry.position().add(0, 1, -3)), 4.0F);
+                    PromisedEnd.LOGGER.info("[purpur_sentry_shields_and_lunges] shield up: a blow from in front stopped, one from behind took {}",
+                            String.format("%.2f", health[0] - sentry.getHealth()));
+                    if (sentry.getHealth() >= health[0]) helper.fail("a blow from behind didn't land on the shielded sentry");
+                }
+                if (up == 10) {
+                    // round to its side (east of it)
+                    golem.snapTo(sentry.getX() + 5, golem.getY(), sentry.getZ(), 0, 0);
+                    yaw[0] = sentry.yBodyRot;
+                }
+                if (up == 11) {
+                    float turned = Math.abs(net.minecraft.util.Mth.wrapDegrees(sentry.yBodyRot - yaw[0]));
+                    if (turned > com.panda.promisedend.entity.PurpurSentry.TURN_RATE + 0.01F) helper.fail("the shielded sentry turned " + turned + " in a tick");
+                }
+                if (up == 40) {
+                    PromisedEnd.LOGGER.info("[purpur_sentry_shields_and_lunges] the golem moved to its side; 30 ticks on it faces {} (wants -90)",
+                            String.format("%.1f", net.minecraft.util.Mth.wrapDegrees(sentry.yBodyRot)));
+                    if (!sentry.inFront(golem.position())) helper.fail("30 ticks after the golem went round to its side, the sentry didn't face it: " + sentry.yBodyRot);
+                }
+                if (up == 42) {
+                    health[0] = sentry.getHealth();
+                    blockedBefore[0] = sentry.blocked();
+                    arrow[0] = shoot.apply(1);
+                }
+                if (up == 47) {
+                    PromisedEnd.LOGGER.info("[purpur_sentry_shields_and_lunges] an arrow from in front: blocked {} to {}, health {} to {}, it flies {}",
+                            blockedBefore[0], sentry.blocked(), health[0], sentry.getHealth(), arrow[0].getDeltaMovement());
+                    if (sentry.blocked() != blockedBefore[0] + 1 || sentry.getHealth() != health[0])
+                        helper.fail("an arrow from in front wasn't turned by the shield: blocked " + sentry.blocked() + ", health " + sentry.getHealth());
+                    if (arrow[0].getDeltaMovement().x <= 0) helper.fail("the turned arrow didn't glance back east: " + arrow[0].getDeltaMovement());
+                    arrow[0].discard();
+                    health[0] = sentry.getHealth();
+                    arrow[0] = shoot.apply(-1);
+                }
+                if (up == 52) {
+                    PromisedEnd.LOGGER.info("[purpur_sentry_shields_and_lunges] an arrow from behind took {}", String.format("%.2f", health[0] - sentry.getHealth()));
+                    if (sentry.getHealth() >= health[0]) helper.fail("an arrow from behind didn't land on the shielded sentry");
+                    arrow[0].discard();
+                }
+                if (lungeAt[0] < 0 && state == com.panda.promisedend.entity.PurpurSentry.State.LUNGE) {
+                    lungeAt[0] = in;
+                    golemHealth[0] = golem.getHealth();
+                    if (up != com.panda.promisedend.entity.PurpurSentry.SHIELD_TICKS) helper.fail("it lunged " + up + " ticks after the shield came up");
+                }
+                if (lungeAt[0] > 0 && recoverAt[0] < 0 && state == com.panda.promisedend.entity.PurpurSentry.State.RECOVER) {
+                    recoverAt[0] = in;
+                    float took = golemHealth[0] - golem.getHealth();
+                    PromisedEnd.LOGGER.info("[purpur_sentry_shields_and_lunges] its lunge took {} from the golem", took);
+                    if (sentry.lunges() != 1 || Math.abs(took - com.panda.promisedend.entity.PurpurSentry.DAMAGE) > 0.5)
+                        helper.fail("the lunge landed " + sentry.lunges() + " times, taking " + took);
+                }
+                if (recoverAt[0] > 0 && in == recoverAt[0] + 2) {
+                    health[0] = sentry.getHealth();
+                    blockedBefore[0] = sentry.blocked();
+                    sentry.hurtServer(level, new net.minecraft.world.damagesource.DamageSource(blow, golem.getEyePosition()), 4.0F);
+                    PromisedEnd.LOGGER.info("[purpur_sentry_shields_and_lunges] recovering, a blow from in front took {}", String.format("%.2f", health[0] - sentry.getHealth()));
+                    if (sentry.getHealth() >= health[0] || sentry.blocked() != blockedBefore[0]) helper.fail("recovering, the sentry still stopped a blow from in front");
+                    else helper.succeed();
+                }
+                if (tick == 250) helper.fail("the test ran out (shield " + shieldAt[0] + ", lunge " + lungeAt[0] + ", recover " + recoverAt[0] + ")");
+            });
+        }
+    }
+
+    /**
      * The Rift Stalker. In the arena, a player looking straight at it freezes it within 3 ticks: for 37 more it doesn't
-     * move and its blink doesn't count down. Looked away from, it hunts again and the count runs a tick a tick at a
-     * target. Gathered, it comes out {@link com.panda.promisedend.entity.RiftStalker#BLINK_BEHIND} behind the target (an
-     * iron golem facing south, without AI) and its strike takes the golem's 6. Hit, it gathers at once, and a stare
-     * meanwhile doesn't hold it.
+     * move and its blink doesn't count down, and looked away from it stays held a moment (no flicker). Then it hunts
+     * again and the count runs a tick a tick at a target (an iron golem facing south, without AI). When the count runs
+     * out on its own it gathers, comes out {@link com.panda.promisedend.entity.RiftStalker#BLINK_BEHIND} behind the
+     * golem and its strike takes the golem's 6, its only blow. Burnt, it doesn't blink; hit by the golem, it gathers at
+     * once, and a stare meanwhile doesn't hold it.
      */
     private static void riftStalkerBlinksAndFreezes(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -5466,12 +5685,13 @@ public final class EndGameTests {
         golem.snapTo(g.x, g.y, g.z, 0, 0);
         golem.setYHeadRot(0);
         golem.yBodyRot = 0;
-        // {the tick the clock started, the blink count when frozen, the golem's health as it blinked, when it blinked}
-        int[] began = {-1}, frozenBlinkIn = {-1}, blinkedAt = {-1}, hitAt = {-1};
+        int hold = com.panda.promisedend.entity.RiftStalker.FREEZE_HOLD, hunt = 40 + hold + 3;
+        // {the tick the clock started, the blink count when frozen, when it gathered and blinked on its own, burnt, hit}
+        int[] began = {-1}, frozenBlinkIn = {-1}, gatheredAt = {-1}, blinkedAt = {-1}, burntAt = {-1}, hitAt = {-1};
+        int[] countFrom = {0}, lastBlinkIn = {-1};
         float[] health = {0};
         net.minecraft.world.phys.Vec3[] held = {null};
-        int[] countFrom = {0};
-        for (int t = 1; t <= 210; t++) {
+        for (int t = 1; t <= 290; t++) {
             int tick = t;
             helper.runAtTickTime(t, () -> {
                 if (began[0] < 0) {
@@ -5497,26 +5717,38 @@ public final class EndGameTests {
                         player.setYHeadRot(0);
                     }
                 }
-                if (in == 43) {
+                if (in == 42 && state != com.panda.promisedend.entity.RiftStalker.State.FROZEN)
+                    helper.fail("2 ticks after the stare left it, the stalker wasn't still held: " + state);
+                if (in == hunt) {
                     if (state != com.panda.promisedend.entity.RiftStalker.State.HUNT) helper.fail("looked away from, the stalker stayed " + state);
                     stalker.setTarget(golem);
                     countFrom[0] = stalker.blinkIn();
                 }
-                if (in == 53) {
-                    stalker.setTarget(golem);
+                if (in == hunt + 10) {
                     int ran = countFrom[0] - stalker.blinkIn();
-                    PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] frozen 37 ticks without moving; unwatched, its blink ran {} in 10 ticks", ran);
+                    PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] frozen 37 ticks without moving, held {} after; unwatched, its blink ran {} in 10 ticks", hold, ran);
                     if (ran != 10) helper.fail("unwatched with a target, the stalker's blink ran " + ran + " in 10 ticks");
-                    health[0] = golem.getHealth();
-                    stalker.startGather();
                 }
-                if (in > 53 && blinkedAt[0] < 0 && stalker.blinks() > 0) {
+                // its count runs out on its own: it gathers on the tick it reaches 0
+                if (in > hunt + 10 && gatheredAt[0] < 0) {
+                    if (state == com.panda.promisedend.entity.RiftStalker.State.GATHER) {
+                        gatheredAt[0] = in;
+                        health[0] = golem.getHealth();
+                        PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] it gathered on its own {} ticks in, its count at {} the tick before", in, lastBlinkIn[0]);
+                        if (lastBlinkIn[0] > 1) helper.fail("the stalker gathered with " + lastBlinkIn[0] + " still to count");
+                        if (stalker.strikes() != 0) helper.fail("the stalker struck " + stalker.strikes() + " times before its first blink");
+                    } else {
+                        stalker.setTarget(golem);
+                        lastBlinkIn[0] = stalker.blinkIn();
+                    }
+                }
+                if (gatheredAt[0] > 0 && blinkedAt[0] < 0 && stalker.blinks() > 0) {
                     blinkedAt[0] = in;
                     net.minecraft.world.phys.Vec3 look = golem.getViewVector(1.0F), off = stalker.position().subtract(golem.position());
                     double behind = -(look.x * off.x + look.z * off.z), d = Math.hypot(off.x, off.z);
                     PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] blinked {} ticks after gathering, {} behind the golem ({} off)",
-                            in - 53, String.format("%.2f", behind), String.format("%.2f", d));
-                    if (in - 53 != com.panda.promisedend.entity.RiftStalker.GATHER_TICKS) helper.fail("it blinked " + (in - 53) + " ticks after gathering");
+                            in - gatheredAt[0], String.format("%.2f", behind), String.format("%.2f", d));
+                    if (in - gatheredAt[0] != com.panda.promisedend.entity.RiftStalker.GATHER_TICKS) helper.fail("it blinked " + (in - gatheredAt[0]) + " ticks after gathering");
                     if (behind < 1.2 || d > 3.5) helper.fail("it came out " + behind + " behind the golem, " + d + " off");
                 }
                 if (blinkedAt[0] > 0 && in == blinkedAt[0] + com.panda.promisedend.entity.RiftStalker.STRIKE_HIT + 1) {
@@ -5525,12 +5757,22 @@ public final class EndGameTests {
                     if (stalker.strikes() != 1 || Math.abs(took - com.panda.promisedend.entity.RiftStalker.DAMAGE) > 0.5)
                         helper.fail("the strike landed " + stalker.strikes() + " times, taking " + took);
                 }
-                if (blinkedAt[0] > 0 && hitAt[0] < 0 && in >= blinkedAt[0] + com.panda.promisedend.entity.RiftStalker.STRIKE_TICKS + 2) {
+                if (blinkedAt[0] > 0 && burntAt[0] < 0 && in >= blinkedAt[0] + com.panda.promisedend.entity.RiftStalker.STRIKE_TICKS + 2) {
                     if (state != com.panda.promisedend.entity.RiftStalker.State.HUNT) helper.fail("after its strike the stalker stayed " + state);
-                    // hit while looked at: it gathers at once, and the stare doesn't hold it
+                    // burnt (no one's blow), it stays; looked at, it freezes
                     lookAt(player, new net.minecraft.world.phys.Vec3(stalker.getX(), stalker.getY(0.6), stalker.getZ()));
                     stalker.setTarget(golem);
-                    stalker.hurtServer(level, level.damageSources().magic(), 1.0F);
+                    stalker.hurtServer(level, level.damageSources().onFire(), 1.0F);
+                    burntAt[0] = in;
+                    if (stalker.state() == com.panda.promisedend.entity.RiftStalker.State.GATHER) helper.fail("burnt, the stalker gathered");
+                }
+                // past the burn's invulnerable half second, so the next blow counts in full
+                if (burntAt[0] > 0 && in == burntAt[0] + 12) {
+                    if (state == com.panda.promisedend.entity.RiftStalker.State.GATHER || stalker.blinks() != 1)
+                        helper.fail("burnt, the stalker went into the rift: " + state + ", " + stalker.blinks() + " blinks");
+                    // the golem's blow, while it is looked at: it gathers at once, and the stare doesn't hold it
+                    stalker.setTarget(golem);
+                    stalker.hurtServer(level, level.damageSources().mobAttack(golem), 1.0F);
                     hitAt[0] = in;
                     if (stalker.state() != com.panda.promisedend.entity.RiftStalker.State.GATHER) helper.fail("hit, the stalker didn't gather: " + stalker.state());
                 }
@@ -5538,11 +5780,11 @@ public final class EndGameTests {
                         && state == com.panda.promisedend.entity.RiftStalker.State.FROZEN)
                     helper.fail("hit, the stalker was held by a stare " + (in - hitAt[0]) + " ticks into its gather");
                 if (hitAt[0] > 0 && in == hitAt[0] + com.panda.promisedend.entity.RiftStalker.GATHER_TICKS + 2) {
-                    PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] hit, it blinked again: {} blinks", stalker.blinks());
+                    PromisedEnd.LOGGER.info("[rift_stalker_blinks_and_freezes] burnt, it stayed; hit, it blinked again: {} blinks", stalker.blinks());
                     if (stalker.blinks() != 2) helper.fail("hit, the stalker didn't blink: " + stalker.blinks() + " blinks");
                     else helper.succeed();
                 }
-                if (tick == 210) helper.fail("the test ran out (blinked " + blinkedAt[0] + ", hit " + hitAt[0] + ")");
+                if (tick == 290) helper.fail("the test ran out (gathered " + gatheredAt[0] + ", blinked " + blinkedAt[0] + ", burnt " + burntAt[0] + ", hit " + hitAt[0] + ")");
             });
         }
     }
@@ -5609,12 +5851,21 @@ public final class EndGameTests {
                     helper.runAfterDelay(2, () -> {
                         boolean lit = level.getBlockState(where).is(wispLight), timed = level.getBlockTicks().hasScheduledTick(where, wispLight);
                         PromisedEnd.LOGGER.info("[lumen_wisp_lights_the_way] broken at {}: a light there {}, set to go out {}", where, lit, timed);
-                        if (!lit || !timed) helper.fail("the broken wisp left no timed light where it was: lit " + lit + ", timed " + timed);
-                        else helper.succeed();
+                        if (!lit || !timed) {
+                            helper.fail("the broken wisp left no timed light where it was: lit " + lit + ", timed " + timed);
+                            return;
+                        }
+                        // it outlasts a trail light: still lit when one left as it broke would be out
+                        helper.runAfterDelay(com.panda.promisedend.entity.LumenWisp.TRAIL_TICKS + 20, () -> {
+                            boolean still = level.getBlockState(where).is(wispLight);
+                            PromisedEnd.LOGGER.info("[lumen_wisp_lights_the_way] {} ticks on, its light is {}", com.panda.promisedend.entity.LumenWisp.TRAIL_TICKS + 22, still ? "still lit" : "out");
+                            if (!still) helper.fail("the broken wisp's light went out with a trail light's");
+                            else helper.succeed();
+                        });
                     });
                     putAway[0] = Integer.MAX_VALUE / 2;
                 }
-                if (tick == 310) helper.fail("the test ran out (near " + near[0] + ", lit at " + litAt[0] + ", put away " + putAway[0] + ")");
+                if (tick == 310 && putAway[0] < Integer.MAX_VALUE / 2) helper.fail("the test ran out (near " + near[0] + ", lit at " + litAt[0] + ", put away " + putAway[0] + ")");
             });
         }
     }

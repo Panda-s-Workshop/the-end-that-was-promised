@@ -29,6 +29,9 @@ public final class OuterProgress {
     /** The outer biomes that have a visit advancement, {@code outer/visit_<biome>}. */
     public static final List<String> BIOMES = List.of("chorus_thicket", "lumen_mire", "resonant_spires", "skyfall_archipelago", "voidscar_wastes", "shulker_reefs", "hollow_highlands", "bloom_meadows",
             "chorus_canopy", "void_fungus_barrens", "hanging_gardens");
+    /** The outer End's seven (the Wilds' four aside): visiting all of them earns {@link #ALL_SEVEN}, a criterion each. */
+    public static final List<String> SEVEN = List.of("chorus_thicket", "lumen_mire", "resonant_spires", "skyfall_archipelago", "voidscar_wastes", "shulker_reefs", "hollow_highlands");
+    public static final Identifier ALL_SEVEN = PromisedEnd.id("outer/all_seven");
     public static final int NEAR = 4;
     /** The terrain-off check reads a 9-block cube round the player, so it runs every other distance check. */
     public static final int MARKER_INTERVAL = RimProgress.CHECK_INTERVAL * 2;
@@ -55,6 +58,7 @@ public final class OuterProgress {
         var advancements = player.level().getServer().getAdvancements();
         var enter = advancements.get(ENTER_OUTER);
         if (enter != null) player.getAdvancements().award(enter, "far_out");
+        allSeven(player);
         if (EndConfig.terrainEnabled() || player.tickCount % MARKER_INTERVAL != 0) return;
         // the visits still to earn, and their markers: one pass over the cube for all of them
         List<AdvancementHolder> pending = new ArrayList<>();
@@ -76,6 +80,17 @@ public final class OuterProgress {
                     break;
                 }
             }
+        }
+    }
+
+    /** Marks off on {@link #ALL_SEVEN} each of the seven whose visit is done (public for GameTests). */
+    public static void allSeven(ServerPlayer player) {
+        var advancements = player.level().getServer().getAdvancements();
+        var all = advancements.get(ALL_SEVEN);
+        if (all == null || player.getAdvancements().getOrStartProgress(all).isDone()) return;
+        for (String biome : SEVEN) {
+            var visit = advancements.get(visit(biome));
+            if (visit != null && player.getAdvancements().getOrStartProgress(visit).isDone()) player.getAdvancements().award(all, biome);
         }
     }
 

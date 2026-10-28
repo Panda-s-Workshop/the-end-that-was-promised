@@ -45,6 +45,23 @@ public final class ServerCheck {
         else PromisedEnd.LOGGER.error("[promisedend servercheck] FAIL: {}", failure);
     }
 
+    /** The constructs our terrain-off fallback adds to vanilla's biomes are in those biomes' spawn lists. */
+    private static String fallbackSpawns(net.minecraft.server.level.ServerLevel end) {
+        var biomes = end.registryAccess().lookupOrThrow(Registries.BIOME);
+        record Want(String biome, net.minecraft.world.entity.EntityType<?> type, net.minecraft.world.entity.MobCategory category) {}
+        for (Want want : java.util.List.of(new Want("end_highlands", com.panda.promisedend.registry.ModEntities.CHORUS_WEAVER.get(), net.minecraft.world.entity.MobCategory.MONSTER),
+                new Want("end_barrens", com.panda.promisedend.registry.ModEntities.RIFT_STALKER.get(), net.minecraft.world.entity.MobCategory.MONSTER),
+                new Want("end_midlands", com.panda.promisedend.registry.ModEntities.LUMEN_WISP.get(), net.minecraft.world.entity.MobCategory.AMBIENT))) {
+            var biome = biomes.getOrThrow(net.minecraft.resources.ResourceKey.create(Registries.BIOME, Identifier.withDefaultNamespace(want.biome())));
+            var spawns = biome.value().getAttributes().applyModifier(net.minecraft.world.attribute.EnvironmentAttributes.NATURAL_MOB_SPAWNS,
+                    net.minecraft.world.level.biome.MobSpawnSettings.EMPTY);
+            boolean has = spawns.getMobsInCategory(want.category()).unwrap().stream().anyMatch(w -> w.value().type() == want.type());
+            PromisedEnd.LOGGER.info("[promisedend servercheck] {} spawns {}: {}", want.biome(), net.minecraft.world.entity.EntityType.getKey(want.type()), has);
+            if (!has) return want.biome() + " doesn't spawn " + net.minecraft.world.entity.EntityType.getKey(want.type()) + " (the terrain-off fallback)";
+        }
+        return null;
+    }
+
     private static String check(MinecraftServer server) {
         var end = server.getLevel(Level.END);
         if (end == null) return "no End level";
@@ -72,6 +89,7 @@ public final class ServerCheck {
         PromisedEnd.LOGGER.info("[promisedend servercheck] voidstone within {} of {}: {}", RADIUS, centre, voidstone);
         if (voidstone < 200) return "too little Voidstone around x=300: " + voidstone;
         String failure = construct(end, centre.above(26));
+        if (failure == null) failure = fallbackSpawns(end);
         if (failure == null) failure = strips(end, centre.above(40));
         if (failure == null) failure = updraft(end, centre.above(50));
         if (failure == null && terrain) failure = biome(end, "chorus_thicket", "Chorus Thicket", ModBlocks.CHORUS_LOG.get(), 30);
@@ -82,6 +100,8 @@ public final class ServerCheck {
         if (failure == null && terrain) failure = biome(end, "voidscar_wastes", "Voidscar Wastes", ModBlocks.VOIDSTEEL_SCRAP_ORE.get(), 8);
         if (failure == null && terrain) failure = biome(end, net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("voidscar_wastes")), "Voidscar Wastes' edges",
                 ModBlocks.CRUMBLING_VOIDSTONE.get(), 20, 64);
+        if (failure == null && terrain) failure = shores(end, "voidscar_wastes", 0.85);
+        if (failure == null && terrain) failure = shores(end, "skyfall_archipelago", 0.85);
         if (failure == null && terrain) failure = biome(end, "shulker_reefs", "Shulker Reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 150);
         if (failure == null && terrain) failure = biome(end, "hollow_highlands", "Hollow Highlands", ModBlocks.ECHO_AMBER_CLUSTER.get(), 5);
         if (failure == null && terrain) failure = biome(end, "bloom_meadows", "Bloom Meadows", ModBlocks.ENDER_BLOOM.get(), 15);
@@ -161,18 +181,27 @@ public final class ServerCheck {
     /** As above within {@code radius} blocks: a sparse fallback wants a wider look than a biome of ours. */
     private static String biome(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key,
                                 String name, net.minecraft.world.level.block.Block block, int minimum, int radius) {
-        BlockPos at = spot(end, key, radius);
-        if (at == null) return "no " + name + " within 6400 blocks";
-        for (int cx = (at.getX() - radius - 8) >> 4; cx <= (at.getX() + radius + 8) >> 4; cx++) {
-            for (int cz = (at.getZ() - radius - 8) >> 4; cz <= (at.getZ() + radius + 8) >> 4; cz++) end.getChunk(cx, cz);
+        // the best few places, in turn: an End City standing in a biome's middle claims its chunks, and its features
+        // keep out of them (world seed -8559988421388743695: the Spires' best place had no spire within 32)
+        java.util.List<BlockPos> places = spots(end, key, radius);
+        if (places.isEmpty()) return "no " + name + " within 6400 blocks";
+        String what = block.getName().getString(), failure = null;
+        for (BlockPos at : places.subList(0, Math.min(3, places.size()))) {
+            int claimed = 0;
+            for (int cx = (at.getX() - radius - 8) >> 4; cx <= (at.getX() + radius + 8) >> 4; cx++) {
+                for (int cz = (at.getZ() - radius - 8) >> 4; cz <= (at.getZ() + radius + 8) >> 4; cz++) {
+                    if (end.getChunk(cx, cz).getAllReferences().values().stream().anyMatch(r -> !r.isEmpty())) claimed++;
+                }
+            }
+            int count = 0;
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-radius, -40, -radius), at.offset(radius, 40, radius))) {
+                if (end.getBlockState(p).is(block)) count++;
+            }
+            PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} {} within {} blocks ({} chunks round it a structure claims)", name, at, count, what, radius, claimed);
+            if (count >= minimum) return null;
+            if (failure == null) failure = "only " + count + " " + what + " in the " + name + " at " + at;
         }
-        int count = 0;
-        for (BlockPos p : BlockPos.betweenClosed(at.offset(-radius, -40, -radius), at.offset(radius, 40, radius))) {
-            if (end.getBlockState(p).is(block)) count++;
-        }
-        String what = block.getName().getString();
-        PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} {} within {} blocks", name, at, count, what, radius);
-        return count >= minimum ? null : "only " + count + " " + what + " in the " + name + " at " + at;
+        return failure;
     }
 
     /**
@@ -184,8 +213,13 @@ public final class ServerCheck {
      * sure of (25 of 121 samples, no scar). Null when there is no such biome within 6400 blocks.
      */
     public static BlockPos spot(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, int radius) {
-        BlockPos best = null;
-        int bestLand = -1;
+        var places = spots(end, key, radius);
+        return places.isEmpty() ? null : places.getFirst();
+    }
+
+    /** Every place {@link #spot} weighs, the most land first. */
+    public static java.util.List<BlockPos> spots(net.minecraft.server.level.ServerLevel end, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> key, int radius) {
+        java.util.List<java.util.Map.Entry<BlockPos, Integer>> weighed = new java.util.ArrayList<>();
         java.util.List<BlockPos> froms = new java.util.ArrayList<>(java.util.List.of(new BlockPos(0, 64, 0)));
         for (int r : new int[] {1500, 3000}) {
             for (int deg = 0; deg < 360; deg += 45) {
@@ -206,12 +240,44 @@ public final class ServerCheck {
                 }
             }
             PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: land in the biome at {} of {} samples", key.identifier(), at, land, samples);
-            if (land > bestLand) {
-                best = at;
-                bestLand = land;
+            weighed.add(java.util.Map.entry(at, land));
+        }
+        // the most land first; the first found first among equals, as the single best place always was
+        weighed.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        return weighed.stream().map(java.util.Map.Entry::getKey).toList();
+    }
+
+    /**
+     * Of the void-current columns over a biome's middle (every 4 blocks within 128 of {@link #spot}), the share a ride's
+     * end there washes ashore from ({@link com.panda.promisedend.logic.VoidCurrent#shore} at the hold's middle height):
+     * at least {@code minimum} (three seeds gave 92-100 %). Heights are the generator's (no chunks), so features on an
+     * island's top don't count.
+     */
+    private static String shores(net.minecraft.server.level.ServerLevel end, String id, double minimum) {
+        var key = net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id(id));
+        BlockPos at = spot(end, key, 40);
+        if (at == null) return "no " + id + " to count shores in";
+        long seed = com.panda.promisedend.logic.VoidCurrents.seed(end);
+        var generator = end.getChunkSource().getGenerator();
+        var random = end.getChunkSource().randomState();
+        var heights = new java.util.HashMap<Long, Integer>();
+        java.util.function.IntBinaryOperator top = (x, z) -> heights.computeIfAbsent(net.minecraft.world.level.ChunkPos.pack(x, z),
+                k -> generator.getBaseHeight(x, z, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, end, random));
+        int columns = 0, ashore = 0;
+        for (int dx = -128; dx <= 128; dx += 4) {
+            for (int dz = -128; dz <= 128; dz += 4) {
+                int x = at.getX() + dx, z = at.getZ() + dz;
+                if (!end.getUncachedNoiseBiome(x >> 2, com.panda.promisedend.logic.VoidCurrents.BIOME_Y >> 2, z >> 2).is(key)) continue;
+                if (!com.panda.promisedend.logic.VoidCurrent.inCurrent(seed, x, z)) continue;
+                columns++;
+                if (com.panda.promisedend.logic.VoidCurrent.shore(x, (int) com.panda.promisedend.logic.VoidCurrent.HOLD_MID, z, top) != null) ashore++;
             }
         }
-        return best;
+        PromisedEnd.LOGGER.info("[promisedend servercheck] {} round {}: a shore in reach from {} of {} current columns ({})", id, at, ashore, columns,
+                columns == 0 ? "-" : String.format(java.util.Locale.ROOT, "%.0f %%", 100.0 * ashore / columns));
+        if (columns < 20) return "too few current columns in the " + id + " to count shores: " + columns;
+        if (ashore < minimum * columns) return "a shore in reach from only " + ashore + " of " + columns + " current columns in the " + id;
+        return null;
     }
 
     /** Whether the column at x, z is in the biome with land under it, asked of the biome source and the generator (no chunks). */
@@ -436,8 +502,12 @@ public final class ServerCheck {
             PromisedEnd.LOGGER.info("[promisedend servercheck] {} at {}: {} generated Updraft Vents in {} of its chunks (1 in {})", id, at, vents, chunks,
                     vents == 0 ? "none" : String.format(java.util.Locale.ROOT, "%.1f", chunks / (double) vents));
             if (first == null) return "no generated Updraft Vent in the " + id + " round " + at;
-            // one chunk in two tries; fewer than one in five placing means the edges aren't found (seen: 1 in 2.4-2.8)
-            if (vents * 5 < chunks) return "only " + vents + " generated Updraft Vents in " + chunks + " chunks of the " + id + " round " + at;
+            // one chunk in two tries, and about one in 3.5 places (seen: 1 in 2.4-2.8 on land-rich spots); a fair world
+            // falls below the binomial's 1 % lower bound once in a hundred, where a flat 1-in-5 floor on 26 chunks failed
+            // one in seven (a sparse Voidscar, 5 in 26); edges not found at all give none
+            double rate = 1 / 3.5;
+            int floor = Math.max(1, (int) Math.floor(chunks * rate - 2.33 * Math.sqrt(chunks * rate * (1 - rate))));
+            if (vents < floor) return "only " + vents + " generated Updraft Vents in " + chunks + " chunks of the " + id + " round " + at + " (the floor is " + floor + ")";
             if (failure == null && id.equals("skyfall_archipelago")) failure = lift(end, first, "the generated vent at " + first);
         }
         return failure;

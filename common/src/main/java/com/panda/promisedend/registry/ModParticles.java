@@ -25,6 +25,9 @@ public final class ModParticles {
     public static final Supplier<SimpleParticleType> UPDRAFT_WISP = PARTICLES.register("updraft_wisp", () -> new SimpleParticleType(false));
     public static final Supplier<SimpleParticleType> UPDRAFT_PUFF = PARTICLES.register("updraft_puff", () -> new SimpleParticleType(false));
 
+    /** A Chorus Weaver's vine: a lit chorus mote that hangs where it was put a moment, so a thrown vine reads as a line. */
+    public static final Supplier<SimpleParticleType> CHORUS_VINE = PARTICLES.register("chorus_vine", () -> new SimpleParticleType(false));
+
     /** A void current's mote: periwinkle, carried along the current at its own speed, lit. */
     public static final Supplier<SimpleParticleType> CURRENT_MOTE = PARTICLES.register("current_mote", () -> new SimpleParticleType(false));
 

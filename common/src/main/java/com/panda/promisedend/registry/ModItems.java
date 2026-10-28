@@ -58,9 +58,13 @@ public final class ModItems {
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.LUMEN_WISP.get()));
     public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> RIFT_STALKER_SPAWN_EGG = ITEMS.registerItem("rift_stalker_spawn_egg",
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.RIFT_STALKER.get()));
+    public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> PURPUR_SENTRY_SPAWN_EGG = ITEMS.registerItem("purpur_sentry_spawn_egg",
+            net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.PURPUR_SENTRY.get()));
+    /** The Purpur Sentry's: the Ancient Purpur set's and the Amber Key's. */
+    public static final DeferredItem<HintItem> ANCIENT_PURPUR_SCRAP = ITEMS.registerItem("ancient_purpur_scrap", p -> new HintItem(p, "ancient_purpur_scrap", 3));
 
     // ---- the Lumen Mire ---------------------------------------------------------------------------
-    public static final DeferredItem<HintItem> LUMEN = ITEMS.registerItem("lumen", p -> new HintItem(p, "lumen", 1));
+    public static final DeferredItem<HintItem> LUMEN = ITEMS.registerItem("lumen", p -> new HintItem(p, "lumen", 2));
 
     // ---- the Resonant Spires --------------------------------------------------------------------
     public static final DeferredItem<HintItem> RESONITE_SHARD = ITEMS.registerItem("resonite_shard", p -> new HintItem(p, "resonite_shard", 3));

@@ -1,0 +1,64 @@
+{
+  "parent": "promisedend:outer/enter_outer",
+  "criteria": {
+    "chorus_thicket": {
+      "trigger": "minecraft:impossible"
+    },
+    "lumen_mire": {
+      "trigger": "minecraft:impossible"
+    },
+    "resonant_spires": {
+      "trigger": "minecraft:impossible"
+    },
+    "skyfall_archipelago": {
+      "trigger": "minecraft:impossible"
+    },
+    "voidscar_wastes": {
+      "trigger": "minecraft:impossible"
+    },
+    "shulker_reefs": {
+      "trigger": "minecraft:impossible"
+    },
+    "hollow_highlands": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "minecraft:filled_map"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.all_seven.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.all_seven.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "chorus_thicket"
+    ],
+    [
+      "lumen_mire"
+    ],
+    [
+      "resonant_spires"
+    ],
+    [
+      "skyfall_archipelago"
+    ],
+    [
+      "voidscar_wastes"
+    ],
+    [
+      "shulker_reefs"
+    ],
+    [
+      "hollow_highlands"
+    ]
+  ],
+  "sends_telemetry_event": false
+}
