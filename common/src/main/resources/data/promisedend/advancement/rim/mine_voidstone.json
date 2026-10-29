@@ -1,5 +1,5 @@
 {
-  "parent": "promisedend:rim/enter_rim",
+  "parent": "promisedend:outer/enter_outer",
   "criteria": {
     "voidstone": {
       "trigger": "minecraft:inventory_changed",

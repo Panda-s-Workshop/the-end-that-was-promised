@@ -116,6 +116,7 @@ public final class ServerCheck {
                 ModBlocks.CRUMBLING_VOIDSTONE.get(), 20, 64));
         // seeds 1-16 on the real heightmap: the Skyfall 100 % on every one, the Voidscar 79-100 % (98 % pooled)
         if (terrain) add.accept(shores(end, "voidscar_wastes", 0.7));
+        if (terrain) add.accept(voidscarSpawns(end));
         if (terrain) add.accept(shores(end, "skyfall_archipelago", 0.9));
         if (terrain) add.accept(biome(end, "shulker_reefs", "Shulker Reefs", ModBlocks.ANCIENT_PURPUR_SET.base().get(), 150));
         if (terrain) add.accept(biome(end, "hollow_highlands", "Hollow Highlands", ModBlocks.ECHO_AMBER_CLUSTER.get(), 5));
@@ -223,6 +224,48 @@ public final class ServerCheck {
             if (claimed == 0) break;
         }
         return failure;
+    }
+
+    /**
+     * Natural spawning's own draw and checks at the Voidscar's place, for monsters: a column in a chunk and a height up to
+     * its surface, as the game picks them, then whether an enderman or a Rift Stalker could stand there (an empty spot,
+     * its placement, its spawn rule, dark enough) and what the generator offers there. Logged on each loader, so a loader
+     * that spawns fewer there shows which step turns them away.
+     */
+    private static String voidscarSpawns(net.minecraft.server.level.ServerLevel end) {
+        BlockPos at = spot(end, net.minecraft.resources.ResourceKey.create(Registries.BIOME, PromisedEnd.id("voidscar_wastes")), 64);
+        if (at == null) return null;
+        var random = net.minecraft.util.RandomSource.create(42);
+        var types = java.util.List.<net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>>of(
+                net.minecraft.world.entity.EntityTypes.ENDERMAN, com.panda.promisedend.registry.ModEntities.RIFT_STALKER.get());
+        int tries = 0, empty = 0, offered = 0;
+        int[] placed = new int[types.size()], ruled = new int[types.size()];
+        java.util.Map<String, Integer> offers = new java.util.TreeMap<>();
+        for (int cx = (at.getX() >> 4) - 4; cx <= (at.getX() >> 4) + 4; cx++) {
+            for (int cz = (at.getZ() >> 4) - 4; cz <= (at.getZ() >> 4) + 4; cz++) {
+                var chunk = end.getChunk(cx, cz);
+                for (int i = 0; i < 40; i++) {
+                    int x = (cx << 4) + random.nextInt(16), z = (cz << 4) + random.nextInt(16);
+                    int top = chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, x, z) + 1;
+                    int y = net.minecraft.util.Mth.randomBetweenInclusive(random, end.getMinY(), top);
+                    BlockPos pos = new BlockPos(x, y, z);
+                    tries++;
+                    if (!end.getBlockState(pos).isAir() || !end.getBlockState(pos.below()).isSolid()) continue;
+                    empty++;
+                    var mobs = end.getChunkSource().getGenerator().getMobsAt(end, end.structureManager(), net.minecraft.world.entity.MobCategory.MONSTER, pos);
+                    if (!mobs.isEmpty()) offered++;
+                    for (var w : mobs.unwrap()) offers.merge(net.minecraft.world.entity.EntityType.getKey(w.value().type()).getPath(), w.weight(), (o, n) -> o);
+                    for (int t = 0; t < types.size(); t++) {
+                        if (!net.minecraft.world.entity.SpawnPlacements.isSpawnPositionOk(types.get(t), end, pos)) continue;
+                        placed[t]++;
+                        if (net.minecraft.world.entity.SpawnPlacements.checkSpawnRules(types.get(t), end, net.minecraft.world.entity.EntitySpawnReason.NATURAL, pos, random)) ruled[t]++;
+                    }
+                }
+            }
+        }
+        PromisedEnd.LOGGER.info("[promisedend servercheck] monster spawning at the Voidscar's {}: {} tries, {} on ground, {} offered monsters {}; enderman placed {} allowed {}; stalker placed {} allowed {}",
+                at, tries, empty, offered, offers, placed[0], ruled[0], placed[1], ruled[1]);
+        return null;
     }
 
     /**
@@ -586,12 +629,13 @@ public final class ServerCheck {
      * Arrivals on real terrain: End portals in eight directions 1600 out (a first-ring stronghold's distance) and one
      * 4000 out (held to the band's far edge). Each finds ground within reach (of ours with our terrain on), and the
      * Waystation built there has its Return Gate, a floor to stand on and room above it; the same portal again comes to
-     * the same Waystation. A new world's Ward stands.
+     * the same Waystation. A new world's Ward stands if a guardian is in the game to break a seal, and is down if none is.
      */
     private static String arrivals(MinecraftServer server, net.minecraft.server.level.ServerLevel end, boolean terrain) {
         var overworld = server.overworld();
         java.util.List<String> bad = new java.util.ArrayList<>(), landed = new java.util.ArrayList<>();
-        if (!com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("a new world's Ward is down");
+        boolean guarded = com.panda.promisedend.logic.AncientWard.guarded() != 0;
+        if (com.panda.promisedend.logic.AncientWard.stands(server) != guarded) bad.add("a new world's Ward is " + (guarded ? "down" : "up with no guardian to break a seal"));
         java.util.List<BlockPos> portals = new java.util.ArrayList<>();
         for (int i = 0; i < 8; i++) {
             double a = Math.PI / 4 * i + 0.3;

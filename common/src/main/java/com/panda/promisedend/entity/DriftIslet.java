@@ -59,6 +59,14 @@ public class DriftIslet extends Entity {
     private int heard;
     /** Whether its way has been cleared, once, after worldgen was done with the chunks along it. */
     private boolean clear;
+    /**
+     * The players on it since it left its mooring, each with how many ticks running it has missed them: those still
+     * aboard at the other have crossed. A player is dropped only after a second unseen (a client's place reaches the
+     * server a tick or two late, more on a climbing route).
+     */
+    private final java.util.Map<java.util.UUID, Integer> aboard = new java.util.HashMap<>();
+    private static final int MISSED = 20;
+    private static final net.minecraft.resources.Identifier CROSSED = com.panda.promisedend.PromisedEnd.id("outer/ride_drift");
 
     public DriftIslet(EntityType<? extends DriftIslet> type, Level level) {
         super(type, level);
@@ -173,7 +181,39 @@ public class DriftIslet extends Entity {
                 level().playSound(null, getX(), getY() + 1, getZ(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.NEUTRAL, 1.0F, state.wait == 0 ? 1.2F : 0.8F);
             }
             if (turned || tickCount % RESYNC == 0) send(false);
+            crossings(waited, turned);
         }
+    }
+
+    /**
+     * Who rode it from one mooring to the other, without stepping off or being turned back, has crossed. Counted from a
+     * looser box than {@link #riders}: half a block round its top and from just under it, as a lagging client places
+     * its player.
+     */
+    private void crossings(int waited, boolean turned) {
+        if (turned) {
+            aboard.clear();
+            return;
+        }
+        AABB box = getBoundingBox();
+        List<ServerPlayer> near = level().getEntitiesOfClass(ServerPlayer.class,
+                new AABB(box.minX - 0.5, box.maxY - 0.75, box.minZ - 0.5, box.maxX + 0.5, box.maxY + CARRY_HEIGHT + 0.5, box.maxZ + 0.5),
+                p -> !p.isSpectator() && !p.getAbilities().flying);
+        if (waited == 1 && state.wait == 0 && (state.s <= 0 || state.s >= 1 || route.length() * Math.min(state.s, 1 - state.s) <= DriftRoute.SPEED)) {
+            // leaving a mooring (not standing again after a turn mid-route)
+            aboard.clear();
+            for (ServerPlayer p : near) aboard.put(p.getUUID(), 0);
+            return;
+        }
+        if (aboard.isEmpty()) return;
+        aboard.replaceAll((id, missed) -> near.stream().anyMatch(p -> p.getUUID().equals(id)) ? 0 : missed + 1);
+        aboard.values().removeIf(missed -> missed > MISSED);
+        if (waited != 0 || state.wait == 0) return;
+        var crossed = level().getServer().getAdvancements().get(CROSSED);
+        for (ServerPlayer p : near) {
+            if (crossed != null && aboard.containsKey(p.getUUID())) p.getAdvancements().award(crossed, "crossed");
+        }
+        aboard.clear();
     }
 
     /**

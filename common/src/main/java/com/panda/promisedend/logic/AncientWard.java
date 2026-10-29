@@ -35,13 +35,23 @@ import net.minecraft.world.phys.Vec3;
  * survival reaches the dragon fight's range (192 from the centre), and the fight itself is held (mixin
  * EnderDragonFightMixin), so the dragon doesn't wake for a creative player either.
  *
- * <p>It stands while arrival by coordinates is on, fewer than all three seals are broken, and no dragon has ever been
- * killed in this world (a world from before the change keeps its open End).
+ * <p>It stands while arrival by coordinates is on, a seal still binds it, and no dragon has ever been killed in this
+ * world (a world from before the change keeps its open End). A seal binds it only once its guardian is in the game.
  */
 public final class AncientWard {
     /** The three seals, by their guardians' places: the Shulker Foundry, the Rift Maw, the Unfinished Citadel. */
     public static final List<String> SEALS = List.of("foundry", "maw", "citadel");
     public static final int ALL = (1 << SEALS.size()) - 1;
+    /**
+     * The seals whose guardian is in the game, one bit each in {@link #SEALS}' order. A seal with no guardian to fight
+     * can't be broken, so it doesn't bind the Ward: until the first guardian comes, the way to the dragon is open.
+     */
+    public static final int GUARDED = 0;
+    /** Set (to true) for runs that need the Ward as it will stand, every guardian in: the GameTests, the screenshots. */
+    public static final String ALL_GUARDIANS = "promisedend.allGuardians";
+    /** How often a player in the End with the Ward down is told so by the advancement that opens the Codex's last act. */
+    private static final int OPEN_CHECK = 20;
+    private static final net.minecraft.resources.Identifier WARD_DOWN = PromisedEnd.id("rim/ward_down");
     /** How far inside the Ward a player may be found before they are sent home instead of set back. */
     public static final int DEEP = 16;
     /** How near the Ward a player sees it. */
@@ -59,8 +69,18 @@ public final class AncientWard {
         return Arrival.insideWard(x, z, radius);
     }
 
+    /** The seals whose guardian is in the game. */
+    public static int guarded() {
+        return Boolean.getBoolean(ALL_GUARDIANS) ? ALL : GUARDED;
+    }
+
+    /** Whether a seal still binds the Ward: one whose guardian is in the game and isn't broken. */
+    public static boolean binds(int broken, int guarded) {
+        return (guarded & ALL & ~broken) != 0;
+    }
+
     public static boolean stands(MinecraftServer server) {
-        if (!EndConfig.arrivalByCoordinates() || broken(server) == ALL) return false;
+        if (!EndConfig.arrivalByCoordinates() || !binds(broken(server), guarded())) return false;
         ServerLevel end = server.getLevel(Level.END);
         var fight = end == null ? null : end.getDragonFight();
         return fight == null || !fight.hasPreviouslyKilledDragon();
@@ -82,12 +102,14 @@ public final class AncientWard {
         stored.broken |= bit;
         stored.setDirty();
         int count = Integer.bitCount(stored.broken);
+        // the Ward falls with the last seal that binds it, which is the third only once every guardian is in
+        boolean falls = binds(stored.broken & ~bit, guarded()) && !binds(stored.broken, guarded());
         ServerLevel end = server.getLevel(Level.END);
         if (end != null) {
             for (ServerPlayer p : end.players()) {
                 p.sendSystemMessage(Component.translatable("ward.promisedend.seal_broken", Component.translatable("ward.promisedend.seal." + SEALS.get(index)), count, SEALS.size()));
-                if (stored.broken == ALL) p.sendSystemMessage(Component.translatable("ward.promisedend.falls"));
-                end.playSound(null, p.blockPosition(), stored.broken == ALL ? SoundEvents.END_PORTAL_SPAWN : SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.MASTER, 1.0F, 0.8F);
+                if (falls) p.sendSystemMessage(Component.translatable("ward.promisedend.falls"));
+                end.playSound(null, p.blockPosition(), falls ? SoundEvents.END_PORTAL_SPAWN : SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.MASTER, 1.0F, 0.8F);
             }
         }
         PromisedEnd.LOGGER.info("[promisedend] the {} seal broke ({} of {})", SEALS.get(index), count, SEALS.size());
@@ -107,7 +129,15 @@ public final class AncientWard {
             OUTSIDE.remove(player.getUUID());
             return;
         }
-        if (player.isCreative() || player.isSpectator() || !stands(level.getServer())) {
+        boolean stands = stands(level.getServer());
+        if (player.tickCount % OPEN_CHECK == 0 && !player.isSpectator()) {
+            // the last act opens while the Ward is down, and closes again if it rises (a guardian came to a world
+            // where it had been down for want of one)
+            var down = level.getServer().getAdvancements().get(WARD_DOWN);
+            if (down != null && !stands) player.getAdvancements().award(down, "open");
+            else if (down != null && player.getAdvancements().getOrStartProgress(down).isDone()) player.getAdvancements().revoke(down, "open");
+        }
+        if (player.isCreative() || player.isSpectator() || !stands) {
             OUTSIDE.remove(player.getUUID());
             return;
         }
@@ -135,7 +165,7 @@ public final class AncientWard {
         root.setDeltaMovement(out.scale(0.3).add(0, Math.max(0, root.getDeltaMovement().y), 0));
         root.syncVelocity = true;
         root.needsSync = true;
-        player.sendOverlayMessage(Component.translatable("ward.promisedend.holds"));
+        player.sendOverlayMessage(Component.translatable("ward.promisedend.holds", Integer.bitCount(guarded() & ALL & ~broken(level.getServer()))));
         level.playSound(null, player.blockPosition(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 0.8F, 0.6F);
         show(level, player, radius, 160);
     }

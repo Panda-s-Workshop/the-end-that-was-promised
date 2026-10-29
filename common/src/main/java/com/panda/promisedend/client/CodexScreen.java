@@ -28,7 +28,7 @@ import org.joml.Vector2i;
 public class CodexScreen extends Screen {
     static final int W = 300, H = 184;
     static final int L_X = 16, L_W = 124, R_X = 160, R_W = 124;
-    static final int ACT_Y = 44, ACT_H = 26;
+    static final int ACT_Y = 38, ACT_H = 22;
     static final int GOAL_Y = 34, GOAL_H = 24;
 
     static final Identifier BG = PromisedEnd.id("textures/gui/codex.png");
@@ -64,6 +64,11 @@ public class CodexScreen extends Screen {
         return done(act.opensWith());
     }
 
+    /** Whether the act's opening is in the game at all: an act whose guardian isn't yet has blank pages, not a seal. */
+    public boolean written(CodexBook.Act act) {
+        return act.opensWith() == null || minecraft.player == null || minecraft.player.connection.getAdvancements().get(act.opensWith()) != null;
+    }
+
     public int doneCount(CodexBook.Act act) {
         int n = 0;
         for (CodexBook.Goal g : act.goals()) if (done(g.advancement())) n++;
@@ -73,7 +78,7 @@ public class CodexScreen extends Screen {
     // ---- bounds ----------------------------------------------------------------------------------------------------
 
     public int[] actBounds(int i) {
-        return new int[] {x0 + L_X - 2, y0 + ACT_Y + i * ACT_H, L_W + 4, ACT_H - 3};
+        return new int[] {x0 + L_X - 2, y0 + ACT_Y + i * ACT_H, L_W + 4, ACT_H - 1};
     }
 
     private static boolean in(double mx, double my, int[] b) {
@@ -143,16 +148,18 @@ public class CodexScreen extends Screen {
             g.text(font, numeral, b[0] + 6, b[1] + 3, open ? INK : INK_MUTED, false);
             g.text(font, Component.translatable(act.title()), b[0] + 6 + font.width(numeral) + 4, b[1] + 3, open ? INK : INK_MUTED, false);
             Component status;
-            if (!open) status = Component.translatable("screen.promisedend.codex.sealed");
+            if (!written(act)) status = Component.translatable("screen.promisedend.codex.unwritten");
+            else if (!open) status = Component.translatable("screen.promisedend.codex.sealed");
             else if (act.goals().isEmpty()) status = Component.translatable("screen.promisedend.codex.unwritten");
             else status = Component.translatable("screen.promisedend.codex.progress", doneCount(act), act.goals().size());
             g.text(font, status, b[0] + 6, b[1] + 13, open ? INK_MUTED : SEAL, false);
-            if (!open) seal(g, b[0] + b[2] - 13, b[1] + 6);
+            if (!open && written(act)) seal(g, b[0] + b[2] - 13, b[1] + 6);
         }
         // a line of the Ancients under the acts, so the page isn't only a list
         int py = y0 + ACT_Y + CodexBook.ACTS.size() * ACT_H + 2;
         rule(g, x0 + L_X, py, L_W);
-        Component prologue = Component.translatable("screen.promisedend.codex.prologue").withStyle(ChatFormatting.ITALIC);
+        Component prologue = Component.translatable(done(CodexBook.WARD_DOWN) ? "screen.promisedend.codex.prologue.open" : "screen.promisedend.codex.prologue")
+                .withStyle(ChatFormatting.ITALIC);
         List<FormattedCharSequence> lines = font.split(prologue, L_W);
         for (int i = 0; i < Math.min(2, lines.size()); i++) {
             FormattedCharSequence line = lines.get(i);
@@ -166,6 +173,10 @@ public class CodexScreen extends Screen {
         Component heading = Component.translatable(act.title());
         g.text(font, heading, x + (R_W - font.width(heading)) / 2, y, INK, false);
         rule(g, x, y0 + 24, R_W);
+        if (!written(act)) {
+            wrapped(g, Component.translatable("screen.promisedend.codex.unwritten.hint"), x, y0 + 40, INK_MUTED, 6);
+            return;
+        }
         if (!open(act)) {
             seal(g, x + R_W / 2 - 4, y0 + 40);
             wrapped(g, Component.translatable(act.sealedHint()), x, y0 + 56, INK_MUTED, 6);

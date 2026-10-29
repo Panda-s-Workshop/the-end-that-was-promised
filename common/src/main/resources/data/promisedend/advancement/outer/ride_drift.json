@@ -1,0 +1,28 @@
+{
+  "parent": "promisedend:outer/enter_outer",
+  "criteria": {
+    "crossed": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:drift_blossom"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.ride_drift.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.ride_drift.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "crossed"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

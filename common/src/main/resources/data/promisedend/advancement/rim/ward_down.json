@@ -1,0 +1,28 @@
+{
+  "parent": "promisedend:rim/root",
+  "criteria": {
+    "open": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "minecraft:end_crystal"
+    },
+    "title": {
+      "translate": "advancements.promisedend.rim.ward_down.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.rim.ward_down.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false
+  },
+  "requirements": [
+    [
+      "open"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

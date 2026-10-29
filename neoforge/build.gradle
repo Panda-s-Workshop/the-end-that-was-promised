@@ -65,6 +65,8 @@ loom {
             mainClass = "net.neoforged.fml.startup.GameTestServer"
             property "neoforge.enableGameTest", "true"
             property "neoforge.enabledGameTestNamespaces", "promisedend"
+            // the Ward as it will stand, every guardian in
+            property "promisedend.allGuardians", "true"
         }
     }
 }

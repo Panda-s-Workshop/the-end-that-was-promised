@@ -48,7 +48,9 @@ class EndRegionsTest {
         for (int angle = 0; angle < 360; angle += 15) {
             double r = Math.toRadians(angle);
             assertEquals(Biome.SHATTERED_RIM, EndRegions.pick(SEED, chunk(300 * Math.cos(r)), chunk(300 * Math.sin(r)), Terrain.MAIN, EDGE), "rim at " + angle);
-            assertEquals(Biome.THE_END, EndRegions.pick(SEED, chunk(700 * Math.cos(r)), chunk(700 * Math.sin(r)), Terrain.MAIN, EDGE), "void gap at " + angle);
+            // the Rim reaches out to the outer lands: the way in is island to island
+            assertEquals(Biome.SHATTERED_RIM, EndRegions.pick(SEED, chunk(700 * Math.cos(r)), chunk(700 * Math.sin(r)), Terrain.MAIN, EDGE), "outer Rim at " + angle);
+            assertEquals(Biome.SHATTERED_RIM, EndRegions.pick(SEED, chunk(1000 * Math.cos(r)), chunk(1000 * Math.sin(r)), Terrain.MAIN, EDGE), "the Rim's edge at " + angle);
         }
         // the end gateways stand on a ring of radius 96: never inside the Rim
         for (int angle = 0; angle < 360; angle += 18) {

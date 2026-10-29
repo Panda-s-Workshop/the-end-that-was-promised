@@ -86,6 +86,8 @@ public final class EndGameTests {
         FUNCTIONS.register("drift_islet_saves", () -> EndGameTests::driftIsletSaves);
         FUNCTIONS.register("drift_islet_headroom_turns", () -> EndGameTests::driftIsletHeadroomTurns);
         FUNCTIONS.register("drift_islet_keeps_rider_aloft", () -> EndGameTests::driftIsletKeepsRiderAloft);
+        FUNCTIONS.register("drift_islet_crossing", () -> EndGameTests::driftIsletCrossing);
+        FUNCTIONS.register("ward_binds_by_guardian", () -> EndGameTests::wardBindsByGuardian);
         FUNCTIONS.register("drift_islet_lifts_the_sunk", () -> EndGameTests::driftIsletLiftsTheSunk);
         FUNCTIONS.register("return_gate_sends_home", () -> EndGameTests::returnGateSendsHome);
         FUNCTIONS.register("crystal_warden_beam_cap_and_rest", () -> EndGameTests::crystalWardenBeamCapAndRest);
@@ -277,7 +279,9 @@ public final class EndGameTests {
             for (int angle = 0; angle < 360; angle += 30) {
                 double r = Math.toRadians(angle);
                 expect.accept(new double[] {300 * Math.cos(r), 300 * Math.sin(r)}, "promisedend:shattered_rim");
-                expect.accept(new double[] {700 * Math.cos(r), 700 * Math.sin(r)}, "minecraft:the_end");
+                // the Rim reaches out to the outer lands (DECISIONS 87)
+                expect.accept(new double[] {700 * Math.cos(r), 700 * Math.sin(r)}, "promisedend:shattered_rim");
+                expect.accept(new double[] {1000 * Math.cos(r), 1000 * Math.sin(r)}, "promisedend:shattered_rim");
             }
             if (generator.getBiomeSource().possibleBiomes().stream().noneMatch(h -> h.is(PromisedEnd.id("shattered_rim"))))
                 wrong.add("the Shattered Rim isn't among the End's possible biomes");
@@ -4091,6 +4095,114 @@ public final class EndGameTests {
     }
 
     /**
+     * A player who rides a Drift Islet from one mooring to the other has crossed (the Codex's goal), and so has one whose
+     * client places them 3 ticks late; one who boarded with them and stepped off on the way hasn't, nor has one who
+     * boarded once it had left.
+     */
+    private static void driftIsletCrossing(GameTestHelper helper) {
+        var islet = islet(helper);
+        islet.setRoute(islet.route(), new com.panda.promisedend.logic.DriftRoute.State(0, 1, 3));
+        var level = helper.getLevel();
+        var crossed = level.getServer().getAdvancements().get(PromisedEnd.id("outer/ride_drift"));
+        if (crossed == null) {
+            helper.fail("no advancement outer/ride_drift");
+            return;
+        }
+        var on = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        var off = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        var late = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        var lagging = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        lagging.teleportTo(level, islet.getX(), islet.getBoundingBox().maxY, islet.getZ() + 0.4, java.util.Set.of(), 0, 0, true);
+        java.util.ArrayDeque<net.minecraft.world.phys.Vec3> behind = new java.util.ArrayDeque<>();
+        for (var p : List.of(on, off)) p.teleportTo(level, islet.getX() + (p == on ? 0.4 : -0.4), islet.getBoundingBox().maxY, islet.getZ(), java.util.Set.of(), 0, 0, true);
+        late.teleportTo(level, islet.getX() + 3, islet.getBoundingBox().maxY + 4, islet.getZ() + 6, java.util.Set.of(), 0, 0, true);
+        int moved = 0, ticks = 0;
+        List<net.minecraft.server.level.ServerPlayer> riding = new ArrayList<>(List.of(on, off));
+        for (; ticks < 400; ticks++) {
+            boolean moving = islet.state().wait == 0;
+            var from = islet.position();
+            islet.tick();
+            // a player's client moves them with the islet, and the server takes the client's word for it
+            var by = islet.position().subtract(from);
+            for (var p : riding) p.teleportTo(level, p.getX() + by.x, p.getY() + by.y, p.getZ() + by.z, java.util.Set.of(), 0, 0, true);
+            // a slow client: its player moves by what the islet moved 3 ticks ago
+            behind.add(by);
+            if (behind.size() > 3) {
+                var then = behind.poll();
+                lagging.teleportTo(level, lagging.getX() + then.x, lagging.getY() + then.y, lagging.getZ() + then.z, java.util.Set.of(), 0, 0, true);
+            }
+            if (!moving) continue;
+            moved++;
+            if (moved == 10) {
+                off.teleportTo(level, islet.getX(), islet.getBoundingBox().maxY + 4, islet.getZ() + 6, java.util.Set.of(), 0, 0, true);
+                late.teleportTo(level, islet.getX() - 0.4, islet.getBoundingBox().maxY, islet.getZ(), java.util.Set.of(), 0, 0, true);
+                riding.remove(off);
+                riding.add(late);
+            }
+            if (islet.state().wait > 0) break;
+        }
+        boolean a = on.getAdvancements().getOrStartProgress(crossed).isDone(), b = off.getAdvancements().getOrStartProgress(crossed).isDone(),
+                c = late.getAdvancements().getOrStartProgress(crossed).isDone();
+        boolean d = lagging.getAdvancements().getOrStartProgress(crossed).isDone();
+        PromisedEnd.LOGGER.info("[drift_islet_crossing] arrived after {} ticks ({} moving) at s={}: rode it all {}, stepped off {}, boarded late {}, lagging {}", ticks, moved, islet.state().s, a, b, c, d);
+        List<String> bad = new ArrayList<>();
+        if (islet.state().s < 1) bad.add("the islet never reached its far mooring: s=" + islet.state().s);
+        if (!a) bad.add("the player who rode it all the way hasn't crossed");
+        if (b) bad.add("the player who stepped off has crossed");
+        if (c) bad.add("the player who boarded on the way has crossed");
+        if (!d) bad.add("the player whose client lags 3 ticks hasn't crossed");
+        for (var p : List.of(on, off, late, lagging)) level.getServer().getPlayerList().remove(p);
+        islet.discard();
+        if (!bad.isEmpty()) helper.fail("drift islet crossing: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A seal binds the Ancients' Ward only once its guardian is in the game: with none in, nothing binds it; with all
+     * three, any one unbroken does; the GameTests run with every guardian in. With the Ward down, a player in the End
+     * earns {@code rim/ward_down}, which opens the Codex's last act; with it up, a new player doesn't. The seals are left
+     * mended.
+     */
+    private static void wardBindsByGuardian(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        int all = com.panda.promisedend.logic.AncientWard.ALL;
+        List<String> bad = new ArrayList<>();
+        if (com.panda.promisedend.logic.AncientWard.binds(0, 0)) bad.add("binds with no guardian in");
+        if (com.panda.promisedend.logic.AncientWard.binds(0b010, 0)) bad.add("binds with no guardian in and one seal broken");
+        if (!com.panda.promisedend.logic.AncientWard.binds(0, all)) bad.add("doesn't bind with every guardian in and no seal broken");
+        if (!com.panda.promisedend.logic.AncientWard.binds(0b011, all)) bad.add("doesn't bind with one seal unbroken");
+        if (com.panda.promisedend.logic.AncientWard.binds(all, all)) bad.add("binds with every seal broken");
+        if (com.panda.promisedend.logic.AncientWard.binds(0b001, 0b001)) bad.add("binds with its only guardian's seal broken");
+        if (!com.panda.promisedend.logic.AncientWard.binds(0b110, 0b001)) bad.add("doesn't bind with its only guardian's seal unbroken");
+        if (com.panda.promisedend.logic.AncientWard.guarded() != all) bad.add("the GameTests run without every guardian in: " + com.panda.promisedend.logic.AncientWard.guarded());
+        var down = server.getAdvancements().get(com.panda.promisedend.logic.CodexBook.WARD_DOWN);
+        if (end == null || down == null) {
+            helper.fail("no End level, or no advancement rim/ward_down");
+            return;
+        }
+        int r = com.panda.promisedend.EndConfig.wardRadius();
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        var before = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        wardAt(end, before, r + 40.0);
+        for (int i = 0; i < 20; i++) {
+            before.tickCount++;
+            com.panda.promisedend.logic.AncientWard.tick(before);
+        }
+        if (before.getAdvancements().getOrStartProgress(down).isDone()) bad.add("rim/ward_down earned with the Ward up");
+        for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
+        for (int i = 0; i < 20; i++) {
+            before.tickCount++;
+            com.panda.promisedend.logic.AncientWard.tick(before);
+        }
+        if (!before.getAdvancements().getOrStartProgress(down).isDone()) bad.add("rim/ward_down not earned in a second with the Ward down");
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        server.getPlayerList().remove(before);
+        if (!bad.isEmpty()) helper.fail("ward by guardian: " + bad);
+        helper.succeed();
+    }
+
+    /**
      * Something sunk into a Drift Islet's top from above (loaded before it, or a client that had its player before the
      * islet) is lifted onto it, not left to fall through; something under it is left alone.
      */
@@ -6197,9 +6309,12 @@ public final class EndGameTests {
         if (below == 0) bad.add("the islands have no tapering underside");
         if (widths.stream().anyMatch(w -> w < 6 || w > 18)) bad.add("islands outside 6–18 across: " + widths);
         PromisedEnd.LOGGER.info("rim islands: {} voidstone / {} end stone, widths {}", voidstone, endStone, widths);
-        // outside the ring the feature builds nothing
-        BlockPos outside = new BlockPos(700, y, 0);
-        if (feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(5), outside)) bad.add("placed outside the ring at " + outside);
+        // outside the ring the feature builds nothing: on the main island, and out among the outer lands
+        for (BlockPos outside : List.of(new BlockPos(100, y, 0), new BlockPos(1100, y, 0))) {
+            if (feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(5), outside)) bad.add("placed outside the ring at " + outside);
+        }
+        BlockPos far = new BlockPos(1000, y, 0);
+        if (!feature.place(level, level.getChunkSource().getGenerator(), net.minecraft.util.RandomSource.create(5), far)) bad.add("nothing placed at the ring's outer reach, " + far);
         // the terrain-off copy: never in another dimension that borrows an End biome, never on our own biomes (the Rim's
         // own copy builds there), and on any other End biome in the End's ring
         var fallback = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE)

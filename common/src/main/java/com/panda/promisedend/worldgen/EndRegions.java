@@ -81,8 +81,12 @@ public final class EndRegions {
         }
     }
 
-    /** The Shattered Rim: a ring of debris islands around the main island, reachable before the dragon. */
-    public static final int RIM_INNER = 150, RIM_OUTER = 450;
+    /**
+     * The Shattered Rim: a ring of debris islands round the main island, from {@code RIM_INNER} out to the main area's
+     * edge ({@code RIM_FAR}), where the outer lands begin, so the way in from them is island to island. Inside
+     * {@code RIM_OUTER} is the inner Rim, all within the Ancients' Ward.
+     */
+    public static final int RIM_INNER = 150, RIM_OUTER = 450, RIM_FAR = 1024;
     /** Region cell size in blocks (proposed). */
     public static final int CELL = 512;
     /**
@@ -134,7 +138,7 @@ public final class EndRegions {
         double x = chunkX * 16 + 8, z = chunkZ * 16 + 8;
         double distance = Math.sqrt(x * x + z * z);
         if (terrain == Terrain.MAIN) {
-            return distance >= RIM_INNER && distance <= RIM_OUTER ? Biome.SHATTERED_RIM : Biome.THE_END;
+            return distance >= RIM_INNER ? Biome.SHATTERED_RIM : Biome.THE_END;
         }
         if (distance > edgeRadius(seed, x, z, edgeDistance)) return Biome.UNFINISHED_EDGE;
         Biome picked = theme(seed, x, z).biome(terrain);

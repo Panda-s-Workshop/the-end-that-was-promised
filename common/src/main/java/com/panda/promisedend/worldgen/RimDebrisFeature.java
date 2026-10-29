@@ -44,8 +44,8 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
             Codec.intRange(2, 8).fieldOf("max_radius").forGetter(RimDebrisFeature::maxRadius),
             Codec.floatRange(0, 1).fieldOf("voidstone").forGetter(RimDebrisFeature::voidstone),
             Codec.BOOL.optionalFieldOf("fallback", false).forGetter(RimDebrisFeature::fallback),
-            Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_OUTER).optionalFieldOf("ring_inner", EndRegions.RIM_INNER).forGetter(RimDebrisFeature::ringInner),
-            Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_OUTER).optionalFieldOf("ring_outer", EndRegions.RIM_OUTER).forGetter(RimDebrisFeature::ringOuter),
+            Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_FAR).optionalFieldOf("ring_inner", EndRegions.RIM_INNER).forGetter(RimDebrisFeature::ringInner),
+            Codec.intRange(EndRegions.RIM_INNER, EndRegions.RIM_FAR).optionalFieldOf("ring_outer", EndRegions.RIM_FAR).forGetter(RimDebrisFeature::ringOuter),
             Codec.BOOL.optionalFieldOf("anywhere", false).forGetter(RimDebrisFeature::anywhere),
             Codec.floatRange(0, 1).optionalFieldOf("split", 0F).forGetter(RimDebrisFeature::split)
     ).apply(i, RimDebrisFeature::new));
@@ -95,7 +95,7 @@ public record RimDebrisFeature(int minRadius, int maxRadius, float voidstone, bo
     @Override
     public boolean place(WorldGenLevel level, ChunkGenerator generator, RandomSource random, BlockPos origin) {
         // only in the Rim's ring: the fallback copy sits on whole End biomes, and must not build on the main island or
-        // in the void gap
+        // out among the outer lands
         double distance = Math.hypot(origin.getX(), origin.getZ());
         if (!anywhere && (distance < ringInner || distance > ringOuter)) return false;
         if (fallback && (level.getLevel().dimension() != Level.END
