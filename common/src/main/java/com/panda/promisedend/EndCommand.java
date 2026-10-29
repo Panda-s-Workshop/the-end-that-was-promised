@@ -42,6 +42,8 @@ public final class EndCommand {
                                             Component.translatable("ward.promisedend.seal." + com.panda.promisedend.logic.AncientWard.SEALS.get(seal))), true);
                                     return broke ? 1 : 0;
                                 }))))
+                .then(Commands.literal("starfall")
+                        .then(Commands.literal("now").executes(EndCommand::starfallNow)))
                 .then(Commands.literal("wrath")
                         .then(Commands.literal("get").executes(EndCommand::getWrath))
                         .then(Commands.literal("set")
@@ -56,6 +58,17 @@ public final class EndCommand {
         c.getSource().sendSuccess(() -> Component.translatable(stands ? "commands.promisedend.seals.get" : "commands.promisedend.seals.down", broken,
                 com.panda.promisedend.logic.AncientWard.SEALS.size()), false);
         return broken;
+    }
+
+    /** A star falls near the player now, past the schedule; returns 1 if one is on its way. */
+    private static int starfallNow(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        var at = com.panda.promisedend.logic.Starfall.now(c.getSource().getPlayerOrException());
+        if (at == null) {
+            c.getSource().sendFailure(Component.translatable("commands.promisedend.starfall.none"));
+            return 0;
+        }
+        c.getSource().sendSuccess(() -> Component.translatable("commands.promisedend.starfall.now", at.getX(), at.getY(), at.getZ()), true);
+        return 1;
     }
 
     /** Returns the Wrath the next fight is at. */

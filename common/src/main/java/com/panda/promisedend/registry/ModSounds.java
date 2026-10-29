@@ -86,6 +86,9 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> SHRINE_GRANT = sound("block.shrine_altar.grant");
     public static final Supplier<SoundEvent> RIFT_GATE_ATTUNE = sound("block.rift_gate.attune");
     public static final Supplier<SoundEvent> RIFT_GATE_TRAVEL = sound("block.rift_gate.travel");
+    /** The Starfall: its far rumble as it is seen coming, and its landing. */
+    public static final Supplier<SoundEvent> STARFALL_WARNING = sound("event.starfall.warning");
+    public static final Supplier<SoundEvent> STARFALL_IMPACT = sound("event.starfall.impact");
 
     private ModSounds() {}
 }

@@ -20,6 +20,9 @@ public final class NeoForgeConfig implements EndConfig.Source {
     private static final ModConfigSpec.BooleanValue ARRIVAL;
     private static final ModConfigSpec.IntValue WARD_RADIUS;
     private static final ModConfigSpec.IntValue SHRINE_COOLDOWN;
+    private static final ModConfigSpec.BooleanValue STARFALL;
+    private static final ModConfigSpec.IntValue STARFALL_INTERVAL;
+    private static final ModConfigSpec.IntValue STARFALL_MAX_PER_DAY;
 
     static {
         B.push("terrain");
@@ -49,6 +52,14 @@ public final class NeoForgeConfig implements EndConfig.Source {
         B.push("shrine");
         SHRINE_COOLDOWN = B.comment("How long a player waits for another boon at the same Void Shrine, in ticks (24000: 20 minutes).")
                 .defineInRange("cooldown_ticks", 24000, 0, 1728000);
+        B.pop();
+        B.push("starfall");
+        STARFALL = B.comment("Stars fall on the outer End's islands while a player is out there, leaving a crater with Starmetal Ore and a Starfall Core. A crater takes only natural End blocks and never lands within 8 blocks of anything built.")
+                .define("enabled", true);
+        STARFALL_INTERVAL = B.comment("The ticks between falls, give or take a quarter (48000: two Minecraft days).")
+                .defineInRange("interval_ticks", 48000, 1200, 1728000);
+        STARFALL_MAX_PER_DAY = B.comment("The most stars that fall in a Minecraft day.")
+                .defineInRange("max_per_day", 2, 0, 24);
         B.pop();
     }
 
@@ -98,6 +109,21 @@ public final class NeoForgeConfig implements EndConfig.Source {
     @Override
     public int shrineCooldownTicks() {
         return loaded() ? SHRINE_COOLDOWN.get() : EndConfig.DEFAULTS.shrineCooldownTicks();
+    }
+
+    @Override
+    public boolean starfallEnabled() {
+        return loaded() ? STARFALL.get() : EndConfig.DEFAULTS.starfallEnabled();
+    }
+
+    @Override
+    public int starfallInterval() {
+        return loaded() ? STARFALL_INTERVAL.get() : EndConfig.DEFAULTS.starfallInterval();
+    }
+
+    @Override
+    public int starfallMaxPerDay() {
+        return loaded() ? STARFALL_MAX_PER_DAY.get() : EndConfig.DEFAULTS.starfallMaxPerDay();
     }
 
     @Override

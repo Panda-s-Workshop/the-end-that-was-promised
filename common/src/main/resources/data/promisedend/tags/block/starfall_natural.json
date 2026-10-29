@@ -1,0 +1,22 @@
+{
+  "values": [
+    "#promisedend:starfall_replaceable",
+    "minecraft:chorus_plant",
+    "minecraft:chorus_flower",
+    "promisedend:chorus_log",
+    "promisedend:chorus_wood",
+    "promisedend:chorus_leaves",
+    "promisedend:chorus_vine",
+    "promisedend:void_mushroom_block",
+    "promisedend:void_mushroom_stem",
+    "promisedend:void_berry_vine",
+    "promisedend:budding_resonite",
+    "promisedend:resonite_cluster",
+    "promisedend:echo_amber_cluster",
+    "promisedend:ancient_purpur",
+    "promisedend:voidsteel_scrap_ore",
+    "promisedend:void_water",
+    "promisedend:mire_lily",
+    "promisedend:updraft_vent"
+  ]
+}

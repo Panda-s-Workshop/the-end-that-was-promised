@@ -787,5 +787,26 @@
         "pitch": 0.7
       }
     ]
+  },
+  "event.starfall.warning": {
+    "subtitle": "subtitles.promisedend.starfall.warning",
+    "sounds": [
+      {
+        "name": "minecraft:entity.lightning_bolt.thunder",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 0.6
+      }
+    ]
+  },
+  "event.starfall.impact": {
+    "subtitle": "subtitles.promisedend.starfall.impact",
+    "sounds": [
+      {
+        "name": "minecraft:entity.lightning_bolt.impact",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
   }
 }

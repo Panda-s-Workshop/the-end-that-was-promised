@@ -39,6 +39,21 @@ public final class EndConfig {
         default int shrineCooldownTicks() {
             return 24000;
         }
+
+        /** Stars fall on the outer End's islands while a player is out there. */
+        default boolean starfallEnabled() {
+            return true;
+        }
+
+        /** The ticks between falls, give or take a quarter (two Minecraft days). */
+        default int starfallInterval() {
+            return 48000;
+        }
+
+        /** The most stars that fall in a Minecraft day. */
+        default int starfallMaxPerDay() {
+            return 2;
+        }
     }
 
     public static final Source DEFAULTS = new Source() {
@@ -97,5 +112,17 @@ public final class EndConfig {
 
     public static int shrineCooldownTicks() {
         return source.shrineCooldownTicks();
+    }
+
+    public static boolean starfallEnabled() {
+        return source.starfallEnabled();
+    }
+
+    public static int starfallInterval() {
+        return source.starfallInterval();
+    }
+
+    public static int starfallMaxPerDay() {
+        return source.starfallMaxPerDay();
     }
 }

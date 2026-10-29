@@ -63,6 +63,7 @@ public final class PromisedEnd {
         com.panda.promisedend.logic.DragonPhase3.tick(server);
         com.panda.promisedend.logic.VoidCurrents.tick(server);
         com.panda.promisedend.logic.AncientWard.tick(server);
+        com.panda.promisedend.logic.Starfall.tick(server);
     }
 
     /** A player joined the server: their client is told what it can't read itself. */

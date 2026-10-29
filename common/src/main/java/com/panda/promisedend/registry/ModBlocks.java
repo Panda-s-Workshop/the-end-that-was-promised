@@ -173,6 +173,11 @@ public final class ModBlocks {
     public static final DeferredBlock<com.panda.promisedend.block.RiftOreBlock> VOIDSTEEL_SCRAP_ORE = withHint(BLOCKS.registerBlock("voidsteel_scrap_ore",
             com.panda.promisedend.block.RiftOreBlock::new, p -> p.mapColor(MapColor.COLOR_MAGENTA).strength(20.0F, 1200.0F)
                     .sound(SoundType.ANCIENT_DEBRIS).requiresCorrectToolForDrops().lightLevel(s -> 6)), 2);
+    // ---- the Starfall: what a fallen star leaves in its crater's walls
+    /** Iron tier, as raw gold's ore, on end stone's strength; its flecks lit. */
+    public static final DeferredBlock<com.panda.promisedend.block.StarmetalOreBlock> STARMETAL_ORE = withHint(BLOCKS.registerBlock("starmetal_ore",
+            com.panda.promisedend.block.StarmetalOreBlock::new, p -> p.mapColor(MapColor.COLOR_LIGHT_BLUE).strength(3.0F, 9.0F)
+                    .sound(SoundType.STONE).requiresCorrectToolForDrops().lightLevel(s -> 7)), 2);
     public static final DeferredBlock<com.panda.promisedend.block.CrumblingVoidstoneBlock> CRUMBLING_VOIDSTONE = withHint(BLOCKS.registerBlock(
             "crumbling_voidstone", com.panda.promisedend.block.CrumblingVoidstoneBlock::new,
             p -> p.mapColor(MapColor.TERRACOTTA_PURPLE).strength(1.5F, 3.0F).sound(SoundType.TUFF).requiresCorrectToolForDrops()), 2);

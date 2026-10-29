@@ -1,0 +1,36 @@
+{
+  "parent": "promisedend:void/defeat_leviathan",
+  "criteria": {
+    "core": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:starfall_core"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:starfall_core"
+    },
+    "title": {
+      "translate": "advancements.promisedend.void.starfall_core.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.void.starfall_core.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "core"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

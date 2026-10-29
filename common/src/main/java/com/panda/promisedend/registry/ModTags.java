@@ -44,6 +44,9 @@ public final class ModTags {
      * players build bridges and paths from whose tops aren't full faces.
      */
     public static final TagKey<Block> VOID_SAFE_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("void_safe_ground"));
+    /** What a fallen star's crater takes, and what may stand within 8 of where it lands (anything else is a player's). */
+    public static final TagKey<Block> STARFALL_REPLACEABLE = TagKey.create(Registries.BLOCK, PromisedEnd.id("starfall_replaceable"));
+    public static final TagKey<Block> STARFALL_NATURAL = TagKey.create(Registries.BLOCK, PromisedEnd.id("starfall_natural"));
     /** What a Drift Blossom grows on: end stone. */
     public static final TagKey<Block> DRIFT_BLOSSOM_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("drift_blossom_ground"));
     /** What Void Grass grows on: end stone and the End's mosses (VoidGrassBlock). */

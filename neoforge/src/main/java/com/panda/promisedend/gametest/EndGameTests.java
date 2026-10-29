@@ -176,6 +176,7 @@ public final class EndGameTests {
         FUNCTIONS.register("set_bonus_void_touched", () -> VoidsteelGameTests::setBonusVoidTouched);
         FUNCTIONS.register("augment_applies_in_smithing", () -> AugmentGameTests::appliesInSmithing);
         FUNCTIONS.register("augment_drift_weave_reduces_wear", () -> AugmentGameTests::driftWeaveReducesWear);
+        FUNCTIONS.register("starfall_crater_respects_tag", () -> StarfallGameTests::craterRespectsTag);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */

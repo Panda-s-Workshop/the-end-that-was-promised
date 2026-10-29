@@ -119,6 +119,9 @@ public final class ModItems {
     // ---- Voidsteel gear: the Void's tier, smithed from Resonite; four armour pieces are Void-touched (item.VoidTouched)
     /** From the dragon's hoard once it has fallen before, and the Starfall's craters. */
     public static final DeferredItem<HintItem> STARMETAL = ITEMS.registerItem("starmetal", p -> new HintItem(p, "starmetal", 2));
+    /** A fallen star's heart, one in each crater: a shrine's offering of the fourth favour. */
+    public static final DeferredItem<HintItem> STARFALL_CORE = ITEMS.registerItem("starfall_core", p -> new HintItem(p.rarity(net.minecraft.world.item.Rarity.RARE)
+            .fireResistant().component(net.minecraft.core.component.DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true), "starfall_core", 2));
     public static final DeferredItem<Item> VOIDSTEEL_INGOT = ITEMS.registerSimpleItem("voidsteel_ingot", p -> p.fireResistant());
     // ---- elytra augments, smithed on with a Dragon Scale (item.Augments, item.ElytraAugmentRecipe)
     public static final DeferredItem<HintItem> DRIFT_WEAVE = ITEMS.registerItem("drift_weave", p -> new HintItem(p, "drift_weave", 2));
