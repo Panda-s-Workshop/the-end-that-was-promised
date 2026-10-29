@@ -10,7 +10,7 @@ import net.minecraft.resources.Identifier;
  * them: the arrival, the outer End, the Void, the Edge, and the heart of the End where the dragon waits once the
  * Ancients' Ward is down. The screen marks a goal done from the client's own advancement progress, so the book needs
  * no packet. An act is sealed until the advancement in {@code opensWith} is done; Act I is always open. Act IV gets
- * its goals with its guardian, and Act III its guardian's two besides the three it has.
+ * its goals with its guardian.
  *
  * <p>The book also holds the Ancient Tablets' pages: {@link #PAGES} of them, read in order, one a tablet, each an
  * advancement of its own (hidden until read), so the screen shows the read ones the same way.
@@ -43,6 +43,8 @@ public final class CodexBook {
     public static final Identifier FORGE_ANCHOR = PromisedEnd.id("rim/forge_anchor");
     /** The Hollow Sentinel's: awarded to everyone who fought it; it opens Act III. */
     public static final Identifier DEFEAT_SENTINEL = PromisedEnd.id("outer/defeat_sentinel");
+    /** The Void Leviathan's: awarded to everyone who fought it; it opens Act IV. */
+    public static final Identifier DEFEAT_LEVIATHAN = PromisedEnd.id("void/defeat_leviathan");
     /** Awarded by a shrine's boon and a Rift Gate's journey. */
     public static final Identifier TAKE_BOON = PromisedEnd.id("outer/take_boon");
     public static final Identifier GATE_TRAVEL = PromisedEnd.id("outer/gate_travel");
@@ -87,8 +89,10 @@ public final class CodexBook {
             new Act("void", DEFEAT_SENTINEL, List.of(
                     new Goal(PromisedEnd.id("outer/find_observatory"), "find_observatory"),
                     new Goal(ALL_BOONS, "all_boons"),
-                    new Goal(TWELVE_TABLETS, "twelve_tablets"))),
-            new Act("edge", PromisedEnd.id("void/defeat_leviathan"), List.of()),
+                    new Goal(TWELVE_TABLETS, "twelve_tablets"),
+                    new Goal(PromisedEnd.id("outer/find_maw"), "find_maw"),
+                    new Goal(DEFEAT_LEVIATHAN, "defeat_leviathan"))),
+            new Act("edge", DEFEAT_LEVIATHAN, List.of()),
             new Act("heart", WARD_DOWN, List.of(
                     new Goal(PromisedEnd.id("rim/enter_rim"), "enter_rim"),
                     new Goal(KILL_DRAGON, "kill_dragon"))));

@@ -402,6 +402,103 @@
       }
     ]
   },
+  "entity.void_leviathan.ambient": {
+    "subtitle": "subtitles.promisedend.void_leviathan.ambient",
+    "sounds": [
+      {
+        "name": "minecraft:entity.elder_guardian.ambient",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.void_leviathan.hurt": {
+    "subtitle": "subtitles.promisedend.void_leviathan.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:entity.elder_guardian.hurt",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.void_leviathan.hurt_deep": {
+    "subtitle": "subtitles.promisedend.void_leviathan.hurt_deep",
+    "sounds": [
+      {
+        "name": "minecraft:entity.guardian.hurt",
+        "type": "event",
+        "pitch": 0.5
+      }
+    ]
+  },
+  "entity.void_leviathan.death": {
+    "subtitle": "subtitles.promisedend.void_leviathan.death",
+    "sounds": [
+      {
+        "name": "minecraft:entity.elder_guardian.death",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.void_leviathan.wake": {
+    "subtitle": "subtitles.promisedend.void_leviathan.wake",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.emerge",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.void_leviathan.telegraph": {
+    "subtitle": "subtitles.promisedend.void_leviathan.telegraph",
+    "sounds": [
+      {
+        "name": "minecraft:block.respawn_anchor.charge",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.void_leviathan.breach": {
+    "subtitle": "subtitles.promisedend.void_leviathan.breach",
+    "sounds": [
+      {
+        "name": "minecraft:entity.ravager.roar",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 3.0
+      }
+    ]
+  },
+  "entity.void_leviathan.dive": {
+    "subtitle": "subtitles.promisedend.void_leviathan.dive",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.dig",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.void_leviathan.pull": {
+    "subtitle": "subtitles.promisedend.void_leviathan.pull",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.sonic_charge",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 2.0
+      }
+    ]
+  },
   "entity.resonant_bullet.return": {
     "subtitle": "subtitles.promisedend.resonant_bullet.return",
     "sounds": [

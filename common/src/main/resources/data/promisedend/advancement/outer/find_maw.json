@@ -1,0 +1,40 @@
+{
+  "parent": "promisedend:outer/defeat_sentinel",
+  "criteria": {
+    "in_maw": {
+      "trigger": "minecraft:location",
+      "conditions": {
+        "player": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:location": {
+              "structures": "promisedend:rift_maw"
+            }
+          }
+        }
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:voidsteel_scrap_ore"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.find_maw.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.find_maw.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "in_maw"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

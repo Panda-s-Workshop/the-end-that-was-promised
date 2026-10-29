@@ -50,6 +50,15 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> HOLLOW_SENTINEL_CLOSE = sound("entity.hollow_sentinel.close");
     public static final Supplier<SoundEvent> HOLLOW_SENTINEL_PHASE = sound("entity.hollow_sentinel.phase");
     public static final Supplier<SoundEvent> HOLLOW_SENTINEL_ENRAGE = sound("entity.hollow_sentinel.enrage");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_AMBIENT = sound("entity.void_leviathan.ambient");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_HURT = sound("entity.void_leviathan.hurt");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_HURT_DEEP = sound("entity.void_leviathan.hurt_deep");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_DEATH = sound("entity.void_leviathan.death");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_WAKE = sound("entity.void_leviathan.wake");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_TELEGRAPH = sound("entity.void_leviathan.telegraph");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_BREACH = sound("entity.void_leviathan.breach");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_DIVE = sound("entity.void_leviathan.dive");
+    public static final Supplier<SoundEvent> VOID_LEVIATHAN_PULL = sound("entity.void_leviathan.pull");
     public static final Supplier<SoundEvent> RESONANT_BULLET_RETURN = sound("entity.resonant_bullet.return");
     public static final Supplier<SoundEvent> RESONANT_BULLET_HIT = sound("entity.resonant_bullet.hit");
     public static final Supplier<SoundEvent> DRAGON_CALL_WARDENS = sound("entity.ender_dragon.call_wardens");

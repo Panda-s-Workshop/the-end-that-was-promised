@@ -18,9 +18,9 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Ender Pearls show the way: in the End, out past the main island, a player holding one sees a stream of pearl-green
- * motes rise before them and drift toward where they go next. While the Foundry's seal binds the Ancients' Ward that is
- * the nearest Shulker Foundry, where its guardian keeps it; after, the heart of the End, where the dragon waits. Only
- * they see it.
+ * motes rise before them and drift toward where they go next. While the Ancients' Ward stands that is the place of the
+ * first of its seals still binding it, where that seal's guardian keeps it: the nearest Shulker Foundry, then the
+ * nearest Rift Maw; after, the heart of the End, where the dragon waits. Only they see it.
  */
 public final class PearlGuide {
     /** Nearer the centre than this, the main island is in sight and the pearl shows nothing. */
@@ -46,47 +46,64 @@ public final class PearlGuide {
      * not more often than every {@link #RESEARCH_TICKS} (a pearl held through a run of throws).
      */
     public static final int SEARCH = 100, RESEARCH = 256, RESEARCH_TICKS = 200;
-    /** This near the Foundry it leads to, the pearl shows nothing: it is in sight. */
+    /** This near the place it leads to, the pearl shows nothing: it is in sight. */
     public static final double THERE = 32;
+    /** Where each seal is kept, in {@link AncientWard#SEALS}' order, as far as there are places a pearl can lead to. */
+    private static final java.util.List<net.minecraft.tags.TagKey<net.minecraft.world.level.levelgen.structure.Structure>> KEPT =
+            java.util.List.of(ModTags.ON_FOUNDRY_CHARTS, ModTags.ON_RIFT_MAW_CHARTS);
 
     /**
      * Each player's Foundry, and where and when they stood when it was found: a search loads chunks, so it isn't run
      * often. Kept per server, weakly: a world left in single player takes its leads with it.
      */
-    private record Lead(BlockPos from, long when, @org.jspecify.annotations.Nullable BlockPos to) {}
+    private record Lead(int seal, BlockPos from, long when, @org.jspecify.annotations.Nullable BlockPos to) {}
 
     private static final Map<MinecraftServer, Map<UUID, Lead>> LEADS = java.util.Collections.synchronizedMap(new WeakHashMap<>());
 
     private PearlGuide() {}
 
     /**
-     * Where a held pearl leads {@code player}: the nearest Shulker Foundry while its seal binds the Ward (null when none
-     * is within {@link #SEARCH} chunks), the centre (0, 0) after. Public for the tests.
+     * The seal a held pearl leads to, in {@link AncientWard#SEALS}' order: the first that still binds the standing Ward
+     * and is kept in a place a pearl can find; -1 when there is none (the Ward is down, or only seals with no such place
+     * are left).
+     */
+    public static int seal(MinecraftServer server) {
+        if (!AncientWard.stands(server)) return -1;
+        int broken = AncientWard.broken(server), guarded = AncientWard.guarded();
+        for (int i = 0; i < KEPT.size(); i++) if ((guarded & 1 << i) != 0 && (broken & 1 << i) == 0) return i;
+        return -1;
+    }
+
+    /**
+     * Where a held pearl leads {@code player}: the nearest place of {@link #seal}'s seal (null when none is within
+     * {@link #SEARCH} chunks), the centre (0, 0) when no seal is left to lead to. Public for the tests.
      */
     public static @org.jspecify.annotations.Nullable BlockPos lead(ServerPlayer player) {
         ServerLevel level = (ServerLevel) player.level();
         MinecraftServer server = level.getServer();
-        if (!AncientWard.stands(server) || !AncientWard.binds(AncientWard.broken(server), AncientWard.guarded() & 1)) return BlockPos.ZERO;
+        int seal = seal(server);
+        if (seal < 0) return BlockPos.ZERO;
         Map<UUID, Lead> leads = LEADS.computeIfAbsent(server, s -> new HashMap<>());
         Lead known = leads.get(player.getUUID());
         long now = level.getGameTime();
-        if (known == null || known.from().distSqr(player.blockPosition()) > (double) RESEARCH * RESEARCH && now - known.when() >= RESEARCH_TICKS) {
-            BlockPos to = level.findNearestMapStructure(ModTags.ON_FOUNDRY_CHARTS, player.blockPosition(), SEARCH, false);
-            known = new Lead(player.blockPosition(), now, to == null ? null : centre(level, to));
+        if (known == null || known.seal() != seal
+                || known.from().distSqr(player.blockPosition()) > (double) RESEARCH * RESEARCH && now - known.when() >= RESEARCH_TICKS) {
+            BlockPos to = level.findNearestMapStructure(KEPT.get(seal), player.blockPosition(), SEARCH, false);
+            known = new Lead(seal, player.blockPosition(), now, to == null ? null : centre(level, to, KEPT.get(seal)));
             leads.put(player.getUUID(), known);
         }
         return known.to();
     }
 
     /**
-     * The middle of the Foundry found at {@code found}: a search gives its chunk's corner, which by its turn can lie 28
-     * blocks from the dais. Its start is read from the chunk at its structure stage, before any terrain is made.
+     * The middle of the place found at {@code found}: a search gives its chunk's corner, which by its turn can lie 28
+     * blocks from a Foundry's dais. Its start is read from the chunk at its structure stage, before any terrain is made.
      */
-    private static BlockPos centre(ServerLevel level, BlockPos found) {
+    private static BlockPos centre(ServerLevel level, BlockPos found, net.minecraft.tags.TagKey<net.minecraft.world.level.levelgen.structure.Structure> kind) {
         var chunk = level.getChunk(found.getX() >> 4, found.getZ() >> 4, net.minecraft.world.level.chunk.status.ChunkStatus.STRUCTURE_STARTS, true);
         var structures = level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
         for (var start : chunk.getAllStarts().entrySet()) {
-            if (start.getValue().isValid() && structures.wrapAsHolder(start.getKey()).is(ModTags.ON_FOUNDRY_CHARTS)) {
+            if (start.getValue().isValid() && structures.wrapAsHolder(start.getKey()).is(kind)) {
                 BlockPos mid = start.getValue().getBoundingBox().getCenter();
                 return new BlockPos(mid.getX(), found.getY(), mid.getZ());
             }

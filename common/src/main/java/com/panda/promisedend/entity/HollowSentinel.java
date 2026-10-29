@@ -68,7 +68,7 @@ import org.jspecify.annotations.Nullable;
  *
  * With no player in the arena for {@link #REST_TICKS} it settles back on its dais, dormant, keeping its wounds. On its
  * death the Foundry's seal breaks, and everyone who fought it (struck it, or stood within {@link #WITNESS} at the end)
- * is given an Ancient Core and the advancement that opens the Codex's next act.
+ * is given an Ancient Core, a Star Chart to the Rift Maw and the advancement that opens the Codex's next act.
  */
 public class HollowSentinel extends Monster implements GeoEntity {
     public static final double WAKE_RANGE = 20.0;
@@ -476,6 +476,9 @@ public class HollowSentinel extends Monster implements GeoEntity {
             if (defeated != null) p.getAdvancements().award(defeated, "defeated");
             ItemStack core = new ItemStack(ModItems.ANCIENT_CORE.get());
             if (!p.getInventory().add(core)) p.spawnAtLocation(level, core);
+            // and the way on: a chart to the nearest Rift Maw, where the second seal is kept
+            ItemStack chart = com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_rift_maw_charts"));
+            if (!p.getInventory().add(chart)) p.spawnAtLocation(level, chart);
         }
     }
 

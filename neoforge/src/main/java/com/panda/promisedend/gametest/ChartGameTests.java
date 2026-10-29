@@ -59,7 +59,7 @@ final class ChartGameTests {
 
     /**
      * A Star Chart Desk gives each player one sealed chart, and a second use nothing; it draws only kinds this world
-     * can chart (the Rift Maw's and the Citadel's tags are empty), by weight; it keeps who has taken through a save
+     * can chart (the Citadel's tag is empty), by weight; it keeps who has taken through a save
      * and load.
      */
     static void deskGivesOneChart(GameTestHelper helper) {
@@ -71,13 +71,13 @@ final class ChartGameTests {
             return;
         }
         List<String> bad = new ArrayList<>();
-        // what the desk gives in this world: only kinds with places (the Rift Maw's and the Citadel's tags are empty)
+        // what the desk gives in this world: only kinds with places (the Citadel's tag is empty)
         java.util.Set<String> kinds = new java.util.TreeSet<>();
         for (int i = 0; i < 40; i++) {
             ItemStack drawn = desk.draw();
             kinds.add(drawn.isEmpty() ? "nothing" : drawn.get(ModComponents.STAR_CHART.get()).getPath());
         }
-        if (!kinds.equals(java.util.Set.of("on_foundry_charts"))) bad.add("40 draws gave " + kinds);
+        if (!kinds.equals(java.util.Set.of("on_foundry_charts", "on_rift_maw_charts"))) bad.add("40 draws gave " + kinds);
         // the table's own weights, every kind as it will be once the later places exist: 3:3:2
         Map<String, Integer> drawn = new HashMap<>();
         for (int i = 0; i < 800; i++) {

@@ -1,0 +1,29 @@
+{
+  "parent": "promisedend:outer/find_maw",
+  "criteria": {
+    "defeated": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:echo_amber"
+    },
+    "title": {
+      "translate": "advancements.promisedend.void.defeat_leviathan.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.void.defeat_leviathan.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "defeated"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

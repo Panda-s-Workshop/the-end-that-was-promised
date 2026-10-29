@@ -209,6 +209,13 @@ final class SentinelGameTests {
         if (p.getInventory().countItem(ModItems.ANCIENT_CORE.get()) != 1) bad.add("the player beside it has " + p.getInventory().countItem(ModItems.ANCIENT_CORE.get()) + " cores");
         var defeated = server.getAdvancements().get(PromisedEnd.id("outer/defeat_sentinel"));
         if (defeated == null || !p.getAdvancements().getOrStartProgress(defeated).isDone()) bad.add("no defeat_sentinel advancement");
+        boolean chart = false;
+        for (int i = 0; i < p.getInventory().getContainerSize(); i++) {
+            var stack = p.getInventory().getItem(i);
+            if (stack.is(ModItems.STAR_CHART.get()) && PromisedEnd.id("on_rift_maw_charts").equals(stack.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get()))) chart = true;
+        }
+        if (!chart) bad.add("the player beside it has no Star Chart to the Rift Maw");
+        if (AncientWard.stands(server) && com.panda.promisedend.logic.PearlGuide.seal(server) != 1) bad.add("the pearl leads to seal " + com.panda.promisedend.logic.PearlGuide.seal(server) + ", not the Maw's");
         helper.runAfterDelay(2, () -> {
             boolean template = level.getEntitiesOfClass(ItemEntity.class, s.getBoundingBox().inflate(4))
                     .stream().anyMatch(i -> i.getItem().is(ModItems.RESONITE_UPGRADE_SMITHING_TEMPLATE.get()));
@@ -368,13 +375,22 @@ final class SentinelGameTests {
      * cell's candidate chunk in reach whose biome the Foundry allows.
      */
     static void foundriesWithinReach(GameTestHelper helper) {
+        withinReach(helper, "shulker_foundry", "foundries_within_reach");
+    }
+
+    /** As the Foundries: a Rift Maw within a pearl's search of anywhere a portal sets a player down. */
+    static void riftMawsWithinReach(GameTestHelper helper) {
+        withinReach(helper, "rift_maw", "rift_maws_within_reach");
+    }
+
+    private static void withinReach(GameTestHelper helper, String name, String test) {
         var access = helper.getLevel().registryAccess();
         ChunkGenerator generator = access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.NORMAL).value()
                 .createWorldDimensions().get(LevelStem.END).orElseThrow().generator();
         var noise = (NoiseBasedChunkGenerator) generator;
-        var set = access.lookupOrThrow(Registries.STRUCTURE_SET).getOrThrow(ResourceKey.create(Registries.STRUCTURE_SET, PromisedEnd.id("shulker_foundry")));
+        var set = access.lookupOrThrow(Registries.STRUCTURE_SET).getOrThrow(ResourceKey.create(Registries.STRUCTURE_SET, PromisedEnd.id(name)));
         if (!(set.value().placement() instanceof RandomSpreadStructurePlacement placement)) {
-            helper.fail("the Foundry's placement isn't a random spread");
+            helper.fail(name + "'s placement isn't a random spread");
             return;
         }
         var allowed = set.value().structures().getFirst().structure().value().biomes();
@@ -407,8 +423,8 @@ final class SentinelGameTests {
         } finally {
             EndBiomes.setSeed(previous);
         }
-        PromisedEnd.LOGGER.info("[foundries_within_reach] the farthest nearest Foundry from a point 1500 out, per seed (blocks): {}", report);
-        if (!bad.isEmpty()) helper.fail("Foundries out of a pearl's reach: " + bad);
+        PromisedEnd.LOGGER.info("[{}] the farthest nearest {} from a point 1500 out, per seed (blocks): {}", test, name, report);
+        if (!bad.isEmpty()) helper.fail(name + " out of a pearl's reach: " + bad);
         helper.succeed();
     }
 }

@@ -47,6 +47,12 @@ public final class ModEntities {
     public static final Supplier<EntityType<com.panda.promisedend.entity.HollowSentinel>> HOLLOW_SENTINEL = ENTITIES.registerEntityType("hollow_sentinel",
             com.panda.promisedend.entity.HollowSentinel::new, MobCategory.MONSTER, b -> b.sized(2.0F, 3.0F).eyeHeight(1.5F)
                     .clientTrackingRange(10).fireImmune());
+    // the Rift Maw's guardian, at the rig's scale 2.6: the rearing part, its crest's top 40 px up (6.5 blocks), its
+    // trunk 12 px across with its fins and jaw past it (its tail hangs below, in the throat); fire can't touch it, and it
+    // is seen across the Maw and from the vents' columns over it
+    public static final Supplier<EntityType<com.panda.promisedend.entity.VoidLeviathan>> VOID_LEVIATHAN = ENTITIES.registerEntityType("void_leviathan",
+            com.panda.promisedend.entity.VoidLeviathan::new, MobCategory.MONSTER, b -> b.sized(2.5F, 6.5F).eyeHeight(5.5F)
+                    .clientTrackingRange(10).fireImmune());
     /** Its shot: small, and tracked every tick, so a blow aimed at it lands where it is seen. */
     public static final Supplier<EntityType<com.panda.promisedend.entity.ResonantBullet>> RESONANT_BULLET = ENTITIES.registerEntityType("resonant_bullet",
             com.panda.promisedend.entity.ResonantBullet::new, MobCategory.MISC, b -> b.sized(0.5F, 0.5F).clientTrackingRange(8).updateInterval(1));
@@ -68,6 +74,7 @@ public final class ModEntities {
         sink.accept(RIFT_STALKER.get(), RiftStalker.createAttributes());
         sink.accept(PURPUR_SENTRY.get(), PurpurSentry.createAttributes());
         sink.accept(HOLLOW_SENTINEL.get(), com.panda.promisedend.entity.HollowSentinel.createAttributes());
+        sink.accept(VOID_LEVIATHAN.get(), com.panda.promisedend.entity.VoidLeviathan.createAttributes());
     }
 
     /** A loader's way of registering a spawn placement (NeoForge: the event; Fabric: {@code SpawnPlacements.register}). */

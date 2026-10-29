@@ -217,9 +217,9 @@ public final class Arrivals {
         } else {
             lines.add(Component.translatable("arrival.promisedend.heart", (int) Math.round(out / 10) * 10, way));
         }
-        // while the Foundry's seal binds the Ward, the pearl leads there first
-        boolean foundry = AncientWard.stands(player.level().getServer()) && AncientWard.binds(AncientWard.broken(player.level().getServer()), AncientWard.guarded() & 1);
-        lines.add(Component.translatable(foundry ? "arrival.promisedend.pearl.foundry" : "arrival.promisedend.pearl"));
+        // while a seal binds the Ward, the pearl leads to where it is kept first
+        int seal = PearlGuide.seal(player.level().getServer());
+        lines.add(Component.translatable(seal < 0 ? "arrival.promisedend.pearl" : "arrival.promisedend.pearl." + AncientWard.SEALS.get(seal)));
         return lines;
     }
 

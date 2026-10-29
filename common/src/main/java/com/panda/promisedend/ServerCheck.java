@@ -146,6 +146,7 @@ public final class ServerCheck {
         add.accept(wrath(server));
         add.accept(arrivals(server, end, terrain));
         add.accept(foundry(end));
+        add.accept(maw(end));
         add.accept(shrine(end));
         add.accept(observatory(end));
         add.accept(driftRoutes(end));
@@ -592,11 +593,16 @@ public final class ServerCheck {
             BlockPos near = new BlockPos(gap.ex(), gap.he() - 1, gap.ez()), far = new BlockPos(gap.fx(), gap.hf() - 1, gap.fz());
             boolean ends = !end.getBlockState(near).isAir() && !end.getBlockState(far).isAir();
             int blocked = 0;
+            java.util.Set<String> what = new java.util.TreeSet<>();
             int lx = gap.dz() != 0 ? 1 : 0, lz = gap.dx() != 0 ? 1 : 0;
             for (int j = 1; j <= gap.width(); j++) {
                 for (int l = -1; l <= 1; l++) {
                     for (int y = gap.lowAt(j) - 1; y <= gap.highAt(j) + 1; y++) {
-                        if (!end.getBlockState(new BlockPos(gap.ex() + gap.dx() * j + lx * l, y, gap.ez() + gap.dz() * j + lz * l)).getCollisionShape(end, near).isEmpty()) blocked++;
+                        var state = end.getBlockState(new BlockPos(gap.ex() + gap.dx() * j + lx * l, y, gap.ez() + gap.dz() * j + lz * l));
+                        if (!state.getCollisionShape(end, near).isEmpty()) {
+                            blocked++;
+                            if (what.size() < 4) what.add(state.getBlock().builtInRegistryHolder().getRegisteredName() + "@" + (gap.ex() + gap.dx() * j + lx * l) + "," + y + "," + (gap.ez() + gap.dz() * j + lz * l));
+                        }
                     }
                 }
             }
@@ -612,7 +618,7 @@ public final class ServerCheck {
             seen.add(gap.ex() + "," + gap.ez() + " " + (gap.dx() != 0 ? "x" : "z") + gap.width() + (gap.he() == gap.hf() ? "" : " " + gap.he() + "-" + gap.hf()) + " " + id + (islets == 1 ? "" : " islets " + islets) + (ends ? "" : " no edge") + (blocked == 0 ? "" : " blocked " + blocked));
             if (islets != 1) bad.add(islets + " islets on the route at " + near);
             if (!ends) bad.add("a route at " + near + " has no ground at an end");
-            if (blocked > 0) bad.add("a route at " + near + " has " + blocked + " blocks in its corridor");
+            if (blocked > 0) bad.add("a route at " + near + " has " + blocked + " blocks in its corridor, e.g. " + what);
             if (gap.width() < com.panda.promisedend.logic.DriftRoute.SHORTEST || gap.width() > com.panda.promisedend.logic.DriftRoute.LONGEST) bad.add("a route at " + near + " crosses " + gap.width());
         }
         for (int i = 0; i < gaps.size(); i++) {
@@ -852,6 +858,41 @@ public final class ServerCheck {
     }
 
     /**
+     * The Rift Maw nearest a point 1500 out, as the Sentinel's chart and a held pearl find it, generated here: its Void
+     * Leviathan is in place under the pool, asleep, and holds its rest over 40 ticks; the chart, unrolled there, marks it.
+     * The Leviathan must load and tick without a client.
+     */
+    private static String maw(net.minecraft.server.level.ServerLevel end) {
+        BlockPos from = new BlockPos(1500, 64, 0);
+        BlockPos found = end.findNearestMapStructure(com.panda.promisedend.registry.ModTags.ON_RIFT_MAW_CHARTS, from, com.panda.promisedend.logic.PearlGuide.SEARCH, false);
+        if (found == null) return "no Rift Maw within " + com.panda.promisedend.logic.PearlGuide.SEARCH + " chunks of " + from;
+        for (int cx = (found.getX() >> 4) - 4; cx <= (found.getX() >> 4) + 4; cx++) {
+            for (int cz = (found.getZ() >> 4) - 4; cz <= (found.getZ() >> 4) + 4; cz++) end.getChunk(cx, cz);
+        }
+        var leviathans = end.getEntitiesOfClass(com.panda.promisedend.entity.VoidLeviathan.class, new net.minecraft.world.phys.AABB(found).inflate(72, 256, 72));
+        PromisedEnd.LOGGER.info("[promisedend servercheck] Rift Maw {} from {} at {}: {} Leviathan(s){}", Math.round(Math.sqrt(found.distSqr(from))), from, found,
+                leviathans.size(), leviathans.isEmpty() ? "" : " at " + leviathans.getFirst().blockPosition() + ", " + leviathans.getFirst().state());
+        if (leviathans.size() != 1) return "the Maw at " + found + " has " + leviathans.size() + " Leviathans";
+        var leviathan = leviathans.getFirst();
+        if (leviathan.state() != com.panda.promisedend.entity.VoidLeviathan.State.DORMANT) return "the Maw's Leviathan is " + leviathan.state();
+        BlockPos rest = leviathan.blockPosition();
+        // the pool over it is open to the sky, and the floor's lip stands round it
+        for (int y = rest.getY() + 1; y <= rest.getY() + com.panda.promisedend.entity.VoidLeviathan.SURFACE + 8; y++) {
+            if (!end.getBlockState(rest.atY(y)).isAir()) return "the pool over the Leviathan is shut at " + rest.atY(y) + ": " + end.getBlockState(rest.atY(y));
+        }
+        net.minecraft.world.phys.Vec3 at = leviathan.position();
+        for (int i = 0; i < 40; i++) leviathan.tick();
+        PromisedEnd.LOGGER.info("[promisedend servercheck] the Leviathan held {} from its rest over 40 ticks",
+                String.format(java.util.Locale.ROOT, "%.2f", leviathan.position().distanceTo(at)));
+        if (leviathan.position().distanceTo(at) > 1) return "the sleeping Leviathan moved " + leviathan.position().distanceTo(at) + " from its rest";
+        var chart = com.panda.promisedend.item.StarChartItem.unroll(end, from, PromisedEnd.id("on_rift_maw_charts"));
+        if (chart == null) return "the Sentinel's Star Chart found no Maw from " + from;
+        var marks = chart.getOrDefault(net.minecraft.core.component.DataComponents.MAP_DECORATIONS, net.minecraft.world.item.component.MapDecorations.EMPTY).decorations().values();
+        if (marks.stream().noneMatch(d -> Math.hypot(d.x() - found.getX(), d.z() - found.getZ()) < 16)) return "the Star Chart marks no Maw at " + found + ": " + marks;
+        return null;
+    }
+
+    /**
      * The Void Shrine nearest a point 1500 out, generated here: its Shrine Altar stands with its block entity, and its
      * two Purpur Sentries are in place.
      */
@@ -936,7 +977,8 @@ public final class ServerCheck {
         PromisedEnd.LOGGER.info("[promisedend servercheck] Fallen Observatory {} from {} at {}: its desk at {} draws {}; {} chest(s), {} Purpur Sentries, on {}; its Foundry chart marks {}",
                 Math.round(Math.sqrt(at.distSqr(from))), from, at, desk, kinds, chests, sentries, end.getBiome(desk).getRegisteredName(),
                 marks.stream().map(d -> Math.round(d.x()) + ", " + Math.round(d.z())).toList());
-        if (!kinds.equals(new java.util.TreeSet<>(java.util.List.of("on_foundry_charts"))))
+        // the Foundry's and the Maw's (the Citadel's tag is empty till its place comes)
+        if (!kinds.equals(new java.util.TreeSet<>(java.util.List.of("on_foundry_charts", "on_rift_maw_charts"))))
             return "the desk draws " + kinds;
         if (chests < 1) return "the Fallen Observatory at " + at + " has no chest";
         if (sentries < 2) return "the Fallen Observatory at " + at + " has " + sentries + " Purpur Sentries";

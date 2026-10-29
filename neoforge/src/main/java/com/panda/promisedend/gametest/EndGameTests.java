@@ -166,6 +166,12 @@ public final class EndGameTests {
         FUNCTIONS.register("rift_gate_attune_and_travel", () -> RiftGameTests::riftGateAttuneAndTravel);
         FUNCTIONS.register("ancient_tablets_read_in_order", () -> TabletGameTests::ancientTabletsReadInOrder);
         FUNCTIONS.register("ancient_tablets_in_chests", () -> TabletGameTests::ancientTabletsInChests);
+        FUNCTIONS.register("leviathan_exposed_window_only", () -> LeviathanGameTests::exposedWindowOnly);
+        FUNCTIONS.register("leviathan_breach_telegraphs", () -> LeviathanGameTests::breachTelegraphs);
+        FUNCTIONS.register("leviathan_pairs_and_draws", () -> LeviathanGameTests::pairsAndDraws);
+        FUNCTIONS.register("leviathan_death_breaks_seal", () -> LeviathanGameTests::deathBreaksSeal);
+        FUNCTIONS.register("rift_maw_places", () -> LeviathanGameTests::riftMawPlaces);
+        FUNCTIONS.register("rift_maws_within_reach", () -> SentinelGameTests::riftMawsWithinReach);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -177,7 +183,8 @@ public final class EndGameTests {
             java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("lumen_wisp_lights_the_way", 460),
             java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("constructs_edges_walls_and_swarms", 200), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260),
             java.util.Map.entry("sentinel_opens_after_three_returns", 260), java.util.Map.entry("sentinel_wakes_for_survival", 100),
-            java.util.Map.entry("sentinel_volleys_never_crack_itself", 260), java.util.Map.entry("sentinel_opens_onto_its_rest", 260));
+            java.util.Map.entry("sentinel_volleys_never_crack_itself", 260), java.util.Map.entry("sentinel_opens_onto_its_rest", 260),
+            java.util.Map.entry("leviathan_breach_telegraphs", 320), java.util.Map.entry("leviathan_pairs_and_draws", 220));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -194,11 +201,14 @@ public final class EndGameTests {
             "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops",
             // counts constructs within 32 blocks, which reaches into the arenas beside it
             "construct_spawns_keep_to_their_lands",
-            // waits on the light engine, which in a busy batch never lit its cluster's light in 175 ticks (P100)
-            "cave_dark_held_off",
+            // wait on the light engine, which in a busy batch never lit its cluster's light in 175 ticks, or left a
+            // wisp's light lit (P100)
+            "cave_dark_held_off", "lumen_wisp_lights_the_way",
             // a Sentinel targets and wakes for any survival player in 48 or 20, and the phases count Sentries in 16
             "sentinel_opens_after_three_returns", "sentinel_phases_call_sentries", "sentinel_wakes_for_survival", "sentinel_death_breaks_seal",
-            "sentinel_volleys_never_crack_itself", "sentinel_opens_onto_its_rest");
+            "sentinel_volleys_never_crack_itself", "sentinel_opens_onto_its_rest",
+            // a Leviathan wakes for and strikes any survival player in 48 of it, and its seal is the world's
+            "leviathan_exposed_window_only", "leviathan_breach_telegraphs", "leviathan_pairs_and_draws", "leviathan_death_breaks_seal");
 
     private EndGameTests() {}
 
@@ -3857,10 +3867,12 @@ public final class EndGameTests {
         double[] way = com.panda.promisedend.logic.PearlGuide.way(1000, -1000);
         if (Math.abs(way[0] + Math.sqrt(0.5)) > 1e-9 || Math.abs(way[1] - Math.sqrt(0.5)) > 1e-9) bad.add("the way from (1000, -1000) is " + java.util.Arrays.toString(way));
         // while the Foundry's seal binds the Ward the pearl leads to the nearest Foundry (logged: this level's End
-        // may have none in reach); the motes are counted with it broken, when the way is inward
+        // may have none in reach), then to the nearest Rift Maw; the motes are counted with both broken, when the way
+        // is inward
         wardAt(end, p, 1000.0);
         PromisedEnd.LOGGER.info("[pearl_shows_the_way] with the Foundry's seal whole the pearl leads to {}", com.panda.promisedend.logic.PearlGuide.lead(p));
         com.panda.promisedend.logic.AncientWard.breakSeal(server, 0);
+        com.panda.promisedend.logic.AncientWard.breakSeal(server, 1);
         // the motes: 12 ticks, a mote each 3 to the holder alone, a trail to a point 6 inward; a player beside, without
         // a pearl, sent none
         wardAt(end, p, 1000.0);
@@ -3885,14 +3897,18 @@ public final class EndGameTests {
                 bad.add("a mote of " + m.particle().getType());
                 continue;
             }
-            // on the way the pearl leads: to the nearest Foundry while its seal binds the Ward, else inward
+            // on the way the pearl leads: to the place of a seal that binds the Ward, else inward
             double[] lead = com.panda.promisedend.logic.PearlGuide.way(p.getX(), p.getZ(), com.panda.promisedend.logic.PearlGuide.lead(p));
             double along = (trail.target().x - m.x()) * lead[0] + (trail.target().z - m.z()) * lead[1];
             if (along < com.panda.promisedend.logic.PearlGuide.REACH - 0.01) bad.add("a mote drifting to " + trail.target() + " from " + m.x() + ", " + m.z() + ", not on the way");
         }
-        // with the Foundry's seal broken, the way is the heart of the End
+        // with the Foundry's seal broken the pearl leads to the Maw's; with that broken too, the way is the heart of the
+        // End (the Citadel's has no place yet)
+        com.panda.promisedend.logic.AncientWard.reset(server);
         com.panda.promisedend.logic.AncientWard.breakSeal(server, 0);
-        if (com.panda.promisedend.logic.PearlGuide.lead(p) != net.minecraft.core.BlockPos.ZERO) bad.add("led to " + com.panda.promisedend.logic.PearlGuide.lead(p) + " with the Foundry's seal broken");
+        if (com.panda.promisedend.logic.PearlGuide.seal(server) != 1) bad.add("led to seal " + com.panda.promisedend.logic.PearlGuide.seal(server) + " with the Foundry's broken, not the Maw's");
+        com.panda.promisedend.logic.AncientWard.breakSeal(server, 1);
+        if (com.panda.promisedend.logic.PearlGuide.lead(p) != net.minecraft.core.BlockPos.ZERO) bad.add("led to " + com.panda.promisedend.logic.PearlGuide.lead(p) + " with the Foundry's and the Maw's seals broken");
         com.panda.promisedend.logic.AncientWard.reset(server);
         // off with arrivals by coordinates off
         var previous = com.panda.promisedend.EndConfig.current();
@@ -5105,7 +5121,9 @@ public final class EndGameTests {
                 new Rig("rift_stalker", com.panda.promisedend.entity.RiftStalker.CLIPS, java.util.Map.of(
                         "gather", com.panda.promisedend.entity.RiftStalker.GATHER_TICKS, "strike", com.panda.promisedend.entity.RiftStalker.STRIKE_TICKS)),
                 new Rig("purpur_sentry", com.panda.promisedend.entity.PurpurSentry.CLIPS, java.util.Map.of(
-                        "lunge", com.panda.promisedend.entity.PurpurSentry.LUNGE_TICKS)))) {
+                        "lunge", com.panda.promisedend.entity.PurpurSentry.LUNGE_TICKS)),
+                new Rig("void_leviathan", com.panda.promisedend.entity.VoidLeviathan.CLIPS, java.util.Map.of(
+                        "breach", com.panda.promisedend.entity.VoidLeviathan.BREACH_TICKS, "dive", com.panda.promisedend.entity.VoidLeviathan.DIVE_TICKS)))) {
             var a = readJson(base + "geckolib/animations/entity/" + rig.id() + ".animation.json");
             var g = readJson(base + "geckolib/models/entity/" + rig.id() + ".geo.json");
             if (a == null || g == null) {

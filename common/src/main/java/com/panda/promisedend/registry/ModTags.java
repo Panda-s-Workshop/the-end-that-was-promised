@@ -12,6 +12,9 @@ public final class ModTags {
     /** What the Waystation's first Star Chart and a held pearl lead to: the Shulker Foundries. */
     public static final TagKey<net.minecraft.world.level.levelgen.structure.Structure> ON_FOUNDRY_CHARTS =
             TagKey.create(Registries.STRUCTURE, PromisedEnd.id("on_foundry_charts"));
+    /** What the Sentinel's chart and, after its seal, a held pearl lead to: the Rift Maws. */
+    public static final TagKey<net.minecraft.world.level.levelgen.structure.Structure> ON_RIFT_MAW_CHARTS =
+            TagKey.create(Registries.STRUCTURE, PromisedEnd.id("on_rift_maw_charts"));
     /** What a Void Shrine's altar takes as an offering; each is also in one {@link #favour} tag, its worth. */
     public static final TagKey<Item> OFFERINGS = TagKey.create(Registries.ITEM, PromisedEnd.id("offerings"));
     private static final java.util.List<TagKey<Item>> FAVOUR = java.util.stream.IntStream.rangeClosed(1, com.panda.promisedend.logic.Offerings.MOST)
