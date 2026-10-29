@@ -34,7 +34,7 @@ final class AugmentGameTests {
     /**
      * A smithing table puts Drift Weave and the Leviathan Fin on an elytra, each once, keeping its enchantments, damage
      * and name; the result is still an elytra; it takes neither a second time, nor any glider outside
-     * #promisedend:augmentable_elytra, nor without the Dragon Scale; the augments survive a save (the component's
+     * #promisedend:augmentable_elytra, nor without the Echo Amber; the augments survive a save (the component's
      * codec) and show in the tooltip.
      */
     static void appliesInSmithing(GameTestHelper helper) {
@@ -42,7 +42,7 @@ final class AugmentGameTests {
         List<String> bad = new ArrayList<>();
         var weave = new ItemStack(ModItems.DRIFT_WEAVE.get());
         var fin = new ItemStack(ModItems.LEVIATHAN_FIN.get());
-        var scale = new ItemStack(ModItems.DRAGON_SCALE.get());
+        var scale = new ItemStack(ModItems.ECHO_AMBER.get());
         var elytra = new ItemStack(Items.ELYTRA);
         var unbreaking = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.UNBREAKING);
         elytra.enchant(unbreaking, 3);
@@ -58,7 +58,7 @@ final class AugmentGameTests {
         if (!Augments.of(twice).has(Augments.DRIFT_WEAVE) || !Augments.of(twice).has(Augments.LEVIATHAN_FIN) || Augments.of(twice).list().size() != 2)
             bad.add("weave then fin gives " + Augments.of(twice));
         if (!smith(helper, fin, new ItemStack(Items.DIAMOND_CHESTPLATE), scale).isEmpty()) bad.add("the fin went on a chestplate");
-        if (!smith(helper, fin, new ItemStack(Items.ELYTRA), new ItemStack(Items.DIAMOND)).isEmpty()) bad.add("the fin went on without a Dragon Scale");
+        if (!smith(helper, fin, new ItemStack(Items.ELYTRA), new ItemStack(Items.DIAMOND)).isEmpty()) bad.add("the fin went on without Echo Amber");
         // three at most, whatever they are
         var full = new ItemStack(Items.ELYTRA);
         full.set(ModComponents.AUGMENTS.get(), new Augments(List.of(PromisedEnd.id("a"), PromisedEnd.id("b"), PromisedEnd.id("c"))));
@@ -72,6 +72,48 @@ final class AugmentGameTests {
             bad.add("the tooltip doesn't name its augments: " + lines);
         PromisedEnd.LOGGER.info("[augment_applies_in_smithing] tooltip {}", lines);
         if (!bad.isEmpty()) helper.fail("augments: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * At a real smithing table, as a player uses it: the template slot takes Drift Weave, Echo Amber goes in the
+     * addition's, the woven elytra shows in the result, and taking it uses the three up and earns Act IV's "Second
+     * Wings" (`void/augment_elytra`); the Leviathan Fin the same on the woven one. No dragon is needed.
+     */
+    static void smithingTableAwardsTheGoal(GameTestHelper helper) {
+        var level = helper.getLevel();
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        List<String> bad = new ArrayList<>();
+        var goal = level.getServer().getAdvancements().get(PromisedEnd.id("void/augment_elytra"));
+        if (goal == null) bad.add("no void/augment_elytra advancement");
+        var table = helper.absolutePos(new net.minecraft.core.BlockPos(1, 1, 1));
+        level.setBlock(table, net.minecraft.world.level.block.Blocks.SMITHING_TABLE.defaultBlockState(), 3);
+        var menu = new net.minecraft.world.inventory.SmithingMenu(1, p.getInventory(), net.minecraft.world.inventory.ContainerLevelAccess.create(level, table));
+        ItemStack elytra = new ItemStack(Items.ELYTRA);
+        for (var augment : List.of(ModItems.DRIFT_WEAVE, ModItems.LEVIATHAN_FIN)) {
+            var template = new ItemStack(augment.get());
+            if (!menu.getSlot(net.minecraft.world.inventory.SmithingMenu.TEMPLATE_SLOT).mayPlace(template)) bad.add("the template slot refuses " + augment.getId());
+            if (!menu.getSlot(net.minecraft.world.inventory.SmithingMenu.ADDITIONAL_SLOT).mayPlace(new ItemStack(ModItems.ECHO_AMBER.get())))
+                bad.add("the addition slot refuses Echo Amber");
+            menu.getSlot(net.minecraft.world.inventory.SmithingMenu.TEMPLATE_SLOT).set(template);
+            menu.getSlot(net.minecraft.world.inventory.SmithingMenu.BASE_SLOT).set(elytra);
+            menu.getSlot(net.minecraft.world.inventory.SmithingMenu.ADDITIONAL_SLOT).set(new ItemStack(ModItems.ECHO_AMBER.get(), 2));
+            menu.createResult();
+            var result = menu.getSlot(net.minecraft.world.inventory.SmithingMenu.RESULT_SLOT).getItem();
+            if (!result.is(Items.ELYTRA) || !Augments.of(result).has(PromisedEnd.id(augment.getId().getPath()))) {
+                bad.add("the table shows " + result + " " + Augments.of(result) + " for " + augment.getId());
+                break;
+            }
+            elytra = result.copy();
+            menu.getSlot(net.minecraft.world.inventory.SmithingMenu.RESULT_SLOT).onTake(p, result);
+            if (!menu.getSlot(net.minecraft.world.inventory.SmithingMenu.TEMPLATE_SLOT).getItem().isEmpty()) bad.add("taking it left the " + augment.getId());
+            if (menu.getSlot(net.minecraft.world.inventory.SmithingMenu.ADDITIONAL_SLOT).getItem().getCount() != 1) bad.add("taking it didn't use one amber");
+            if (goal != null && !p.getAdvancements().getOrStartProgress(goal).isDone()) bad.add("taking it didn't earn Second Wings");
+            menu.getSlot(net.minecraft.world.inventory.SmithingMenu.ADDITIONAL_SLOT).set(ItemStack.EMPTY);
+        }
+        if (Augments.of(elytra).list().size() != 2) bad.add("the table's elytra ends with " + Augments.of(elytra));
+        level.getServer().getPlayerList().remove(p);
+        if (!bad.isEmpty()) helper.fail("smithing table: " + bad);
         helper.succeed();
     }
 

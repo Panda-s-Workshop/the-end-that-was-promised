@@ -51,8 +51,9 @@ import org.jspecify.annotations.Nullable;
 public final class Starfall {
     /** The beam's particles go up every this many ticks. */
     private static final int BEAM_EVERY = 4;
-    /** The beam's height over the target. */
+    /** The beam's height over the target, and its colour: the star's pale gold, the biggest dust there is. */
     private static final double BEAM_HEIGHT = 96;
+    private static final net.minecraft.core.particles.DustParticleOptions BEAM = new net.minecraft.core.particles.DustParticleOptions(0xFFE7A0, 4.0F);
     /** Tries at a target round the chosen player, and the wait before the next look when none was safe: 10 s. */
     private static final int TRIES = 24, RETRY = 200;
 
@@ -76,26 +77,30 @@ public final class Starfall {
             }
             return;
         }
-        if (!EndConfig.starfallEnabled() || end.players().isEmpty()) return;
-        if (s.nextAt == 0) {
-            s.nextAt = now + StarfallSchedule.nextIn(random(end), EndConfig.starfallInterval());
-            s.setDirty();
-            return;
-        }
-        if (now < s.nextAt) return;
-        long day = now / StarfallSchedule.DAY;
-        if (day != s.day) {
-            s.day = day;
-            s.today = 0;
-        }
-        if (s.today >= EndConfig.starfallMaxPerDay()) {
-            s.nextAt = (day + 1) * StarfallSchedule.DAY;
-            s.setDirty();
-            return;
-        }
         List<ServerPlayer> out = new ArrayList<>();
         for (ServerPlayer p : end.players()) if (!p.isSpectator() && StarfallSchedule.outer(p.getX(), p.getZ())) out.add(p);
-        BlockPos target = out.isEmpty() ? null : target(end, out.get(end.getRandom().nextInt(out.size())));
+        long day = now / StarfallSchedule.DAY;
+        int today = StarfallSchedule.today(now, s.day, s.today);
+        switch (StarfallSchedule.step(EndConfig.starfallEnabled(), !out.isEmpty(), s.nextAt, now, today, EndConfig.starfallMaxPerDay())) {
+            case IDLE -> {
+                return;
+            }
+            case PLAN -> {
+                s.nextAt = now + StarfallSchedule.nextIn(random(end), EndConfig.starfallInterval());
+                s.setDirty();
+                return;
+            }
+            case TOMORROW -> {
+                s.nextAt = (day + 1) * StarfallSchedule.DAY;
+                s.setDirty();
+                return;
+            }
+            case LOOK -> {
+                s.day = day;
+                s.today = today;
+            }
+        }
+        BlockPos target = target(end, out.get(end.getRandom().nextInt(out.size())));
         if (target == null) {
             s.nextAt = now + RETRY;
             s.setDirty();
@@ -199,7 +204,9 @@ public final class Starfall {
         s.impactAt = level.getGameTime() + StarfallSchedule.WARNING_TICKS;
         s.setDirty();
         for (ServerPlayer p : near(level, target)) {
-            p.sendSystemMessage(Component.translatable("message.promisedend.starfall.warning"));
+            double dx = target.getX() + 0.5 - p.getX(), dz = target.getZ() + 0.5 - p.getZ();
+            p.sendSystemMessage(Component.translatable("message.promisedend.starfall.warning", Math.round(Math.sqrt(dx * dx + dz * dz)),
+                    Component.translatable("direction.promisedend." + StarfallSchedule.compass(dx, dz))));
             // far off, as thunder is: played at the listener, so it carries the whole 256
             hear(p, ModSounds.STARFALL_WARNING.get());
         }
@@ -218,16 +225,22 @@ public final class Starfall {
         return out;
     }
 
-    /** The beam over where it will land: a column of light to the sky, denser in its last five seconds. */
+    /**
+     * The beam over where it will land, unlike an updraft's rising white motes: a pale gold column to the sky with
+     * sparks falling down it, denser in its last five seconds, and a glow on the ground each second.
+     */
     private static void beam(ServerLevel level, BlockPos at, long left) {
         double x = at.getX() + 0.5, z = at.getZ() + 0.5;
         int steps = left < 100 ? 48 : 24;
         for (ServerPlayer p : near(level, at)) {
             for (int i = 0; i < steps; i++) {
                 double y = at.getY() + 1 + (i + level.getRandom().nextDouble()) * BEAM_HEIGHT / steps;
-                level.sendParticles(p, ParticleTypes.END_ROD, true, true, x, y, z, 2, 0.18, 0.2, 0.18, 0);
+                level.sendParticles(p, BEAM, true, true, x, y, z, 1, 0.12, 0.3, 0.12, 0);
+                // a count of 0 sends the offset as the spark's motion: down the column. The sparks are lit of themselves,
+                // so they carry far where the dust dims in the End's light
+                level.sendParticles(p, ParticleTypes.END_ROD, true, true, x, y, z, 0, 0, -1, 0, 0.35);
             }
-            if (left % 20 == 0) level.sendParticles(p, ParticleTypes.GLOW, true, true, x, at.getY() + 1.2, z, 6, 0.6, 0.1, 0.6, 0);
+            if (level.getGameTime() % 20 == 0) level.sendParticles(p, ParticleTypes.GLOW, true, true, x, at.getY() + 1.2, z, 8, 0.8, 0.1, 0.8, 0);
         }
     }
 
@@ -258,7 +271,7 @@ public final class Starfall {
         core.setUnlimitedLifetime();
         core.setGlowingTag(true);
         level.addFreshEntity(core);
-        // what stood in it is thrown out
+        // what stood in it is thrown clear
         for (Entity e : level.getEntities((Entity) null, new AABB(at).inflate(radius + 2), e -> !(e instanceof ItemEntity))) {
             Vec3 away = e.position().subtract(x, at.getY(), z);
             Vec3 push = away.horizontalDistanceSqr() < 1e-4 ? new Vec3(0, 1, 0) : away.normalize().add(0, 0.6, 0);

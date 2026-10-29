@@ -2,6 +2,6 @@
   "type": "promisedend:elytra_augment",
   "template": "promisedend:leviathan_fin",
   "base": "#promisedend:augmentable_elytra",
-  "addition": "promisedend:dragon_scale",
+  "addition": "promisedend:echo_amber",
   "augment": "promisedend:leviathan_fin"
 }

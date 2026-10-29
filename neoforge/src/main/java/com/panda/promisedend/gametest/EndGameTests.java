@@ -176,6 +176,7 @@ public final class EndGameTests {
         FUNCTIONS.register("set_bonus_void_touched", () -> VoidsteelGameTests::setBonusVoidTouched);
         FUNCTIONS.register("augment_applies_in_smithing", () -> AugmentGameTests::appliesInSmithing);
         FUNCTIONS.register("augment_drift_weave_reduces_wear", () -> AugmentGameTests::driftWeaveReducesWear);
+        FUNCTIONS.register("augment_smithing_table_awards_the_goal", () -> AugmentGameTests::smithingTableAwardsTheGoal);
         FUNCTIONS.register("starfall_crater_respects_tag", () -> StarfallGameTests::craterRespectsTag);
     }
 

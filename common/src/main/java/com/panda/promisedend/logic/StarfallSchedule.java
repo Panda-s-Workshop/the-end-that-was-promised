@@ -26,6 +26,42 @@ public final class StarfallSchedule {
 
     private StarfallSchedule() {}
 
+    /** What the scheduler does on a tick with no fall on its way. */
+    public enum Step {
+        /** Nothing: turned off, not yet due, or no player out in the outer End. */
+        IDLE,
+        /** The first tick: set when the first fall is due. */
+        PLAN,
+        /** The day's falls are spent: wait for the next day. */
+        TOMORROW,
+        /** Due: find a target near an outer player. */
+        LOOK
+    }
+
+    /**
+     * The step at {@code now}, given whether the Starfall is on, whether a player is out in the outer End, when the next
+     * fall is due (0 before the first plan), and the falls today against the day's cap. A fall that came due while no
+     * one was out comes as soon as someone is.
+     */
+    public static Step step(boolean enabled, boolean outerPlayer, long nextAt, long now, int today, int cap) {
+        if (!enabled) return Step.IDLE;
+        if (nextAt == 0) return Step.PLAN;
+        if (now < nextAt || !outerPlayer) return Step.IDLE;
+        return today >= cap ? Step.TOMORROW : Step.LOOK;
+    }
+
+    /** The way from a listener to a fall {@code dx}, {@code dz} off, of eight: "north" ... "northwest" (north is -z). */
+    public static String compass(double dx, double dz) {
+        String[] ways = {"south", "southwest", "west", "northwest", "north", "northeast", "east", "southeast"};
+        double a = Math.toDegrees(Math.atan2(-dx, dz));
+        return ways[(int) Math.floorMod(Math.round(a / 45.0), 8)];
+    }
+
+    /** The falls today at {@code now}, of {@code today} counted on day {@code storedDay}: none on a new day. */
+    public static int today(long now, long storedDay, int today) {
+        return now / DAY == storedDay ? today : 0;
+    }
+
     /** The ticks to the next fall: {@code interval} ± {@link #SPREAD}. */
     public static long nextIn(RandomGenerator random, int interval) {
         return Math.round(interval * (1 - SPREAD + 2 * SPREAD * random.nextDouble()));

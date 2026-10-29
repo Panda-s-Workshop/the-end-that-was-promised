@@ -22,6 +22,7 @@ final class StarfallGameTests {
      * bowl and leaves obsidian (outside {@code #promisedend:starfall_replaceable}) and the ground past its rim (its top
      * maybe burnt to Voidstone); its
      * walls hold 3-6 Starmetal Ore, each facing into it, and one Starfall Core lies in it, glowing, never to despawn.
+     * The ore gives Starmetal to an iron pickaxe; the core is a shrine's fourth-favour offering.
      */
     static void craterRespectsTag(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -69,6 +70,13 @@ final class StarfallGameTests {
                 i -> i.getItem().is(ModItems.STARFALL_CORE.get()));
         if (cores.size() != 1) bad.add(cores.size() + " Starfall Cores, not 1");
         else if (cores.getFirst().getAge() != -32768 || !cores.getFirst().hasGlowingTag()) bad.add("the core would despawn or doesn't glow");
+        // the ore gives Starmetal to an iron pickaxe, itself to Silk Touch; the core is a fourth-favour offering
+        var oreState = ModBlocks.STARMETAL_ORE.get().defaultBlockState();
+        var drops = net.minecraft.world.level.block.Block.getDrops(oreState, level, at, null, null, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE));
+        if (drops.size() != 1 || !drops.getFirst().is(ModItems.STARMETAL.get())) bad.add("the ore gives " + drops + " to an iron pickaxe");
+        if (!oreState.is(net.minecraft.tags.BlockTags.NEEDS_IRON_TOOL)) bad.add("the ore doesn't need an iron pickaxe");
+        var favour4 = net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM, PromisedEnd.id("offerings/favour_4"));
+        if (!new net.minecraft.world.item.ItemStack(ModItems.STARFALL_CORE.get()).is(favour4)) bad.add("the core isn't a fourth-favour offering");
         PromisedEnd.LOGGER.info("[starfall_crater_respects_tag] {} Starmetal Ore, {} core(s)", ore, cores.size());
         if (!bad.isEmpty()) helper.fail("starfall: " + bad);
         helper.succeed();

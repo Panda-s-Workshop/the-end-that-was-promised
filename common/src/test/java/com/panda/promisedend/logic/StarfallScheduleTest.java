@@ -64,6 +64,29 @@ class StarfallScheduleTest {
     }
 
     @Test
+    void theSchedulersSteps() {
+        assertEquals(StarfallSchedule.Step.IDLE, StarfallSchedule.step(false, true, 100, 500, 0, 2), "turned off: nothing, due or not");
+        assertEquals(StarfallSchedule.Step.PLAN, StarfallSchedule.step(true, false, 0, 500, 0, 2), "the first tick plans the first fall, with no one out");
+        assertEquals(StarfallSchedule.Step.IDLE, StarfallSchedule.step(true, true, 900, 500, 0, 2), "not yet due");
+        assertEquals(StarfallSchedule.Step.IDLE, StarfallSchedule.step(true, false, 100, 500, 0, 2), "due, but no one out there");
+        assertEquals(StarfallSchedule.Step.LOOK, StarfallSchedule.step(true, true, 100, 500, 1, 2), "due with someone out: look");
+        assertEquals(StarfallSchedule.Step.TOMORROW, StarfallSchedule.step(true, true, 100, 500, 2, 2), "the day's two spent");
+        assertEquals(StarfallSchedule.Step.TOMORROW, StarfallSchedule.step(true, true, 100, 500, 0, 0), "a cap of 0: never");
+        assertEquals(2, StarfallSchedule.today(30000, 1, 2), "the same day keeps its count");
+        assertEquals(0, StarfallSchedule.today(50000, 1, 2), "a new day starts at none");
+    }
+
+    @Test
+    void theWayToAFall() {
+        assertEquals("north", StarfallSchedule.compass(0, -100));
+        assertEquals("south", StarfallSchedule.compass(0, 100));
+        assertEquals("east", StarfallSchedule.compass(100, 0));
+        assertEquals("west", StarfallSchedule.compass(-100, 0));
+        assertEquals("northeast", StarfallSchedule.compass(70, -70));
+        assertEquals("southwest", StarfallSchedule.compass(-70, 70));
+    }
+
+    @Test
     void theBowlIsAsWideAsItsRadiusAndTwoThirdsAsDeep() {
         int r = 6;
         assertTrue(StarfallSchedule.inCrater(0, 0, 0, r), "its middle");
