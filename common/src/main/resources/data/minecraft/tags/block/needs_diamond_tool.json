@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "promisedend:voidsteel_scrap_ore"
+    "promisedend:voidsteel_scrap_ore",
+    "promisedend:voidsteel_block"
   ]
 }

@@ -39,6 +39,44 @@ final class VoidsteelGameTests {
     }
 
     /**
+     * The Blocks of Starmetal and Voidsteel: nine of each metal make one and one gives nine back; each drops itself to a
+     * pickaxe of its tier and nothing to one below (Starmetal iron's, as raw gold's block; Voidsteel diamond's, as
+     * netherite's); Voidsteel's is a beacon's base and its item won't burn; both are storage blocks to other mods.
+     */
+    static void storageBlocks(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        record Metal(net.minecraft.world.level.block.Block block, Item unit, Item enough, Item below, boolean beacon) {}
+        for (var m : List.of(new Metal(com.panda.promisedend.registry.ModBlocks.STARMETAL_BLOCK.get(), ModItems.STARMETAL.get(), Items.IRON_PICKAXE, Items.STONE_PICKAXE, false),
+                new Metal(com.panda.promisedend.registry.ModBlocks.VOIDSTEEL_BLOCK.get(), ModItems.VOIDSTEEL_INGOT.get(), Items.DIAMOND_PICKAXE, Items.IRON_PICKAXE, true))) {
+            String name = m.block().builtInRegistryHolder().getRegisteredName();
+            var units = new ArrayList<ItemStack>();
+            for (int i = 0; i < 9; i++) units.add(new ItemStack(m.unit()));
+            var nine = CraftingInput.of(3, 3, units);
+            var made = level.getServer().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, nine, level).map(r -> r.value().assemble(nine)).orElse(ItemStack.EMPTY);
+            if (!made.is(m.block().asItem()) || made.getCount() != 1) bad.add("nine " + m.unit() + " make " + made);
+            var one = CraftingInput.of(1, 1, List.of(new ItemStack(m.block())));
+            var back = level.getServer().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, one, level).map(r -> r.value().assemble(one)).orElse(ItemStack.EMPTY);
+            if (!back.is(m.unit()) || back.getCount() != 9) bad.add(name + " gives back " + back);
+            var state = m.block().defaultBlockState();
+            if (!new ItemStack(m.enough()).isCorrectToolForDrops(state)) bad.add(m.enough() + " can't mine " + name);
+            if (new ItemStack(m.below()).isCorrectToolForDrops(state)) bad.add(m.below() + " mines " + name);
+            var drops = level.getServer().reloadableRegistries().getLootTable(m.block().getLootTable().orElseThrow()).getRandomItems(
+                    new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                            .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                            .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, new ItemStack(m.enough()))
+                            .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, state)
+                            .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK));
+            if (drops.size() != 1 || !drops.get(0).is(m.block().asItem())) bad.add(name + " drops " + drops);
+            if (state.is(net.minecraft.tags.BlockTags.BEACON_BASE_BLOCKS) != m.beacon()) bad.add(name + (m.beacon() ? " isn't" : " is") + " a beacon's base");
+            if (!state.is(net.minecraft.tags.TagKey.create(Registries.BLOCK, net.minecraft.resources.Identifier.fromNamespaceAndPath("c", "storage_blocks")))) bad.add(name + " isn't in #c:storage_blocks");
+        }
+        if (!new ItemStack(com.panda.promisedend.registry.ModBlocks.VOIDSTEEL_BLOCK.get()).has(DataComponents.DAMAGE_RESISTANT)) bad.add("the Block of Voidsteel burns");
+        if (!bad.isEmpty()) helper.fail("storage blocks: " + bad);
+        helper.succeed();
+    }
+
+    /**
      * Voidsteel gear is built from GearTiers' numbers: each tool's durability, its sword's damage, its pickaxe's speed;
      * each armour piece's defence, toughness and knockback resistance, enchantability, the worn look, the Void-touched
      * set tag; every tool, piece and the ingot fire-resistant, as netherite; the

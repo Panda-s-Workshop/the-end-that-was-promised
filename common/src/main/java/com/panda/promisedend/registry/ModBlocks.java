@@ -178,6 +178,13 @@ public final class ModBlocks {
     public static final DeferredBlock<com.panda.promisedend.block.StarmetalOreBlock> STARMETAL_ORE = withHint(BLOCKS.registerBlock("starmetal_ore",
             com.panda.promisedend.block.StarmetalOreBlock::new, p -> p.mapColor(MapColor.COLOR_LIGHT_BLUE).strength(3.0F, 9.0F)
                     .sound(SoundType.STONE).requiresCorrectToolForDrops().lightLevel(s -> 7)), 2);
+    /** Nine Starmetal kept, as raw gold's block: iron tier, its strength and its bass drum. */
+    public static final DeferredBlock<Block> STARMETAL_BLOCK = simple("starmetal_block",
+            p -> p.mapColor(MapColor.COLOR_LIGHT_BLUE).instrument(NoteBlockInstrument.BASEDRUM).strength(5.0F, 6.0F).requiresCorrectToolForDrops());
+    /** Nine Voidsteel Ingots kept, as netherite's block: diamond tier, its strength and sound, and an item that won't burn. */
+    public static final DeferredBlock<Block> VOIDSTEEL_BLOCK = withItem(BLOCKS.registerSimpleBlock("voidsteel_block",
+            p -> p.mapColor(MapColor.COLOR_BLACK).strength(50.0F, 1200.0F).sound(SoundType.NETHERITE_BLOCK).requiresCorrectToolForDrops()),
+            BlockItem::new, p -> p.fireResistant());
     public static final DeferredBlock<com.panda.promisedend.block.CrumblingVoidstoneBlock> CRUMBLING_VOIDSTONE = withHint(BLOCKS.registerBlock(
             "crumbling_voidstone", com.panda.promisedend.block.CrumblingVoidstoneBlock::new,
             p -> p.mapColor(MapColor.TERRACOTTA_PURPLE).strength(1.5F, 3.0F).sound(SoundType.TUFF).requiresCorrectToolForDrops()), 2);

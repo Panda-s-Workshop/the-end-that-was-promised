@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "voidsteel_ingot",
+  "ingredients": [
+    "promisedend:voidsteel_block"
+  ],
+  "result": {
+    "id": "promisedend:voidsteel_ingot",
+    "count": 9
+  }
+}

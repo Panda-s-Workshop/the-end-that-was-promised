@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "promisedend:starmetal_ore",
+    "promisedend:starmetal_block",
     "promisedend:raw_lattice",
     "promisedend:lattice_tile",
     "promisedend:lattice_scaffold"

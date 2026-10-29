@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "###",
+    "###",
+    "###"
+  ],
+  "key": {
+    "#": "promisedend:starmetal"
+  },
+  "result": {
+    "id": "promisedend:starmetal_block",
+    "count": 1
+  }
+}

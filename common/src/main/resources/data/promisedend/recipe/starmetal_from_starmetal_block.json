@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "starmetal",
+  "ingredients": [
+    "promisedend:starmetal_block"
+  ],
+  "result": {
+    "id": "promisedend:starmetal",
+    "count": 9
+  }
+}

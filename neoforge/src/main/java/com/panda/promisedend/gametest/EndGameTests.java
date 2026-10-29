@@ -174,6 +174,7 @@ public final class EndGameTests {
         FUNCTIONS.register("rift_maws_within_reach", () -> SentinelGameTests::riftMawsWithinReach);
         FUNCTIONS.register("citadels_within_reach", () -> SentinelGameTests::citadelsWithinReach);
         FUNCTIONS.register("voidsteel_gear", () -> VoidsteelGameTests::voidsteelGear);
+        FUNCTIONS.register("storage_blocks", () -> VoidsteelGameTests::storageBlocks);
         FUNCTIONS.register("set_bonus_void_touched", () -> VoidsteelGameTests::setBonusVoidTouched);
         FUNCTIONS.register("augment_applies_in_smithing", () -> AugmentGameTests::appliesInSmithing);
         FUNCTIONS.register("augment_drift_weave_reduces_wear", () -> AugmentGameTests::driftWeaveReducesWear);
