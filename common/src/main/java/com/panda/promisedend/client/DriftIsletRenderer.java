@@ -62,6 +62,8 @@ public final class DriftIsletRenderer extends EntityRenderer<DriftIslet, DriftIs
     public void extractRenderState(DriftIslet islet, State state, float partialTick) {
         super.extractRenderState(islet, state, partialTick);
         BlockState stone = Blocks.END_STONE.defaultBlockState(), corner = ModBlocks.ANCIENT_PURPUR_SET.base().get().defaultBlockState();
+        // a chiseled Voidstone heart, so a docked islet reads as a vessel and not more of the island
+        BlockState heart = ModBlocks.CHISELED_VOIDSTONE.get().defaultBlockState();
         var level = (ClientLevel) islet.level();
         double x = state.x, y = state.y, z = state.z;
         for (int i = 0; i < CELLS.length; i++) {
@@ -70,7 +72,7 @@ public final class DriftIsletRenderer extends EntityRenderer<DriftIslet, DriftIs
             BlockPos at = BlockPos.containing(x + c[0], y + c[1] + 0.5, z + c[2]);
             b.blockPos = at;
             b.randomSeedPos = at;
-            b.blockState = c[3] == 1 ? corner : stone;
+            b.blockState = c[3] == 1 ? corner : c[0] == 0 && c[2] == 0 ? heart : stone;
             b.biome = level.getBiome(at);
             b.cardinalLighting = level.cardinalLighting();
             b.lightEngine = level.getLightEngine();

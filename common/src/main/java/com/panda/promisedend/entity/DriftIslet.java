@@ -66,6 +66,11 @@ public class DriftIslet extends Entity {
      */
     private final java.util.Map<java.util.UUID, Integer> aboard = new java.util.HashMap<>();
     private static final int MISSED = 20;
+    /** A player told once what a mooring is for. */
+    public static final String MOORING_HINTED = "promisedend.hinted_mooring";
+    /** A lilac mote under its keel this often while it moves (client side): an islet mid-gap shows against the void. */
+    private static final int TRAIL_EVERY = 3;
+    private static final net.minecraft.core.particles.DustParticleOptions KEEL = new net.minecraft.core.particles.DustParticleOptions(0xE9DDF5, 1.2F);
     private static final net.minecraft.resources.Identifier CROSSED = com.panda.promisedend.PromisedEnd.id("outer/ride_drift");
 
     public DriftIslet(EntityType<? extends DriftIslet> type, Level level) {
@@ -152,6 +157,9 @@ public class DriftIslet extends Entity {
         boolean server = !level().isClientSide();
         if (!clear && server && tickCount % 20 == 1) clearWay();
         if (!server && tickCount - heard > SILENT) return;
+        if (!server && state.wait == 0 && tickCount % TRAIL_EVERY == 0) {
+            level().addParticle(KEEL, getX() + (random.nextDouble() - 0.5) * 2.4, getY() - 0.2, getZ() + (random.nextDouble() - 0.5) * 2.4, 0, -0.02, 0);
+        }
         AABB before = getBoundingBox();
         Vec3 from = position();
         List<Entity> riders = riders(before);
@@ -176,12 +184,43 @@ public class DriftIslet extends Entity {
                     player.resetFallDistance();
                 }
             }
-            // a chime a second before it leaves a mooring, and a higher one as it leaves
+            // a chime a second before it leaves a mooring, and a higher one as it leaves; at the first, the mooring's
+            // posts throw sparks, so the one about to go is seen as well as heard
             if (!turned && (waited == DEPART_WARNING + 1 && state.wait == DEPART_WARNING || waited == 1 && state.wait == 0)) {
                 level().playSound(null, getX(), getY() + 1, getZ(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.NEUTRAL, 1.0F, state.wait == 0 ? 1.2F : 0.8F);
+                if (state.wait == DEPART_WARNING) sparkPosts();
             }
+            if (tickCount % 20 == 7) hintMoorings();
             if (turned || tickCount % RESYNC == 0) send(false);
             crossings(waited, turned);
+        }
+    }
+
+    /** The two lit posts of the mooring it stands at throw a burst of sparks. */
+    private void sparkPosts() {
+        if (!(level() instanceof ServerLevel level) || (state.s > 0 && state.s < 1)) return;
+        var gap = com.panda.promisedend.logic.DriftGap.Gap.of(route);
+        boolean first = state.s <= 0;
+        int ex = first ? gap.ex() : gap.fx(), ez = first ? gap.ez() : gap.fz(), top = (first ? gap.he() : gap.hf()) + 2;
+        for (int l : new int[] {-com.panda.promisedend.logic.DriftGap.CORRIDOR, com.panda.promisedend.logic.DriftGap.CORRIDOR}) {
+            double x = ex + 0.5 + (gap.dz() != 0 ? l : 0), z = ez + 0.5 + (gap.dx() != 0 ? l : 0);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, x, top + 0.7, z, 12, 0.1, 0.2, 0.1, 0.06);
+        }
+    }
+
+    /**
+     * The first time a player waits on one of its moorings while it is away, a line in the action bar says what the dock
+     * is for, once.
+     */
+    private void hintMoorings() {
+        var gap = com.panda.promisedend.logic.DriftGap.Gap.of(route);
+        for (int[] end : new int[][] {{gap.ex(), gap.ez(), gap.he()}, {gap.fx(), gap.fz(), gap.hf()}}) {
+            AABB dock = new AABB(end[0] - 2, end[2] - 0.5, end[1] - 2, end[0] + 3, end[2] + 2, end[1] + 3);
+            if (getBoundingBox().inflate(1).intersects(dock)) continue;
+            for (ServerPlayer p : level().getEntitiesOfClass(ServerPlayer.class, dock, p -> !p.isSpectator() && !p.entityTags().contains(MOORING_HINTED))) {
+                p.addTag(MOORING_HINTED);
+                p.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("hint.promisedend.drift_islet.mooring"));
+            }
         }
     }
 

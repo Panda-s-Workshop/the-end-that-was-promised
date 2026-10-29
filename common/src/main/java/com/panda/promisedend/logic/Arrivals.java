@@ -184,23 +184,35 @@ public final class Arrivals {
         ItemStack codex = new ItemStack(ModItems.PROMISE_CODEX.get());
         player.getInventory().placeItemBackInInventory(codex, net.minecraft.util.Prediction.SERVER_ONLY);
         greeting(player).forEach(player::sendSystemMessage);
+        title(player);
     }
 
     /**
-     * What a first arrival is told: what the Waystation is; with the Ward up, which way in and how far (its wall is out
-     * of sight from here, hundreds of blocks off); and that a pearl in hand shows the way.
+     * What a first arrival is told: what the Waystation is; which way in and how far (to the Ward while it stands, its
+     * wall out of sight hundreds of blocks off; to the heart of the End while it is down); and that a pearl in hand
+     * shows the way.
      */
     public static List<Component> greeting(Entity player) {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.translatable("arrival.promisedend.first"));
+        double out = Math.hypot(player.getX(), player.getZ());
+        Component way = Component.translatable("direction.promisedend." + Arrival.compass(-player.getX(), -player.getZ()));
         if (AncientWard.stands(player.level().getServer())) {
-            double out = Math.hypot(player.getX(), player.getZ());
-            int toWard = (int) Math.round(out - EndConfig.wardRadius());
-            lines.add(Component.translatable("arrival.promisedend.ward", toWard,
-                    Component.translatable("direction.promisedend." + Arrival.compass(-player.getX(), -player.getZ()))));
+            lines.add(Component.translatable("arrival.promisedend.ward", (int) Math.round(out - EndConfig.wardRadius()), way));
+        } else {
+            lines.add(Component.translatable("arrival.promisedend.heart", (int) Math.round(out / 10) * 10, way));
         }
         lines.add(Component.translatable("arrival.promisedend.pearl"));
         return lines;
+    }
+
+    /** The first arrival's title, for a player who never reads chat, and a low chime under the portal's sound. */
+    private static void title(ServerPlayer player) {
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(10, 70, 20));
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(Component.translatable("arrival.promisedend.subtitle")));
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(Component.translatable("arrival.promisedend.title")));
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_RESONATE,
+                net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 0.6F);
     }
 
     private static boolean near(BlockPos at, double[] point) {

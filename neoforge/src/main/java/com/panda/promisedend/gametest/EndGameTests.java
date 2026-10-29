@@ -3644,7 +3644,7 @@ public final class EndGameTests {
                 .map(c -> c.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t ? t.getKey() : c.getString()).toList();
         PromisedEnd.LOGGER.info("[arrival_by_coordinates] the greeting: {}", said);
         var lines = com.panda.promisedend.logic.AncientWard.stands(server) ? List.of("arrival.promisedend.first", "arrival.promisedend.ward", "arrival.promisedend.pearl")
-                : List.of("arrival.promisedend.first", "arrival.promisedend.pearl");
+                : List.of("arrival.promisedend.first", "arrival.promisedend.heart", "arrival.promisedend.pearl");
         if (!said.equals(lines)) bad.add("the greeting said " + said);
         player.discard();
         if (!bad.isEmpty()) helper.fail("arrival: " + bad);

@@ -23,11 +23,15 @@ public final class PearlGuide {
     /** How far inward a mote drifts, in blocks, and in how many ticks. */
     public static final double REACH = 6;
     public static final int DRIFT = 30;
+    /** One mote in seven leads: it drifts this far over this long, so the direction reads at a glance. */
+    public static final int LEAD_EVERY = EVERY * 7;
+    public static final double LEAD_REACH = 16;
+    public static final int LEAD_DRIFT = 50;
     /**
      * An ender pearl's green: the trail motes that move to a point (vanilla's creaking trail) in a colour nothing else
      * of the End's uses, where white end-rod sparks were already the Waystation's posts and the Ward's wall.
      */
-    public static final int COLOUR = 0xFF2BD9A2;
+    public static final int COLOUR = 0xFF4CFFC0;
 
     private PearlGuide() {}
 
@@ -66,7 +70,9 @@ public final class PearlGuide {
         double x = player.getX() + lx * AHEAD + (level.getRandom().nextDouble() - 0.5) * 0.6;
         double y = player.getEyeY() - 0.6 + (level.getRandom().nextDouble() - 0.5) * 0.4;
         double z = player.getZ() + lz * AHEAD + (level.getRandom().nextDouble() - 0.5) * 0.6;
-        Vec3 to = new Vec3(x + w[0] * REACH, y + 0.3, z + w[1] * REACH);
-        level.sendParticles(player, new TrailParticleOption(to, COLOUR, DRIFT), true, false, x, y, z, 1, 0, 0, 0, 0);
+        boolean lead = player.tickCount % LEAD_EVERY == 0;
+        double reach = lead ? LEAD_REACH : REACH;
+        Vec3 to = new Vec3(x + w[0] * reach, y + (lead ? 0.6 : 0.3), z + w[1] * reach);
+        level.sendParticles(player, new TrailParticleOption(to, COLOUR, lead ? LEAD_DRIFT : DRIFT), true, false, x, y, z, 1, 0, 0, 0, 0);
     }
 }
