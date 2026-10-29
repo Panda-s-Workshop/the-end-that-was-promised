@@ -182,6 +182,12 @@ public final class EndGameTests {
         FUNCTIONS.register("phantom_lattice_reforms", () -> LatticeGameTests::phantomLatticeReforms);
         FUNCTIONS.register("amber_gate_needs_key", () -> LatticeGameTests::amberGateNeedsKey);
         FUNCTIONS.register("unfinished_citadel_places", () -> LatticeGameTests::unfinishedCitadelPlaces);
+        FUNCTIONS.register("architect_only_edits_lattice", () -> ArchitectGameTests::onlyEditsLattice);
+        FUNCTIONS.register("architect_arena_resets", () -> ArchitectGameTests::arenaResets);
+        FUNCTIONS.register("architect_keystone_takes_double", () -> ArchitectGameTests::keystoneTakesDouble);
+        FUNCTIONS.register("architect_death_breaks_seal", () -> ArchitectGameTests::deathBreaksSeal);
+        FUNCTIONS.register("architect_lattice_boosts", () -> ArchitectGameTests::latticeBoosts);
+        FUNCTIONS.register("citadel_places_architect", () -> ArchitectGameTests::citadelPlacesArchitect);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -196,7 +202,8 @@ public final class EndGameTests {
             java.util.Map.entry("sentinel_volleys_never_crack_itself", 260), java.util.Map.entry("sentinel_opens_onto_its_rest", 260),
             java.util.Map.entry("leviathan_breach_telegraphs", 320), java.util.Map.entry("leviathan_pairs_and_draws", 360),
             java.util.Map.entry("set_bonus_void_touched", 400), java.util.Map.entry("ward_bounces_pearls", 160),
-            java.util.Map.entry("crawler_only_tears_lattice", 340), java.util.Map.entry("phantom_lattice_reforms", 200));
+            java.util.Map.entry("crawler_only_tears_lattice", 340), java.util.Map.entry("phantom_lattice_reforms", 200),
+            java.util.Map.entry("architect_only_edits_lattice", 90));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -220,7 +227,10 @@ public final class EndGameTests {
             "sentinel_opens_after_three_returns", "sentinel_phases_call_sentries", "sentinel_wakes_for_survival", "sentinel_death_breaks_seal",
             "sentinel_volleys_never_crack_itself", "sentinel_opens_onto_its_rest",
             // a Leviathan wakes for and strikes any survival player in 48 of it, and its seal is the world's
-            "leviathan_exposed_window_only", "leviathan_breach_telegraphs", "leviathan_pairs_and_draws", "leviathan_death_breaks_seal");
+            "leviathan_exposed_window_only", "leviathan_breach_telegraphs", "leviathan_pairs_and_draws", "leviathan_death_breaks_seal",
+            // an Architect wakes for and builds against any survival player in 48, lays its disc past the test's bounds,
+            // and its seal is the world's
+            "architect_only_edits_lattice", "architect_arena_resets", "architect_keystone_takes_double", "architect_death_breaks_seal");
 
     private EndGameTests() {}
 
@@ -3890,12 +3900,11 @@ public final class EndGameTests {
         double[] way = com.panda.promisedend.logic.PearlGuide.way(1000, -1000);
         if (Math.abs(way[0] + Math.sqrt(0.5)) > 1e-9 || Math.abs(way[1] - Math.sqrt(0.5)) > 1e-9) bad.add("the way from (1000, -1000) is " + java.util.Arrays.toString(way));
         // while the Foundry's seal binds the Ward the pearl leads to the nearest Foundry (logged: this level's End
-        // may have none in reach), then to the nearest Rift Maw; the motes are counted with both broken, when the way
-        // is inward
+        // may have none in reach), then to the nearest Rift Maw, then the Citadel; the motes are counted with all three
+        // broken, when the way is inward
         wardAt(end, p, 1000.0);
         PromisedEnd.LOGGER.info("[pearl_shows_the_way] with the Foundry's seal whole the pearl leads to {}", com.panda.promisedend.logic.PearlGuide.lead(p));
-        com.panda.promisedend.logic.AncientWard.breakSeal(server, 0);
-        com.panda.promisedend.logic.AncientWard.breakSeal(server, 1);
+        for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
         // the motes: 12 ticks, a mote each 3 to the holder alone, a trail to a point 6 inward; a player beside, without
         // a pearl, sent none
         wardAt(end, p, 1000.0);
@@ -3925,13 +3934,15 @@ public final class EndGameTests {
             double along = (trail.target().x - m.x()) * lead[0] + (trail.target().z - m.z()) * lead[1];
             if (along < com.panda.promisedend.logic.PearlGuide.REACH - 0.01) bad.add("a mote drifting to " + trail.target() + " from " + m.x() + ", " + m.z() + ", not on the way");
         }
-        // with the Foundry's seal broken the pearl leads to the Maw's; with that broken too, the way is the heart of the
-        // End (the Citadel's has no place yet)
+        // with the Foundry's seal broken the pearl leads to the Maw's, with that broken to the Citadel's; with all three
+        // broken, the way is the heart of the End
         com.panda.promisedend.logic.AncientWard.reset(server);
         com.panda.promisedend.logic.AncientWard.breakSeal(server, 0);
         if (com.panda.promisedend.logic.PearlGuide.seal(server) != 1) bad.add("led to seal " + com.panda.promisedend.logic.PearlGuide.seal(server) + " with the Foundry's broken, not the Maw's");
         com.panda.promisedend.logic.AncientWard.breakSeal(server, 1);
-        if (com.panda.promisedend.logic.PearlGuide.lead(p) != net.minecraft.core.BlockPos.ZERO) bad.add("led to " + com.panda.promisedend.logic.PearlGuide.lead(p) + " with the Foundry's and the Maw's seals broken");
+        if (com.panda.promisedend.logic.PearlGuide.seal(server) != 2) bad.add("led to seal " + com.panda.promisedend.logic.PearlGuide.seal(server) + " with the Maw's broken, not the Citadel's");
+        com.panda.promisedend.logic.AncientWard.breakSeal(server, 2);
+        if (com.panda.promisedend.logic.PearlGuide.lead(p) != net.minecraft.core.BlockPos.ZERO) bad.add("led to " + com.panda.promisedend.logic.PearlGuide.lead(p) + " with all three seals broken");
         com.panda.promisedend.logic.AncientWard.reset(server);
         // off with arrivals by coordinates off
         var previous = com.panda.promisedend.EndConfig.current();
@@ -4279,7 +4290,8 @@ public final class EndGameTests {
         }
         if (!before.getAdvancements().getOrStartProgress(down).isDone()) bad.add("rim/ward_down not earned in a second with the Ward down");
         // the Ward as it ships, without the tests' every-guardian flag: the Foundry's seal leaves it standing and the
-        // pearl leading to the Maw, the Maw's brings it down, the pearl turns to the heart and the last act opens
+        // pearl leading to the Maw, the Maw's leaves it standing and the pearl on the Citadel, the Citadel's brings it
+        // down, the pearl turns to the heart and the last act opens
         var after = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
         wardAt(end, after, r + 40.0);
         String flag = System.getProperty(com.panda.promisedend.logic.AncientWard.ALL_GUARDIANS);
@@ -4296,16 +4308,25 @@ public final class EndGameTests {
                 after.tickCount++;
                 com.panda.promisedend.logic.AncientWard.tick(after);
             }
-            if (after.getAdvancements().getOrStartProgress(down).isDone()) bad.add("shipping: rim/ward_down earned with one seal of two broken");
+            if (after.getAdvancements().getOrStartProgress(down).isDone()) bad.add("shipping: rim/ward_down earned with one seal of three broken");
             com.panda.promisedend.logic.AncientWard.breakSeal(server, 1);
+            if (!com.panda.promisedend.logic.AncientWard.binds(com.panda.promisedend.logic.AncientWard.broken(server), com.panda.promisedend.logic.AncientWard.guarded()))
+                bad.add("shipping: the Ward fell with the Citadel's seal whole");
+            if (com.panda.promisedend.logic.PearlGuide.seal(server) != 2) bad.add("shipping: after the Maw the pearl leads to seal " + com.panda.promisedend.logic.PearlGuide.seal(server) + ", not the Citadel's");
+            for (int i = 0; i < 20; i++) {
+                after.tickCount++;
+                com.panda.promisedend.logic.AncientWard.tick(after);
+            }
+            if (after.getAdvancements().getOrStartProgress(down).isDone()) bad.add("shipping: rim/ward_down earned with two seals of three broken");
+            com.panda.promisedend.logic.AncientWard.breakSeal(server, 2);
             if (com.panda.promisedend.logic.AncientWard.binds(com.panda.promisedend.logic.AncientWard.broken(server), com.panda.promisedend.logic.AncientWard.guarded()))
-                bad.add("shipping: the Ward stands with the Foundry's and the Maw's seals broken");
+                bad.add("shipping: the Ward stands with all three seals broken");
             if (com.panda.promisedend.logic.PearlGuide.seal(server) != -1) bad.add("shipping: with the Ward down the pearl still leads to a seal");
             for (int i = 0; i < 20; i++) {
                 after.tickCount++;
                 com.panda.promisedend.logic.AncientWard.tick(after);
             }
-            if (!after.getAdvancements().getOrStartProgress(down).isDone()) bad.add("shipping: rim/ward_down not earned once the Maw's seal broke");
+            if (!after.getAdvancements().getOrStartProgress(down).isDone()) bad.add("shipping: rim/ward_down not earned once the Citadel's seal broke");
         } finally {
             if (flag != null) System.setProperty(com.panda.promisedend.logic.AncientWard.ALL_GUARDIANS, flag);
         }
@@ -5183,7 +5204,10 @@ public final class EndGameTests {
                 new Rig("purpur_sentry", com.panda.promisedend.entity.PurpurSentry.CLIPS, java.util.Map.of(
                         "lunge", com.panda.promisedend.entity.PurpurSentry.LUNGE_TICKS)),
                 new Rig("void_leviathan", com.panda.promisedend.entity.VoidLeviathan.CLIPS, java.util.Map.of(
-                        "breach", com.panda.promisedend.entity.VoidLeviathan.BREACH_TICKS, "dive", com.panda.promisedend.entity.VoidLeviathan.DIVE_TICKS)))) {
+                        "breach", com.panda.promisedend.entity.VoidLeviathan.BREACH_TICKS, "dive", com.panda.promisedend.entity.VoidLeviathan.DIVE_TICKS)),
+                new Rig("the_architect", com.panda.promisedend.entity.TheArchitect.CLIPS, java.util.Map.of(
+                        "raise", com.panda.promisedend.entity.TheArchitect.RAISE_TICKS, "throw", com.panda.promisedend.entity.TheArchitect.THROW_TICKS,
+                        "unmake", com.panda.promisedend.entity.TheArchitect.UNMAKE_TELL)))) {
             var a = readJson(base + "geckolib/animations/entity/" + rig.id() + ".animation.json");
             var g = readJson(base + "geckolib/models/entity/" + rig.id() + ".geo.json");
             if (a == null || g == null) {

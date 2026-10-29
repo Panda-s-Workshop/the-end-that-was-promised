@@ -18,6 +18,8 @@ public final class EndNeoForgeClient {
                 com.panda.promisedend.client.ShrineScreen.offeringLine(e.getItemStack(), e.getToolTip()));
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientTickEvent.Post e) ->
                 com.panda.promisedend.client.VoidCurrentView.tick(net.minecraft.client.Minecraft.getInstance()));
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientTickEvent.Post e) ->
+                com.panda.promisedend.client.LatticeBoostKey.tick(net.minecraft.client.Minecraft.getInstance()));
         modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) ->
                 com.panda.promisedend.client.ModRenderers.register(new com.panda.promisedend.client.ModRenderers.Sink() {
                     @Override

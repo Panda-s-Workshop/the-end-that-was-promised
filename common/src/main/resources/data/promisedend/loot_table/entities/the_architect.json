@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:entity",
+  "random_sequence": "promisedend:entities/the_architect",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:raw_lattice",
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 8,
+              "max": 12
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

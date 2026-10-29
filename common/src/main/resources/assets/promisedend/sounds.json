@@ -620,6 +620,133 @@
       }
     ]
   },
+  "entity.the_architect.ambient": {
+    "subtitle": "subtitles.promisedend.the_architect.ambient",
+    "sounds": [
+      {
+        "name": "minecraft:block.vault.ambient",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.the_architect.hurt": {
+    "subtitle": "subtitles.promisedend.the_architect.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:block.deepslate_tiles.hit",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.the_architect.death": {
+    "subtitle": "subtitles.promisedend.the_architect.death",
+    "sounds": [
+      {
+        "name": "minecraft:block.vault.break",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 3.0
+      }
+    ]
+  },
+  "entity.the_architect.wake": {
+    "subtitle": "subtitles.promisedend.the_architect.wake",
+    "sounds": [
+      {
+        "name": "minecraft:block.vault.activate",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 3.0
+      }
+    ]
+  },
+  "entity.the_architect.raise": {
+    "subtitle": "subtitles.promisedend.the_architect.raise",
+    "sounds": [
+      {
+        "name": "minecraft:block.end_portal_frame.fill",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.the_architect.throw": {
+    "subtitle": "subtitles.promisedend.the_architect.throw",
+    "sounds": [
+      {
+        "name": "minecraft:item.trident.throw",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.the_architect.unmake": {
+    "subtitle": "subtitles.promisedend.the_architect.unmake",
+    "sounds": [
+      {
+        "name": "minecraft:block.respawn_anchor.charge",
+        "type": "event",
+        "pitch": 0.8,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.the_architect.keystone": {
+    "subtitle": "subtitles.promisedend.the_architect.keystone",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.resonate",
+        "type": "event",
+        "pitch": 1.4,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.the_architect.phase": {
+    "subtitle": "subtitles.promisedend.the_architect.phase",
+    "sounds": [
+      {
+        "name": "minecraft:block.end_portal.spawn",
+        "type": "event",
+        "pitch": 1.2,
+        "volume": 0.8
+      }
+    ]
+  },
+  "entity.lattice_shard.hit": {
+    "subtitle": "subtitles.promisedend.lattice_shard.hit",
+    "sounds": [
+      {
+        "name": "minecraft:block.deepslate_tiles.break",
+        "type": "event",
+        "pitch": 1.1
+      }
+    ]
+  },
+  "item.architects_lattice.boost": {
+    "subtitle": "subtitles.promisedend.architects_lattice.boost",
+    "sounds": [
+      {
+        "name": "minecraft:entity.firework_rocket.launch",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
+  "item.architects_lattice.setting": {
+    "subtitle": "subtitles.promisedend.architects_lattice.setting",
+    "sounds": [
+      {
+        "name": "minecraft:block.chain.hit",
+        "type": "event",
+        "pitch": 1.4
+      }
+    ]
+  },
   "entity.resonant_bullet.return": {
     "subtitle": "subtitles.promisedend.resonant_bullet.return",
     "sounds": [

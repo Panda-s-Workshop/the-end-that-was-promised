@@ -1,0 +1,277 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "promisedend:block/raw_lattice",
+    "tile": "promisedend:block/lattice_tile",
+    "lattice": "promisedend:block/raw_lattice",
+    "key": "promisedend:block/architects_promise_keystone"
+  },
+  "elements": [
+    {
+      "from": [
+        2,
+        0,
+        2
+      ],
+      "to": [
+        14,
+        3,
+        14
+      ],
+      "faces": {
+        "north": {
+          "texture": "#tile",
+          "uv": [
+            2,
+            13,
+            14,
+            16
+          ]
+        },
+        "south": {
+          "texture": "#tile",
+          "uv": [
+            2,
+            13,
+            14,
+            16
+          ]
+        },
+        "east": {
+          "texture": "#tile",
+          "uv": [
+            2,
+            13,
+            14,
+            16
+          ]
+        },
+        "west": {
+          "texture": "#tile",
+          "uv": [
+            2,
+            13,
+            14,
+            16
+          ]
+        },
+        "up": {
+          "texture": "#tile",
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ]
+        },
+        "down": {
+          "texture": "#tile",
+          "cullface": "down",
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        6,
+        3,
+        6
+      ],
+      "to": [
+        10,
+        8,
+        10
+      ],
+      "faces": {
+        "north": {
+          "texture": "#lattice",
+          "uv": [
+            6,
+            3,
+            10,
+            8
+          ]
+        },
+        "south": {
+          "texture": "#lattice",
+          "uv": [
+            6,
+            3,
+            10,
+            8
+          ]
+        },
+        "east": {
+          "texture": "#lattice",
+          "uv": [
+            6,
+            3,
+            10,
+            8
+          ]
+        },
+        "west": {
+          "texture": "#lattice",
+          "uv": [
+            6,
+            3,
+            10,
+            8
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        5.5,
+        8.5,
+        5.5
+      ],
+      "to": [
+        10.5,
+        13.5,
+        10.5
+      ],
+      "light_emission": 15,
+      "rotation": {
+        "origin": [
+          8,
+          11,
+          8
+        ],
+        "axis": "y",
+        "angle": 45
+      },
+      "faces": {
+        "north": {
+          "texture": "#key",
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ]
+        },
+        "south": {
+          "texture": "#key",
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ]
+        },
+        "east": {
+          "texture": "#key",
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ]
+        },
+        "west": {
+          "texture": "#key",
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ]
+        },
+        "up": {
+          "texture": "#key",
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ]
+        },
+        "down": {
+          "texture": "#key",
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        4.5,
+        10.75,
+        7.75
+      ],
+      "to": [
+        11.5,
+        11.25,
+        8.25
+      ],
+      "light_emission": 15,
+      "faces": {
+        "north": {
+          "texture": "#key",
+          "uv": [
+            0,
+            7,
+            7,
+            8
+          ]
+        },
+        "south": {
+          "texture": "#key",
+          "uv": [
+            0,
+            7,
+            7,
+            8
+          ]
+        },
+        "east": {
+          "texture": "#key",
+          "uv": [
+            0,
+            7,
+            7,
+            8
+          ]
+        },
+        "west": {
+          "texture": "#key",
+          "uv": [
+            0,
+            7,
+            7,
+            8
+          ]
+        },
+        "up": {
+          "texture": "#key",
+          "uv": [
+            0,
+            7,
+            7,
+            8
+          ]
+        },
+        "down": {
+          "texture": "#key",
+          "uv": [
+            0,
+            7,
+            7,
+            8
+          ]
+        }
+      }
+    }
+  ]
+}

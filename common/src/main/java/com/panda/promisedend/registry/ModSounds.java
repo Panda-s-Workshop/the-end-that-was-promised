@@ -97,6 +97,19 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> AMBER_GATE_OPEN = sound("block.amber_gate.open");
     public static final Supplier<SoundEvent> AMBER_GATE_CLOSE = sound("block.amber_gate.close");
     public static final Supplier<SoundEvent> LATTICE_GROAN = sound("block.lattice.groan");
+    public static final Supplier<SoundEvent> ARCHITECT_AMBIENT = sound("entity.the_architect.ambient");
+    public static final Supplier<SoundEvent> ARCHITECT_HURT = sound("entity.the_architect.hurt");
+    public static final Supplier<SoundEvent> ARCHITECT_DEATH = sound("entity.the_architect.death");
+    public static final Supplier<SoundEvent> ARCHITECT_WAKE = sound("entity.the_architect.wake");
+    public static final Supplier<SoundEvent> ARCHITECT_RAISE = sound("entity.the_architect.raise");
+    public static final Supplier<SoundEvent> ARCHITECT_THROW = sound("entity.the_architect.throw");
+    public static final Supplier<SoundEvent> ARCHITECT_UNMAKE = sound("entity.the_architect.unmake");
+    public static final Supplier<SoundEvent> ARCHITECT_KEYSTONE = sound("entity.the_architect.keystone");
+    public static final Supplier<SoundEvent> ARCHITECT_PHASE = sound("entity.the_architect.phase");
+    public static final Supplier<SoundEvent> LATTICE_SHARD_HIT = sound("entity.lattice_shard.hit");
+    /** The Architect's Lattice: a glider's boost, and its press while the lattice is still setting. */
+    public static final Supplier<SoundEvent> LATTICE_BOOST = sound("item.architects_lattice.boost");
+    public static final Supplier<SoundEvent> LATTICE_BOOST_SETTING = sound("item.architects_lattice.setting");
     public static final Supplier<SoundEvent> LATTICE_TEAR = sound("block.lattice.tear");
     public static final Supplier<SoundEvent> LATTICE_REFORM = sound("block.lattice.reform");
     /** The Starfall: its far rumble as it is seen coming, and its landing. */

@@ -135,6 +135,9 @@ public final class ModItems {
     /** Opens the Unfinished Citadel's Amber Gate, and is spent on it. */
     public static final DeferredItem<HintItem> AMBER_KEY = ITEMS.registerItem("amber_key", p -> new HintItem(p, "amber_key", 2),
             p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));
+    /** The Architect's, one to each who fought it: a boost on the jump key while gliding (item.Augments). */
+    public static final DeferredItem<HintItem> ARCHITECTS_LATTICE = ITEMS.registerItem("architects_lattice", p -> new HintItem(p, "architects_lattice", 2),
+            p -> p.rarity(net.minecraft.world.item.Rarity.RARE));
     /** The Void Leviathan's: smiths Resonite gear into Voidsteel. */
     public static final DeferredItem<com.panda.promisedend.item.VoidsteelTemplateItem> VOIDSTEEL_UPGRADE_SMITHING_TEMPLATE = ITEMS.registerItem(
             "voidsteel_upgrade_smithing_template", com.panda.promisedend.item.VoidsteelTemplateItem::new, p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));

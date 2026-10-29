@@ -98,7 +98,8 @@ public final class CodexBook {
                     new Goal(VOIDSTEEL_SET, "voidsteel_set"),
                     new Goal(PromisedEnd.id("void/augment_elytra"), "augment_elytra"),
                     new Goal(PromisedEnd.id("void/starfall_core"), "starfall_core"),
-                    new Goal(PromisedEnd.id("void/reach_edge"), "reach_edge"))),
+                    new Goal(PromisedEnd.id("void/reach_edge"), "reach_edge"),
+                    new Goal(PromisedEnd.id("void/defeat_architect"), "defeat_architect"))),
             new Act("heart", WARD_DOWN, List.of(
                     new Goal(PromisedEnd.id("rim/enter_rim"), "enter_rim"),
                     new Goal(KILL_DRAGON, "kill_dragon"))));

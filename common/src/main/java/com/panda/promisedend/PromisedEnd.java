@@ -54,6 +54,7 @@ public final class PromisedEnd {
     public static void onServerStarting(net.minecraft.server.MinecraftServer server) {
         com.panda.promisedend.worldgen.EndBiomes.setSeed(server.getWorldGenSettings().options().seed());
         com.panda.promisedend.block.EchoAmberClusterBlock.forget();
+        com.panda.promisedend.item.Augments.forgetBoosts();
     }
 
     /** At the end of every server tick (both loaders). */

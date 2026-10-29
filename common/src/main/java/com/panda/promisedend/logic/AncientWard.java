@@ -44,10 +44,10 @@ public final class AncientWard {
     public static final int ALL = (1 << SEALS.size()) - 1;
     /**
      * The seals whose guardian is in the game, one bit each in {@link #SEALS}' order: the Foundry's (the Hollow
-     * Sentinel) and the Maw's (the Void Leviathan). A seal with no guardian to fight can't be broken, so it doesn't bind
-     * the Ward.
+     * Sentinel), the Maw's (the Void Leviathan) and the Citadel's (the Architect). A seal with no guardian to fight
+     * can't be broken, so it wouldn't bind the Ward.
      */
-    public static final int GUARDED = 0b011;
+    public static final int GUARDED = 0b111;
     /** Set (to true) for runs that need the Ward as it will stand, every guardian in: the GameTests, the screenshots. */
     public static final String ALL_GUARDIANS = "promisedend.allGuardians";
     /** How often a player in the End with the Ward down is told so by the advancement that opens the Codex's last act. */

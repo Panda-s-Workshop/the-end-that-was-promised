@@ -193,10 +193,10 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> LATTICE_SCAFFOLD = simple("lattice_scaffold",
             p -> p.mapColor(MapColor.COLOR_BLACK).strength(4.0F, 1200.0F).sound(SoundType.CHAIN).requiresCorrectToolForDrops().noOcclusion()
                     .isSuffocating((s, l, pos) -> false).isViewBlocking((s, l, pos, box) -> false).isRedstoneConductor((s, l, pos) -> false));
-    /** No item, no drop, nothing to stand on or break; faintly lit, it re-forms as what it was. */
+    /** No item, no drop, nothing to break; faintly lit, it re-forms as what it was (its collision is its form's). */
     public static final DeferredBlock<com.panda.promisedend.block.PhantomLatticeBlock> PHANTOM_LATTICE = BLOCKS.registerBlock("phantom_lattice",
             com.panda.promisedend.block.PhantomLatticeBlock::new, p -> p.mapColor(MapColor.NONE).strength(-1.0F, 3600000.0F).noLootTable()
-                    .noCollision().noOcclusion().lightLevel(s -> 4).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)
+                    .noOcclusion().lightLevel(s -> 4).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)
                     .isSuffocating((s, l, pos) -> false).isViewBlocking((s, l, pos, box) -> false).isValidSpawn((s, l, pos, e) -> false));
 
     /**
@@ -208,6 +208,12 @@ public final class ModBlocks {
                     .noOcclusion().lightLevel(s -> s.getValue(com.panda.promisedend.block.AmberGateBlock.OPEN) ? 12 : 7).sound(SoundType.GLASS)
                     .pushReaction(PushReaction.IMMOVEABLE).isValidSpawn((s, l, pos, e) -> false)
                     .isSuffocating((s, l, pos) -> false).isViewBlocking((s, l, pos, box) -> false).isRedstoneConductor((s, l, pos) -> false));
+
+    /** The Architect's Promise: its fighters' trophy, a keystone on lattice; lit as the keystone was. */
+    public static final DeferredBlock<com.panda.promisedend.block.ArchitectsPromiseBlock> ARCHITECTS_PROMISE = withItem(BLOCKS.registerBlock("architects_promise",
+            com.panda.promisedend.block.ArchitectsPromiseBlock::new, p -> p.mapColor(MapColor.COLOR_BLACK).strength(3.0F, 1200.0F).noOcclusion()
+                    .lightLevel(s -> 10).sound(SoundType.DEEPSLATE_TILES).requiresCorrectToolForDrops()),
+            (b, p) -> new com.panda.promisedend.item.HintBlockItem(b, p, "architects_promise", 2), p -> p.rarity(net.minecraft.world.item.Rarity.EPIC).stacksTo(16));
 
     // ---- the Shulker Reefs: Ancient Purpur, the purpur the reefs grow as coral, and what the Ancients cut from it
     /** As vanilla's purpur (1.5 / 6, a pickaxe), the grown block with coral's sound. */

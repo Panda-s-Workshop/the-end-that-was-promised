@@ -1,0 +1,7 @@
+{
+  "type": "promisedend:elytra_augment",
+  "template": "promisedend:architects_lattice",
+  "base": "#promisedend:augmentable_elytra",
+  "addition": "promisedend:echo_amber",
+  "augment": "promisedend:architects_lattice"
+}

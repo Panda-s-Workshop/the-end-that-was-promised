@@ -8,6 +8,9 @@
     },
     "form=lattice_tile": {
       "model": "promisedend:block/phantom_lattice"
+    },
+    "form=raised": {
+      "model": "promisedend:block/phantom_lattice_raised"
     }
   }
 }

@@ -56,6 +56,14 @@ public final class ModEntities {
     // low and wide at the rig's scale 1: its legs 19 px across (1.2 blocks), its keystone's top 12 px up
     public static final Supplier<EntityType<com.panda.promisedend.entity.LatticeCrawler>> LATTICE_CRAWLER = ENTITIES.registerEntityType("lattice_crawler",
             com.panda.promisedend.entity.LatticeCrawler::new, MobCategory.MONSTER, b -> b.sized(1.2F, 0.8F).eyeHeight(0.55F).clientTrackingRange(8));
+    // the Unfinished Citadel's guardian, at the rig's scale 2.0: its crown's top about 37 px up (4.6 blocks), its
+    // chest 13 px across (its frames hang past it); fire can't touch it, and it is seen across the Citadel
+    public static final Supplier<EntityType<com.panda.promisedend.entity.TheArchitect>> THE_ARCHITECT = ENTITIES.registerEntityType("the_architect",
+            com.panda.promisedend.entity.TheArchitect::new, MobCategory.MONSTER, b -> b.sized(1.8F, 4.6F).eyeHeight(3.9F)
+                    .clientTrackingRange(10).fireImmune());
+    /** The Architect's lob: a lump of Raw Lattice, tracked every tick. */
+    public static final Supplier<EntityType<com.panda.promisedend.entity.LatticeShard>> LATTICE_SHARD = ENTITIES.registerEntityType("lattice_shard",
+            com.panda.promisedend.entity.LatticeShard::new, MobCategory.MISC, b -> b.sized(0.5F, 0.5F).clientTrackingRange(8).updateInterval(1));
     /** Its shot: small, and tracked every tick, so a blow aimed at it lands where it is seen. */
     public static final Supplier<EntityType<com.panda.promisedend.entity.ResonantBullet>> RESONANT_BULLET = ENTITIES.registerEntityType("resonant_bullet",
             com.panda.promisedend.entity.ResonantBullet::new, MobCategory.MISC, b -> b.sized(0.5F, 0.5F).clientTrackingRange(8).updateInterval(1));
@@ -79,6 +87,7 @@ public final class ModEntities {
         sink.accept(HOLLOW_SENTINEL.get(), com.panda.promisedend.entity.HollowSentinel.createAttributes());
         sink.accept(VOID_LEVIATHAN.get(), com.panda.promisedend.entity.VoidLeviathan.createAttributes());
         sink.accept(LATTICE_CRAWLER.get(), com.panda.promisedend.entity.LatticeCrawler.createAttributes());
+        sink.accept(THE_ARCHITECT.get(), com.panda.promisedend.entity.TheArchitect.createAttributes());
     }
 
     /** A loader's way of registering a spawn placement (NeoForge: the event; Fabric: {@code SpawnPlacements.register}). */

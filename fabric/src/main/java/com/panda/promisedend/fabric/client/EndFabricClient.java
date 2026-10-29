@@ -12,6 +12,7 @@ public final class EndFabricClient implements ClientModInitializer {
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, flag, lines) ->
                 com.panda.promisedend.client.ShrineScreen.offeringLine(stack, lines));
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(com.panda.promisedend.client.VoidCurrentView::tick);
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(com.panda.promisedend.client.LatticeBoostKey::tick);
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.TerrainPayload.TYPE,
                 (payload, context) -> com.panda.promisedend.logic.VoidCurrents.heardTerrain(payload.terrainEnabled()));
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.ShrinePayloads.Offer.TYPE,

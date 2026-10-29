@@ -124,6 +124,9 @@ public final class EndFabric implements ModInitializer {
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(com.panda.promisedend.network.RiftPayloads.Travel.TYPE, com.panda.promisedend.network.RiftPayloads.Travel.STREAM_CODEC);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.RiftPayloads.Travel.TYPE,
                 (payload, context) -> com.panda.promisedend.logic.RiftGates.travelled(context.player(), payload));
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(com.panda.promisedend.network.BoostPayload.TYPE, com.panda.promisedend.network.BoostPayload.STREAM_CODEC);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.BoostPayload.TYPE,
+                (payload, context) -> com.panda.promisedend.item.Augments.boost(context.player()));
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(com.panda.promisedend.network.ShrinePayloads.Choose.TYPE, com.panda.promisedend.network.ShrinePayloads.Choose.STREAM_CODEC);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.ShrinePayloads.Choose.TYPE,
                 (payload, context) -> com.panda.promisedend.block.ShrineAltarBlockEntity.chosen(context.player(), payload));

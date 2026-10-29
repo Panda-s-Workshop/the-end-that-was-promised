@@ -50,7 +50,7 @@ public final class PearlGuide {
     public static final double THERE = 32;
     /** Where each seal is kept, in {@link AncientWard#SEALS}' order, as far as there are places a pearl can lead to. */
     private static final java.util.List<net.minecraft.tags.TagKey<net.minecraft.world.level.levelgen.structure.Structure>> KEPT =
-            java.util.List.of(ModTags.ON_FOUNDRY_CHARTS, ModTags.ON_RIFT_MAW_CHARTS);
+            java.util.List.of(ModTags.ON_FOUNDRY_CHARTS, ModTags.ON_RIFT_MAW_CHARTS, ModTags.ON_CITADEL_CHARTS);
 
     /**
      * Each player's Foundry, and where and when they stood when it was found: a search loads chunks, so it isn't run
