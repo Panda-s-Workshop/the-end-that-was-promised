@@ -1,0 +1,19 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "promisedend:voidsteel"
+      }
+    ],
+    "humanoid_baby": [
+      {
+        "texture": "promisedend:voidsteel"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "promisedend:voidsteel"
+      }
+    ]
+  }
+}

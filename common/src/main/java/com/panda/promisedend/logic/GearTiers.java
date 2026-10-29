@@ -34,6 +34,11 @@ public final class GearTiers {
      * mines what diamond mines; the Resonance set bonus is what sets it apart.
      */
     public static final Tier RESONITE = new Tier("resonite", 1700, 8.5F, 7.0F, 14, 3);
+    /**
+     * The Void's gear, the last tier: past netherite's durability and speed, its damage, and it mines what netherite
+     * mines; the Void-touched set bonus is what sets it apart.
+     */
+    public static final Tier VOIDSTEEL = new Tier("voidsteel", 2100, 9.0F, 8.0F, 15, 4);
 
     /** One armour material: defence per piece (helmet, chestplate, leggings, boots), toughness. */
     public record Armour(String name, int helmet, int chestplate, int leggings, int boots, float toughness, int enchantability) {
@@ -50,6 +55,12 @@ public final class GearTiers {
     public static final Armour RESONITE_ARMOUR = new Armour("resonite", 3, 8, 6, 3, 2.0F, 14);
     /** Armour durability: vanilla's multiplier per piece times this (diamond 33, netherite 37). */
     public static final int RESONITE_ARMOUR_DURABILITY = 35;
+
+    /** Netherite's defence and toughness and knockback resistance, a little longer-lived; Void-touched is the step up. */
+    public static final Armour VOIDSTEEL_ARMOUR = new Armour("voidsteel", 3, 8, 6, 3, 3.0F, 15);
+    public static final int VOIDSTEEL_ARMOUR_DURABILITY = 39;
+    /** Each piece's knockback resistance, netherite's. */
+    public static final float VOIDSTEEL_KNOCKBACK_RESISTANCE = 0.1F;
 
     private GearTiers() {}
 }

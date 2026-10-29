@@ -72,6 +72,7 @@ public final class PromisedEnd {
     /** For each server player at the end of every server tick. */
     public static void onPlayerTick(net.minecraft.server.level.ServerPlayer player) {
         com.panda.promisedend.logic.VoidAnchor.tick(player);
+        com.panda.promisedend.item.VoidTouched.tick(player);
         com.panda.promisedend.logic.RimProgress.tick(player);
         com.panda.promisedend.logic.OuterProgress.tick(player);
         com.panda.promisedend.logic.CaveDark.tick(player);

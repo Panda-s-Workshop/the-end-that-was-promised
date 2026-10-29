@@ -16,6 +16,21 @@
           ]
         }
       ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:starmetal",
+          "modifier": [
+            {
+              "type": "minecraft:set_count",
+              "count": 4
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smithing_transform",
+  "template": "promisedend:voidsteel_upgrade_smithing_template",
+  "base": "promisedend:resonite_leggings",
+  "addition": "promisedend:voidsteel_ingot",
+  "result": {
+    "id": "promisedend:voidsteel_leggings"
+  }
+}

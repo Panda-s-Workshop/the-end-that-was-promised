@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "promisedend:resonite_chestplate"
+    "promisedend:resonite_chestplate",
+    "promisedend:voidsteel_chestplate"
   ]
 }

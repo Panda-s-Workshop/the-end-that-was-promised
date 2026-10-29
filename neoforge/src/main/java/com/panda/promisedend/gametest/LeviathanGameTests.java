@@ -160,19 +160,25 @@ final class LeviathanGameTests {
                 edge = new Vec3(rest.x + 15, surface, rest.z - 3);
         int[] began = {-1}, shoves = {0}, lifted = {0}, held = {0};
         double[] longest = {0};
-        for (int t = 1; t <= 200; t++) {
+        // where it will rear: in a chunk held ticking above, whose entities load in the background
+        BlockPos rearsAt = BlockPos.containing(VoidLeviathan.breachPoint(rest, stand, surface));
+        for (int t = 1; t <= 300; t++) {
             int tick = t;
             helper.runAtTickTime(t, () -> {
                 if (began[0] < 0) {
                     p.snapTo(stand.x, stand.y, stand.z, 90, 0);
                     flying.snapTo(air.x, air.y, air.z, 90, 0);
                     lip.snapTo(edge.x, edge.y, edge.z, 90, 0);
-                    if (level.isPositionEntityTicking(v.blockPosition())) {
+                    if (level.isPositionEntityTicking(v.blockPosition()) && level.isPositionEntityTicking(rearsAt)) {
                         began[0] = tick;
                         v.wake();
                         v.setHealth(v.getMaxHealth() * 0.15F);
                         v.rear(VoidLeviathan.breachPoint(rest, stand, surface));
-                    } else if (tick == 60) helper.fail("the arena's chunk wasn't entity-ticking by tick 60");
+                    } else if (tick == 150) {
+                        release.run();
+                        helper.fail("the arena's chunks weren't entity-ticking by tick 150: " + level.isPositionEntityTicking(v.blockPosition())
+                                + ", where it rears " + level.isPositionEntityTicking(rearsAt));
+                    }
                     return;
                 }
                 if (v.state() == VoidLeviathan.State.EXPOSED) {
@@ -211,7 +217,7 @@ final class LeviathanGameTests {
                     release.run();
                     helper.succeed();
                 }
-                if (tick == 199) {
+                if (tick == began[0] + 199) {
                     release.run();
                     helper.fail("it never dived: " + v.state() + " at " + v.position() + ", " + v.timer() + " left, ticking "
                             + level.isPositionEntityTicking(v.blockPosition()));
@@ -245,6 +251,9 @@ final class LeviathanGameTests {
                     .filter(i -> i.getItem().is(ModItems.VOIDSTEEL_SCRAP.get())).mapToInt(i -> i.getItem().getCount()).sum();
             PromisedEnd.LOGGER.info("[leviathan_death_breaks_seal] it dropped {} Voidsteel Scrap", scrap);
             if (scrap < 6 || scrap > 10) bad.add(scrap + " scrap dropped, not 6-10");
+            int templates = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
+                    .filter(i -> i.getItem().is(ModItems.VOIDSTEEL_UPGRADE_SMITHING_TEMPLATE.get())).mapToInt(i -> i.getItem().getCount()).sum();
+            if (templates != 1) bad.add(templates + " Voidsteel templates dropped, not 1");
             Vec3 lip = VoidLeviathan.lip(Vec3.atBottomCenterOf(v.home()), p.position(), v.surface());
             long there = level.getEntitiesOfClass(ItemEntity.class, new net.minecraft.world.phys.AABB(lip, lip).inflate(1.5, 3, 1.5)).size();
             if (there == 0) bad.add("nothing it dropped was carried to the lip at " + lip);

@@ -35,6 +35,15 @@
           }
         }
       ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:voidsteel_upgrade_smithing_template"
+        }
+      ]
     }
   ]
 }

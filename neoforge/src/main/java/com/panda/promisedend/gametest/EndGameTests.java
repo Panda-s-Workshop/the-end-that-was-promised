@@ -172,6 +172,8 @@ public final class EndGameTests {
         FUNCTIONS.register("leviathan_death_breaks_seal", () -> LeviathanGameTests::deathBreaksSeal);
         FUNCTIONS.register("rift_maw_places", () -> LeviathanGameTests::riftMawPlaces);
         FUNCTIONS.register("rift_maws_within_reach", () -> SentinelGameTests::riftMawsWithinReach);
+        FUNCTIONS.register("voidsteel_gear", () -> VoidsteelGameTests::voidsteelGear);
+        FUNCTIONS.register("set_bonus_void_touched", () -> VoidsteelGameTests::setBonusVoidTouched);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -184,7 +186,8 @@ public final class EndGameTests {
             java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("constructs_edges_walls_and_swarms", 200), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260),
             java.util.Map.entry("sentinel_opens_after_three_returns", 260), java.util.Map.entry("sentinel_wakes_for_survival", 100),
             java.util.Map.entry("sentinel_volleys_never_crack_itself", 260), java.util.Map.entry("sentinel_opens_onto_its_rest", 260),
-            java.util.Map.entry("leviathan_breach_telegraphs", 320), java.util.Map.entry("leviathan_pairs_and_draws", 220));
+            java.util.Map.entry("leviathan_breach_telegraphs", 320), java.util.Map.entry("leviathan_pairs_and_draws", 360),
+            java.util.Map.entry("set_bonus_void_touched", 400));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -4796,13 +4799,16 @@ public final class EndGameTests {
                     if (!helper.getLevel().getBlockState(at.below()).isFaceSturdy(helper.getLevel(), at.below(), net.minecraft.core.Direction.UP))
                         bad.add("the chest isn't on solid ground: " + helper.getLevel().getBlockState(at.below()));
                     chest.unpackLootTable(null);
-                    int scales = 0;
+                    int scales = 0, starmetal = 0;
                     for (int i = 0; i < chest.getContainerSize(); i++) {
                         var stack = chest.getItem(i);
                         if (stack.is(com.panda.promisedend.registry.ModItems.DRAGON_SCALE.get())) scales += stack.getCount();
+                        else if (stack.is(com.panda.promisedend.registry.ModItems.STARMETAL.get())) starmetal += stack.getCount();
                         else if (!stack.isEmpty()) bad.add("the hoard holds " + stack);
                     }
                     if (scales != com.panda.promisedend.logic.DragonWrath.scales(2) || scales != 5) bad.add("the Wrath-2 hoard holds " + scales + " scales, wanted 5");
+                    // a Starmetal for each fall before
+                    if (starmetal != 2) bad.add("the Wrath-2 hoard holds " + starmetal + " Starmetal, wanted 2");
                     chest.clearContent();
                     helper.getLevel().removeBlock(at, false); // above the arena, so the test's own clean-up misses it
                 }

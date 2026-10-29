@@ -60,6 +60,12 @@ class UpdraftTest {
     @Test
     void aGliderRisesFasterToAHigherCap() {
         assertEquals(0.25, Updraft.lift(0, true, 0), 1e-9);
+        // Void-touched: half as much lift again, up to half as fast again
+        assertEquals(0.18, Updraft.lift(0, false, 0, 1.5), 1e-9);
+        assertEquals(0.375 + 0.08, Updraft.lift(0, true, 0.08, 1.5), 1e-9);
+        assertEquals(1.2, Updraft.lift(1.1, false, 0.08, 1.5), 1e-9);
+        assertEquals(1.8, Updraft.lift(1.7, true, 0.08, 1.5), 1e-9);
+        assertEquals(Updraft.lift(0.3, true, 0.08), Updraft.lift(0.3, true, 0.08, 1.0), 1e-12);
         assertEquals(0.33, Updraft.lift(0, true, 0.08), 1e-9);
         assertEquals(1.2, Updraft.lift(1.1, true, 0.08), 1e-9);
         assertEquals(1.2, Updraft.lift(1.2, true, 0.08), 1e-9);

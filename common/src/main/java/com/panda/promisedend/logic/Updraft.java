@@ -61,9 +61,14 @@ public final class Updraft {
      * tick took off it.
      */
     public static double lift(double vy, boolean gliding, double gravity) {
-        double cap = gliding ? GLIDE_CAP : CAP;
+        return lift(vy, gliding, gravity, 1.0);
+    }
+
+    /** As {@link #lift(double, boolean, double)}, its lift and the speed it lifts to {@code strength} times (Void-touched's 1.5). */
+    public static double lift(double vy, boolean gliding, double gravity, double strength) {
+        double cap = (gliding ? GLIDE_CAP : CAP) * strength;
         if (vy >= cap) return vy;
-        return Math.min(vy + gravity + (gliding ? GLIDE_LIFT : LIFT), cap);
+        return Math.min(vy + gravity + (gliding ? GLIDE_LIFT : LIFT) * strength, cap);
     }
 
     /**

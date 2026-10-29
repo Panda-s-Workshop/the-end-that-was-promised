@@ -1,0 +1,43 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:voidsteel_ingot"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_voidsteel_scrap": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:voidsteel_scrap"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_starmetal": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:starmetal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_voidsteel_scrap",
+      "has_starmetal"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:voidsteel_ingot"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "promisedend:voidsteel_scrap",
+    "promisedend:voidsteel_scrap",
+    "promisedend:voidsteel_scrap",
+    "promisedend:voidsteel_scrap",
+    "promisedend:starmetal",
+    "promisedend:starmetal",
+    "promisedend:echo_amber",
+    "promisedend:echo_amber"
+  ],
+  "result": {
+    "id": "promisedend:voidsteel_ingot"
+  }
+}

@@ -104,7 +104,7 @@ public class UpdraftVentBlockEntity extends BlockEntity {
         Vec3 v = e.getDeltaMovement();
         boolean slowFalling = e instanceof LivingEntity living && living.hasEffect(MobEffects.SLOW_FALLING);
         double taken = Updraft.taken(e.getGravity(), v.y <= 0, slowFalling, e.isInWater() || e.isInLava(), gliding, e.getXRot());
-        double vy = sink ? Updraft.SINK : Updraft.lift(v.y, gliding, taken);
+        double vy = sink ? Updraft.SINK : Updraft.lift(v.y, gliding, taken, com.panda.promisedend.item.VoidTouched.lift(e));
         e.resetFallDistance();
         if (vy == v.y) return false;
         e.setDeltaMovement(v.x, vy, v.z);

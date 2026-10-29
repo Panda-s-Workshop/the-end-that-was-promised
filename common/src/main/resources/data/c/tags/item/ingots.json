@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "#c:ingots/resonite"
+    "#c:ingots/resonite",
+    "#c:ingots/voidsteel"
   ]
 }

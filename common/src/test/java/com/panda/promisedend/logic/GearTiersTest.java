@@ -48,4 +48,26 @@ class GearTiersTest {
         assertTrue(a.toughness() >= GearTiers.DIAMOND_ARMOUR.toughness() && a.toughness() < GearTiers.NETHERITE_ARMOUR.toughness(), "toughness");
         assertTrue(GearTiers.RESONITE_ARMOUR_DURABILITY > 33 && GearTiers.RESONITE_ARMOUR_DURABILITY < 37, "armour durability between diamond and netherite");
     }
+
+    @Test
+    void voidsteelSitsAtNetherite() {
+        GearTiers.Tier v = GearTiers.VOIDSTEEL, r = GearTiers.RESONITE, n = GearTiers.NETHERITE;
+        // above Resonite on every stat
+        assertTrue(v.durability() > r.durability() && v.speed() > r.speed() && v.swordDamage() > r.swordDamage()
+                && v.miningTier() > r.miningTier() && v.enchantability() > r.enchantability(), "above Resonite");
+        // at or past netherite: durability at least netherite's, its damage and mining tier
+        assertTrue(v.durability() >= n.durability(), "durability");
+        assertTrue(v.speed() >= n.speed(), "speed");
+        assertEquals(n.swordDamage(), v.swordDamage(), 1e-6, "netherite's damage");
+        assertEquals(n.miningTier(), v.miningTier(), "mines what netherite mines");
+        assertEquals(2100, v.durability());
+        assertEquals(9.0F, v.speed(), 1e-6);
+        assertEquals(8.0F, v.swordDamage(), 1e-6);
+        GearTiers.Armour a = GearTiers.VOIDSTEEL_ARMOUR;
+        assertEquals(20, a.total(), "3/8/6/3");
+        assertTrue(a.toughness() > GearTiers.RESONITE_ARMOUR.toughness(), "tougher than Resonite");
+        assertEquals(GearTiers.NETHERITE_ARMOUR.toughness(), a.toughness(), 0.5, "toughness within 0.5 of netherite's");
+        assertEquals(0.1F, GearTiers.VOIDSTEEL_KNOCKBACK_RESISTANCE, 1e-6);
+        assertTrue(GearTiers.VOIDSTEEL_ARMOUR_DURABILITY > 37, "armour outlasts netherite's");
+    }
 }

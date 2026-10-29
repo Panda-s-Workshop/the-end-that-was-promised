@@ -1,0 +1,45 @@
+{
+  "parent": "promisedend:void/defeat_leviathan",
+  "criteria": {
+    "armour": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:voidsteel_helmet"
+          },
+          {
+            "items": "promisedend:voidsteel_chestplate"
+          },
+          {
+            "items": "promisedend:voidsteel_leggings"
+          },
+          {
+            "items": "promisedend:voidsteel_boots"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:voidsteel_chestplate"
+    },
+    "title": {
+      "translate": "advancements.promisedend.void.voidsteel_set.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.void.voidsteel_set.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "armour"
+    ]
+  ],
+  "sends_telemetry_event": false
+}
