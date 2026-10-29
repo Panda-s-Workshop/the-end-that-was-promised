@@ -3,6 +3,7 @@ package com.panda.promisedend.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.logic.CodexBook;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.advancements.AdvancementHolder;
@@ -21,15 +22,17 @@ import net.minecraft.util.FormattedCharSequence;
 import org.joml.Vector2i;
 
 /**
- * The Promise Codex: an open book. The left page lists the four acts with their progress; the right page
- * shows the chosen act's goals, ticked from the client's own advancement progress. Read-only.
- * Layout constants match the page texture, textures/gui/codex.png.
+ * The Promise Codex: an open book. The left page lists the acts with their progress, and under them the Ancient
+ * Tablets; the right page shows the chosen act's goals, ticked from the client's own advancement progress, or one read
+ * tablet's page, turned with the arrows. Read-only. Layout constants match the page texture, textures/gui/codex.png.
  */
 public class CodexScreen extends Screen {
     static final int W = 300, H = 184;
     static final int L_X = 16, L_W = 124, R_X = 160, R_W = 124;
-    static final int ACT_Y = 38, ACT_H = 22;
-    static final int GOAL_Y = 34, GOAL_H = 24;
+    static final int ACT_Y = 38, ACT_H = 19;
+    /** The left page's row for the tablets, after the acts. */
+    public static final int TABLETS = CodexBook.ACTS.size();
+    static final int GOAL_Y = 33, GOAL_H = 20;   // six goals, an act's most, above the progress bar
 
     static final Identifier BG = PromisedEnd.id("textures/gui/codex.png");
     // ink on the pale pages (the Voidstone and purpur ramps)
@@ -37,6 +40,8 @@ public class CodexScreen extends Screen {
 
     private int x0, y0;
     private int selected;
+    /** The tablet page shown, 1 to {@link CodexBook#PAGES}; 0 is the newest read one. */
+    private int page;
 
     public CodexScreen() {
         super(Component.translatable("screen.promisedend.codex.title"));
@@ -90,7 +95,41 @@ public class CodexScreen extends Screen {
     }
 
     public void select(int act) {
-        selected = Math.max(0, Math.min(CodexBook.ACTS.size() - 1, act));
+        selected = Math.max(0, Math.min(TABLETS, act));
+    }
+
+    // ---- the tablets ------------------------------------------------------------------------------------------------
+
+    /** The pages this player has read, in order. */
+    public List<Integer> readPages() {
+        List<Integer> read = new ArrayList<>();
+        for (int n = 1; n <= CodexBook.PAGES; n++) if (done(CodexBook.page(n))) read.add(n);
+        return read;
+    }
+
+    /** The page shown on the tablets' view, or 0 with none read. */
+    public int shownPage() {
+        List<Integer> read = readPages();
+        if (read.isEmpty()) return 0;
+        return read.contains(page) ? page : read.getLast();
+    }
+
+    /** Turns to the read page {@code step} on (or back) from the one shown. */
+    public void turn(int step) {
+        List<Integer> read = readPages();
+        if (read.isEmpty()) return;
+        int i = read.indexOf(shownPage()) + step;
+        if (i < 0 || i >= read.size()) return;
+        page = read.get(i);
+        minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.0F, 1.0F));
+    }
+
+    private AdvancementHolder holder(Identifier id) {
+        return minecraft.player == null ? null : minecraft.player.connection.getAdvancements().get(id);
+    }
+
+    public int[] arrowBounds(int side) {
+        return new int[] {side < 0 ? x0 + R_X - 2 : x0 + R_X + R_W - 12, y0 + H - 22, 14, 12};
     }
 
     // ---- drawing -----------------------------------------------------------------------------------------------
@@ -105,7 +144,7 @@ public class CodexScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float partial) {
         super.extractRenderState(g, mx, my, partial);
         drawActs(g, mx, my);
-        drawGoals(g);
+        drawGoals(g, mx, my);
         goalTooltip(g, mx, my);
     }
 
@@ -115,6 +154,7 @@ public class CodexScreen extends Screen {
 
     /** The goal's advancement description in full: the hints on the page are short on purpose. */
     private void goalTooltip(GuiGraphicsExtractor g, int mx, int my) {
+        if (selected == TABLETS) return;
         CodexBook.Act act = CodexBook.ACTS.get(selected);
         if (!open(act) || minecraft.player == null) return;
         for (int i = 0; i < act.goals().size(); i++) {
@@ -142,25 +182,24 @@ public class CodexScreen extends Screen {
             CodexBook.Act act = CodexBook.ACTS.get(i);
             int[] b = actBounds(i);
             boolean open = open(act);
-            if (i == selected) {
-                g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], 0x30A97CA9);
-                g.fill(b[0], b[1], b[0] + 2, b[1] + b[3], DONE); // a bar, so the choice isn't colour alone
-            } else if (in(mx, my, b)) {
-                g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], 0x18A97CA9);
-            }
+            row(g, mx, my, i);
             Component numeral = Component.translatable("screen.promisedend.codex.act", roman(i + 1));
-            g.text(font, numeral, b[0] + 6, b[1] + 3, open ? INK : INK_MUTED, false);
-            g.text(font, Component.translatable(act.title()), b[0] + 6 + font.width(numeral) + 4, b[1] + 3, open ? INK : INK_MUTED, false);
+            g.text(font, numeral, b[0] + 6, b[1] + 2, open ? INK : INK_MUTED, false);
+            g.text(font, Component.translatable(act.title()), b[0] + 6 + font.width(numeral) + 4, b[1] + 2, open ? INK : INK_MUTED, false);
             Component status;
             if (!written(act)) status = Component.translatable("screen.promisedend.codex.unwritten");
             else if (!open) status = Component.translatable("screen.promisedend.codex.sealed");
             else if (act.goals().isEmpty()) status = Component.translatable("screen.promisedend.codex.unwritten");
             else status = Component.translatable("screen.promisedend.codex.progress", doneCount(act), act.goals().size());
-            g.text(font, status, b[0] + 6, b[1] + 13, open ? INK_MUTED : SEAL, false);
-            if (!open && written(act)) seal(g, b[0] + b[2] - 13, b[1] + 6);
+            g.text(font, status, b[0] + 6, b[1] + 11, open ? INK_MUTED : SEAL, false);
+            if (!open && written(act)) seal(g, b[0] + b[2] - 13, b[1] + 5);
         }
+        int[] t = actBounds(TABLETS);
+        row(g, mx, my, TABLETS);
+        g.text(font, Component.translatable("screen.promisedend.codex.tablets"), t[0] + 6, t[1] + 2, INK, false);
+        g.text(font, Component.translatable("screen.promisedend.codex.tablets.read", readPages().size(), CodexBook.PAGES), t[0] + 6, t[1] + 11, INK_MUTED, false);
         // a line of the Ancients under the acts, so the page isn't only a list
-        int py = y0 + ACT_Y + CodexBook.ACTS.size() * ACT_H + 2;
+        int py = y0 + ACT_Y + (TABLETS + 1) * ACT_H + 2;
         rule(g, x0 + L_X, py, L_W);
         Component prologue = Component.translatable(done(CodexBook.WARD_DOWN) ? "screen.promisedend.codex.prologue.open" : "screen.promisedend.codex.prologue")
                 .withStyle(ChatFormatting.ITALIC);
@@ -171,7 +210,52 @@ public class CodexScreen extends Screen {
         }
     }
 
-    private void drawGoals(GuiGraphicsExtractor g) {
+    /** A row's ground on the left page: the chosen one marked with a bar, so the choice isn't colour alone. */
+    private void row(GuiGraphicsExtractor g, int mx, int my, int i) {
+        int[] b = actBounds(i);
+        if (i == selected) {
+            g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], 0x30A97CA9);
+            g.fill(b[0], b[1], b[0] + 2, b[1] + b[3], DONE);
+        } else if (in(mx, my, b)) {
+            g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], 0x18A97CA9);
+        }
+    }
+
+    /** The tablets' page: one read page, the newest at first, its title as its advancement has it, and arrows to the others. */
+    private void drawTablet(GuiGraphicsExtractor g, int mx, int my) {
+        int x = x0 + R_X;
+        int n = shownPage();
+        AdvancementHolder holder = n == 0 ? null : holder(CodexBook.page(n));
+        if (holder == null || holder.value().display().isEmpty()) {
+            Component heading = Component.translatable("screen.promisedend.codex.tablets");
+            g.text(font, heading, x + (R_W - font.width(heading)) / 2, y0 + 12, INK, false);
+            rule(g, x, y0 + 24, R_W);
+            wrapped(g, Component.translatable("screen.promisedend.codex.tablets.none"), x, y0 + 40, INK_MUTED, 8);
+            return;
+        }
+        var display = holder.value().display().get();
+        Component heading = Component.literal(fit(display.title().getString(), R_W));
+        g.text(font, heading, x + (R_W - font.width(heading)) / 2, y0 + 12, INK, false);
+        rule(g, x, y0 + 24, R_W);
+        wrapped(g, Component.translatable(CodexBook.text(n)), x, y0 + 32, INK, 12);
+        List<Integer> read = readPages();
+        int i = read.indexOf(n);
+        Component where = Component.translatable("screen.promisedend.codex.tablets.page", n, CodexBook.PAGES);
+        g.text(font, where, x + (R_W - font.width(where)) / 2, y0 + H - 20, INK_MUTED, false);
+        if (i > 0) arrow(g, arrowBounds(-1), "<", in(mx, my, arrowBounds(-1)));
+        if (i < read.size() - 1) arrow(g, arrowBounds(1), ">", in(mx, my, arrowBounds(1)));
+    }
+
+    private void arrow(GuiGraphicsExtractor g, int[] b, String glyph, boolean hover) {
+        if (hover) g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], 0x30A97CA9);
+        g.text(font, Component.literal(glyph), b[0] + (b[2] - font.width(glyph)) / 2 + 1, b[1] + 2, hover ? INK : INK_MUTED, false);
+    }
+
+    private void drawGoals(GuiGraphicsExtractor g, int mx, int my) {
+        if (selected == TABLETS) {
+            drawTablet(g, mx, my);
+            return;
+        }
         CodexBook.Act act = CodexBook.ACTS.get(selected);
         int x = x0 + R_X, y = y0 + 12;
         Component heading = Component.translatable(act.title());
@@ -197,7 +281,7 @@ public class CodexScreen extends Screen {
             if (done) count++;
             box(g, x, gy + 1, done);
             g.text(font, fit(Component.translatable(goal.title()).getString(), R_W - 12), x + 12, gy, done ? INK_MUTED : INK, false);
-            g.text(font, fit(Component.translatable(goal.hint()).getString(), R_W - 12), x + 12, gy + 10, INK_MUTED, false);
+            g.text(font, fit(Component.translatable(goal.hint()).getString(), R_W - 12), x + 12, gy + 9, INK_MUTED, false);
             gy += GOAL_H;
         }
         // progress: a bar and a count under the goals
@@ -267,7 +351,7 @@ public class CodexScreen extends Screen {
     // ---- input -------------------------------------------------------------------------------------------------
 
     private void choose(int act) {
-        if (act == selected || act < 0 || act >= CodexBook.ACTS.size()) return;
+        if (act == selected || act < 0 || act > TABLETS) return;
         selected = act;
         minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.0F, 1.0F));
     }
@@ -275,7 +359,15 @@ public class CodexScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
-            for (int i = 0; i < CodexBook.ACTS.size(); i++) {
+            if (selected == TABLETS) {
+                for (int side : new int[] {-1, 1}) {
+                    if (in(event.x(), event.y(), arrowBounds(side))) {
+                        turn(side);
+                        return true;
+                    }
+                }
+            }
+            for (int i = 0; i <= TABLETS; i++) {
                 if (in(event.x(), event.y(), actBounds(i))) {
                     choose(i);
                     return true;
@@ -289,6 +381,8 @@ public class CodexScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         if (event.isUp()) { choose(selected - 1); return true; }
         if (event.isDown()) { choose(selected + 1); return true; }
+        if (selected == TABLETS && event.isLeft()) { turn(-1); return true; }
+        if (selected == TABLETS && event.isRight()) { turn(1); return true; }
         return super.keyPressed(event);
     }
 

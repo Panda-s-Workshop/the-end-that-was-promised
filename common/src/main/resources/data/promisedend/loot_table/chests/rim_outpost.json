@@ -143,6 +143,15 @@
       ]
     },
     {
+      "rolls": 2,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:ancient_tablet"
+        }
+      ]
+    },
+    {
       "rolls": 1,
       "entries": [
         {

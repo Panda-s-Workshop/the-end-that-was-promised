@@ -48,6 +48,11 @@ public final class ShrineBoons {
     public static void grant(ServerPlayer player, int index) {
         int ticks = Offerings.BOONS[index].equals("void_sight") ? VOID_SIGHT_DURATION : DURATION;
         player.addEffect(new MobEffectInstance(ModEffects.boon(index), ticks, 0, false, true, true));
+        var advancements = player.level().getServer().getAdvancements();
+        var boon = advancements.get(CodexBook.TAKE_BOON);
+        if (boon != null) player.getAdvancements().award(boon, "boon");
+        var every = advancements.get(CodexBook.ALL_BOONS);
+        if (every != null) player.getAdvancements().award(every, Offerings.BOONS[index]);
     }
 
     /** Shulker Ward: Levitation doesn't take hold on a warded entity (a Sentinel's bullet, a shulker's). */

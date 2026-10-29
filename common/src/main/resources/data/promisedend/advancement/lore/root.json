@@ -1,0 +1,29 @@
+{
+  "criteria": {
+    "read": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:ancient_tablet"
+    },
+    "title": {
+      "translate": "advancements.promisedend.lore.root.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.lore.root.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": true,
+    "background": "minecraft:gui/advancements/backgrounds/end"
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

@@ -1,6 +1,8 @@
 {
   "replace": false,
   "values": [
-    "promisedend:void_water"
+    "promisedend:void_water",
+    "promisedend:rift_gate",
+    "promisedend:rift_gate_frame"
   ]
 }

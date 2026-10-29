@@ -250,6 +250,13 @@ public final class ModBlocks {
     public static final DeferredBlock<com.panda.promisedend.block.ShrineAltarBlock> SHRINE_ALTAR = withHint(BLOCKS.registerBlock("shrine_altar",
             com.panda.promisedend.block.ShrineAltarBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).noLootTable()
                     .strength(-1.0F, 3600000.0F).lightLevel(s -> 7).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)), 2);
+    // ---- the Rift Gates: a 3x3 upright frame round a core; found in the Ancients' places, unbreakable in survival
+    public static final DeferredBlock<com.panda.promisedend.block.RiftGateBlock> RIFT_GATE = withHint(BLOCKS.registerBlock("rift_gate",
+            com.panda.promisedend.block.RiftGateBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).noLootTable()
+                    .strength(-1.0F, 3600000.0F).lightLevel(s -> s.getValue(com.panda.promisedend.block.RiftGateBlock.LIT) ? 11 : 3)
+                    .sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)), 2);
+    public static final DeferredBlock<Block> RIFT_GATE_FRAME = withHint(BLOCKS.registerSimpleBlock("rift_gate_frame",
+            p -> p.mapColor(MapColor.COLOR_PURPLE).noLootTable().strength(-1.0F, 3600000.0F).sound(SoundType.STONE).pushReaction(PushReaction.IMMOVEABLE)), 1);
     // ---- the Fallen Observatories: a desk of charts, one to each player; as the altar, it stays where it stands
     public static final DeferredBlock<com.panda.promisedend.block.StarChartDeskBlock> STAR_CHART_DESK = withHint(BLOCKS.registerBlock("star_chart_desk",
             com.panda.promisedend.block.StarChartDeskBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).noLootTable().noOcclusion()

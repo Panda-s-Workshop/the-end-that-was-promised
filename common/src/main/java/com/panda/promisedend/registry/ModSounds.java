@@ -75,6 +75,8 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> SHRINE_OFFER = sound("block.shrine_altar.offer");
     public static final Supplier<SoundEvent> SHRINE_READY = sound("block.shrine_altar.ready");
     public static final Supplier<SoundEvent> SHRINE_GRANT = sound("block.shrine_altar.grant");
+    public static final Supplier<SoundEvent> RIFT_GATE_ATTUNE = sound("block.rift_gate.attune");
+    public static final Supplier<SoundEvent> RIFT_GATE_TRAVEL = sound("block.rift_gate.travel");
 
     private ModSounds() {}
 }

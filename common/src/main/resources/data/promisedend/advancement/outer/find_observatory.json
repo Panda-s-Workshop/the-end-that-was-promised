@@ -1,0 +1,40 @@
+{
+  "parent": "promisedend:outer/defeat_sentinel",
+  "criteria": {
+    "in_observatory": {
+      "trigger": "minecraft:location",
+      "conditions": {
+        "player": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:location": {
+              "structures": "promisedend:fallen_observatory"
+            }
+          }
+        }
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:star_chart_desk"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.find_observatory.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.find_observatory.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "in_observatory"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

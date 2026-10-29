@@ -84,10 +84,13 @@ public final class EndCommand {
         return players.size();
     }
 
-    /** Revokes every criterion of every advancement in our namespace. */
+    /**
+     * Revokes every criterion of every advancement in our namespace but the tablets' pages: the tablets that gave them
+     * were used up, so a reset page couldn't be read again.
+     */
     public static void resetCodex(ServerPlayer player) {
         player.level().getServer().getAdvancements().getAllAdvancements().forEach(holder -> {
-            if (!holder.id().getNamespace().equals(PromisedEnd.MODID)) return;
+            if (!holder.id().getNamespace().equals(PromisedEnd.MODID) || holder.id().getPath().startsWith("lore/")) return;
             var progress = player.getAdvancements().getOrStartProgress(holder);
             var done = new java.util.ArrayList<String>();
             progress.getCompletedCriteria().forEach(done::add);

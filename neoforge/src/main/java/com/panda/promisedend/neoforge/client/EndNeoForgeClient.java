@@ -37,6 +37,7 @@ public final class EndNeoForgeClient {
         modBus.addListener((net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent e) -> {
             e.register(com.panda.promisedend.network.TerrainPayload.TYPE, (payload, context) -> com.panda.promisedend.logic.VoidCurrents.heardTerrain(payload.terrainEnabled()));
             e.register(com.panda.promisedend.network.ShrinePayloads.Offer.TYPE, (payload, context) -> com.panda.promisedend.client.ShrineScreen.open(payload));
+            e.register(com.panda.promisedend.network.RiftPayloads.Gates.TYPE, (payload, context) -> com.panda.promisedend.client.RiftGateScreen.open(payload));
         });
         PromisedEnd.toServer = payload -> {
             var connection = net.minecraft.client.Minecraft.getInstance().getConnection();

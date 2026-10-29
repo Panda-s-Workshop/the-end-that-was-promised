@@ -122,6 +122,9 @@ public final class ModItems {
     /** A sealed Star Chart; what it leads to is its {@code promisedend:star_chart} component (loot and the desks set it). */
     public static final DeferredItem<com.panda.promisedend.item.StarChartItem> STAR_CHART = ITEMS.registerItem("star_chart",
             com.panda.promisedend.item.StarChartItem::new, p -> p.stacksTo(16));
+    /** An Ancient Tablet: read, it copies its reader's next page of the Ancients' story into their Codex. */
+    public static final DeferredItem<com.panda.promisedend.item.AncientTabletItem> ANCIENT_TABLET = ITEMS.registerItem("ancient_tablet",
+            com.panda.promisedend.item.AncientTabletItem::new, p -> p.stacksTo(16));
 
     private static ToolMaterial material(GearTiers.Tier tier, TagKey<Block> incorrect, TagKey<Item> repair) {
         return new ToolMaterial(incorrect, tier.durability(), tier.speed(), tier.damageBonus(), tier.enchantability(), repair);

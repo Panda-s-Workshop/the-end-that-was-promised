@@ -3,6 +3,15 @@
   "random_sequence": "promisedend:chests/fallen_observatory",
   "pools": [
     {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:ancient_tablet"
+        }
+      ]
+    },
+    {
       "rolls": {
         "type": "minecraft:uniform",
         "min": 3,

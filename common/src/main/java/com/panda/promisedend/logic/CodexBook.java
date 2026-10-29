@@ -2,14 +2,18 @@ package com.panda.promisedend.logic;
 
 import com.panda.promisedend.PromisedEnd;
 import java.util.List;
+import java.util.function.IntPredicate;
 import net.minecraft.resources.Identifier;
 
 /**
  * What the Promise Codex holds: five acts, each a list of goals backed by advancements, in the order a player meets
  * them: the arrival, the outer End, the Void, the Edge, and the heart of the End where the dragon waits once the
  * Ancients' Ward is down. The screen marks a goal done from the client's own advancement progress, so the book needs
- * no packet. An act is sealed until the advancement in {@code opensWith} is done; Act I is always open. Acts III and
- * IV get their goals with their guardians.
+ * no packet. An act is sealed until the advancement in {@code opensWith} is done; Act I is always open. Act IV gets
+ * its goals with its guardian, and Act III its guardian's two besides the three it has.
+ *
+ * <p>The book also holds the Ancient Tablets' pages: {@link #PAGES} of them, read in order, one a tablet, each an
+ * advancement of its own (hidden until read), so the screen shows the read ones the same way.
  */
 public final class CodexBook {
     public record Goal(Identifier advancement, String key) {
@@ -39,6 +43,32 @@ public final class CodexBook {
     public static final Identifier FORGE_ANCHOR = PromisedEnd.id("rim/forge_anchor");
     /** The Hollow Sentinel's: awarded to everyone who fought it; it opens Act III. */
     public static final Identifier DEFEAT_SENTINEL = PromisedEnd.id("outer/defeat_sentinel");
+    /** Awarded by a shrine's boon and a Rift Gate's journey. */
+    public static final Identifier TAKE_BOON = PromisedEnd.id("outer/take_boon");
+    public static final Identifier GATE_TRAVEL = PromisedEnd.id("outer/gate_travel");
+    /** Every boon taken, a criterion each (named as {@link Offerings#BOONS}); twelve pages read. */
+    public static final Identifier ALL_BOONS = PromisedEnd.id("outer/all_boons");
+    public static final Identifier TWELVE_TABLETS = PromisedEnd.id("outer/twelve_tablets");
+    public static final int HALF = 12;
+
+    /** The tablets' pages, and the advancement for having read any (the root of their tab). */
+    public static final int PAGES = 24;
+    public static final Identifier TABLETS = PromisedEnd.id("lore/root");
+
+    public static Identifier page(int n) {
+        return PromisedEnd.id("lore/page_" + n);
+    }
+
+    /** A page's text, its own key: the advancement's description is a short line. */
+    public static String text(int n) {
+        return "codex.promisedend.page." + n;
+    }
+
+    /** The first page, 1 to {@link #PAGES}, that {@code read} says isn't read, or 0 when every page is. */
+    public static int nextPage(IntPredicate read) {
+        for (int n = 1; n <= PAGES; n++) if (!read.test(n)) return n;
+        return 0;
+    }
 
     public static final List<Act> ACTS = List.of(
             new Act("arrival", null, List.of(
@@ -50,8 +80,14 @@ public final class CodexBook {
             new Act("outer", FORGE_ANCHOR, List.of(
                     new Goal(PromisedEnd.id("outer/find_foundry"), "find_foundry"),
                     new Goal(DEFEAT_SENTINEL, "defeat_sentinel"),
-                    new Goal(PromisedEnd.id("outer/all_seven"), "all_seven"))),
-            new Act("void", DEFEAT_SENTINEL, List.of()),
+                    new Goal(PromisedEnd.id("outer/all_seven"), "all_seven"),
+                    new Goal(TAKE_BOON, "take_boon"),
+                    new Goal(GATE_TRAVEL, "gate_travel"),
+                    new Goal(TABLETS, "read_tablet"))),
+            new Act("void", DEFEAT_SENTINEL, List.of(
+                    new Goal(PromisedEnd.id("outer/find_observatory"), "find_observatory"),
+                    new Goal(ALL_BOONS, "all_boons"),
+                    new Goal(TWELVE_TABLETS, "twelve_tablets"))),
             new Act("edge", PromisedEnd.id("void/defeat_leviathan"), List.of()),
             new Act("heart", WARD_DOWN, List.of(
                     new Goal(PromisedEnd.id("rim/enter_rim"), "enter_rim"),

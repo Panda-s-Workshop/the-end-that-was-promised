@@ -120,6 +120,10 @@ public final class EndFabric implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> VoidAnchor.forget(handler.getPlayer()));
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(com.panda.promisedend.network.TerrainPayload.TYPE, com.panda.promisedend.network.TerrainPayload.STREAM_CODEC);
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(com.panda.promisedend.network.ShrinePayloads.Offer.TYPE, com.panda.promisedend.network.ShrinePayloads.Offer.STREAM_CODEC);
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(com.panda.promisedend.network.RiftPayloads.Gates.TYPE, com.panda.promisedend.network.RiftPayloads.Gates.STREAM_CODEC);
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(com.panda.promisedend.network.RiftPayloads.Travel.TYPE, com.panda.promisedend.network.RiftPayloads.Travel.STREAM_CODEC);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.RiftPayloads.Travel.TYPE,
+                (payload, context) -> com.panda.promisedend.logic.RiftGates.travelled(context.player(), payload));
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(com.panda.promisedend.network.ShrinePayloads.Choose.TYPE, com.panda.promisedend.network.ShrinePayloads.Choose.STREAM_CODEC);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.ShrinePayloads.Choose.TYPE,
                 (payload, context) -> com.panda.promisedend.block.ShrineAltarBlockEntity.chosen(context.player(), payload));

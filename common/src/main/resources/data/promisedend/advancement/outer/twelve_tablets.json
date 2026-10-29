@@ -1,0 +1,29 @@
+{
+  "parent": "promisedend:outer/enter_outer",
+  "criteria": {
+    "read": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:ancient_tablet"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.twelve_tablets.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.twelve_tablets.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

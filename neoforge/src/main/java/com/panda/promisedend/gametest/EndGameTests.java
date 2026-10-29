@@ -163,6 +163,9 @@ public final class EndGameTests {
         FUNCTIONS.register("altar_keeps_and_refuses", () -> ShrineGameTests::altarKeepsAndRefuses);
         FUNCTIONS.register("star_chart_locates", () -> ChartGameTests::starChartLocates);
         FUNCTIONS.register("desk_gives_one_chart", () -> ChartGameTests::deskGivesOneChart);
+        FUNCTIONS.register("rift_gate_attune_and_travel", () -> RiftGameTests::riftGateAttuneAndTravel);
+        FUNCTIONS.register("ancient_tablets_read_in_order", () -> TabletGameTests::ancientTabletsReadInOrder);
+        FUNCTIONS.register("ancient_tablets_in_chests", () -> TabletGameTests::ancientTabletsInChests);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -5241,13 +5244,19 @@ public final class EndGameTests {
         var advancements = helper.getLevel().getServer().getAdvancements();
         List<String> bad = new ArrayList<>();
         for (var act : com.panda.promisedend.logic.CodexBook.ACTS) {
-            if (act.goals().isEmpty()) continue; // a later milestone writes this act
+            if (act.goals().isEmpty()) continue; // an act whose guardian isn't in the game yet
             if (act.opensWith() != null && advancements.get(act.opensWith()) == null) bad.add(act.key() + " opens with a missing " + act.opensWith());
             for (var goal : act.goals()) {
                 var holder = advancements.get(goal.advancement());
                 if (holder == null) bad.add("missing " + goal.advancement());
                 else if (holder.value().display().isEmpty()) bad.add(goal.advancement() + " has no display, so the client never sees it");
             }
+        }
+        // the tablets' pages: each there, with a display the client is sent once read, and hidden until then
+        for (int n = 1; n <= com.panda.promisedend.logic.CodexBook.PAGES; n++) {
+            var page = advancements.get(com.panda.promisedend.logic.CodexBook.page(n));
+            if (page == null || page.value().display().isEmpty()) bad.add("page " + n + " missing or without a display");
+            else if (!page.value().display().get().hidden()) bad.add("page " + n + " isn't hidden");
         }
         if (!bad.isEmpty()) helper.fail("Codex goals: " + bad);
         helper.succeed();

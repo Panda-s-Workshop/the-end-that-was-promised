@@ -1,0 +1,29 @@
+{
+  "parent": "promisedend:outer/enter_outer",
+  "criteria": {
+    "boon": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:shrine_altar"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.take_boon.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.take_boon.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "boon"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

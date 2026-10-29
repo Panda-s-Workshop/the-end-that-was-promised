@@ -664,6 +664,9 @@ public final class ServerCheck {
             if (ground == null) bad.add("no ground within reach of " + Math.round(point[0]) + ", " + Math.round(point[1]));
             else if (terrain && !end.getBiome(gate).unwrapKey().map(k -> k.identifier().getNamespace().equals(PromisedEnd.MODID)).orElse(false)) bad.add("a Waystation on " + id);
             if (!end.getBlockState(gate).is(ModBlocks.RETURN_GATE.get())) bad.add("no Return Gate at " + gate + ": " + end.getBlockState(gate));
+            boolean rift = false;
+            for (BlockPos q : BlockPos.betweenClosed(gate.offset(-5, 0, -5), gate.offset(5, 3, 5))) rift |= end.getBlockState(q).is(ModBlocks.RIFT_GATE.get());
+            if (!rift) bad.add("no Rift Gate at the Waystation round " + gate);
             if (!end.getBlockState(at.below()).isFaceSturdy(end, at.below(), net.minecraft.core.Direction.UP)) bad.add("nothing to stand on at " + at);
             if (!end.getBlockState(at).getCollisionShape(end, at).isEmpty() || !end.getBlockState(at.above()).getCollisionShape(end, at.above()).isEmpty()) bad.add("no room to stand at " + at + ": " + end.getBlockState(at) + ", " + end.getBlockState(at.above()));
             var again = com.panda.promisedend.logic.Arrivals.destination(overworld, null, portal);
@@ -876,6 +879,21 @@ public final class ServerCheck {
             }
         }
         if (altar == null) return "no Shrine Altar in the Void Shrine at " + at;
+        BlockPos gate = null;
+        for (BlockPos q : BlockPos.betweenClosed(altar.offset(-6, -2, -6), altar.offset(6, 4, 6))) {
+            if (end.getBlockState(q).is(ModBlocks.RIFT_GATE.get())) {
+                gate = q.immutable();
+                break;
+            }
+        }
+        if (gate == null) return "no Rift Gate in the Void Shrine at " + altar;
+        // its core faces into the shrine: the step out of it is nearer the altar than the core is
+        var facing = end.getBlockState(gate).getValue(com.panda.promisedend.block.RiftGateBlock.FACING);
+        if (gate.relative(facing).distSqr(altar) >= gate.distSqr(altar)) return "the shrine's Rift Gate at " + gate + " faces " + facing + ", away from its altar";
+        int frame = 0;
+        for (BlockPos q : BlockPos.betweenClosed(gate.offset(-1, -1, -1), gate.offset(1, 1, 1))) if (end.getBlockState(q).is(ModBlocks.RIFT_GATE_FRAME.get())) frame++;
+        if (frame != 8) return "the shrine's Rift Gate at " + gate + " has " + frame + " frame blocks";
+        PromisedEnd.LOGGER.info("[promisedend servercheck] the Void Shrine's Rift Gate at {}, facing {}, in a frame of {}", gate, facing, frame);
         int sentries = end.getEntitiesOfClass(com.panda.promisedend.entity.PurpurSentry.class, new net.minecraft.world.phys.AABB(altar).inflate(8)).size();
         boolean entity = end.getBlockEntity(altar) instanceof com.panda.promisedend.block.ShrineAltarBlockEntity;
         PromisedEnd.LOGGER.info("[promisedend servercheck] Void Shrine {} from {} at {}: its altar at {} (block entity {}), {} Purpur Sentries, on {}",

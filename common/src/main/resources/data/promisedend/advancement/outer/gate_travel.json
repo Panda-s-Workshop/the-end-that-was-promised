@@ -1,0 +1,29 @@
+{
+  "parent": "promisedend:outer/enter_outer",
+  "criteria": {
+    "travelled": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:rift_gate"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.gate_travel.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.gate_travel.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "travelled"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

@@ -16,6 +16,8 @@ public final class EndFabricClient implements ClientModInitializer {
                 (payload, context) -> com.panda.promisedend.logic.VoidCurrents.heardTerrain(payload.terrainEnabled()));
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.ShrinePayloads.Offer.TYPE,
                 (payload, context) -> com.panda.promisedend.client.ShrineScreen.open(payload));
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.RiftPayloads.Gates.TYPE,
+                (payload, context) -> com.panda.promisedend.client.RiftGateScreen.open(payload));
         com.panda.promisedend.PromisedEnd.toServer = payload -> {
             if (net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(payload.type())) net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(payload);
         };

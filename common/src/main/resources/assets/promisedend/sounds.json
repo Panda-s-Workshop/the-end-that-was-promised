@@ -641,6 +641,26 @@
       }
     ]
   },
+  "block.rift_gate.attune": {
+    "subtitle": "subtitles.promisedend.rift_gate.attune",
+    "sounds": [
+      {
+        "name": "minecraft:block.respawn_anchor.charge",
+        "type": "event",
+        "pitch": 1.0
+      }
+    ]
+  },
+  "block.rift_gate.travel": {
+    "subtitle": "subtitles.promisedend.rift_gate.travel",
+    "sounds": [
+      {
+        "name": "minecraft:block.portal.travel",
+        "type": "event",
+        "pitch": 0.35
+      }
+    ]
+  },
   "block.updraft_vent.wind": {
     "subtitle": "subtitles.promisedend.updraft_vent.wind",
     "sounds": [

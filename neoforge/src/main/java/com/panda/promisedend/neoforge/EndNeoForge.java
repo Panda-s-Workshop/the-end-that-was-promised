@@ -50,6 +50,10 @@ public final class EndNeoForge {
         modBus.addListener((net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent e) -> e.registrar("1")
                 .playToClient(com.panda.promisedend.network.TerrainPayload.TYPE, com.panda.promisedend.network.TerrainPayload.STREAM_CODEC)
                 .playToClient(com.panda.promisedend.network.ShrinePayloads.Offer.TYPE, com.panda.promisedend.network.ShrinePayloads.Offer.STREAM_CODEC)
+                .playToClient(com.panda.promisedend.network.RiftPayloads.Gates.TYPE, com.panda.promisedend.network.RiftPayloads.Gates.STREAM_CODEC)
+                .playToServer(com.panda.promisedend.network.RiftPayloads.Travel.TYPE, com.panda.promisedend.network.RiftPayloads.Travel.STREAM_CODEC, (payload, context) -> {
+                    if (context.player() instanceof net.minecraft.server.level.ServerPlayer p) com.panda.promisedend.logic.RiftGates.travelled(p, payload);
+                })
                 .playToServer(com.panda.promisedend.network.ShrinePayloads.Choose.TYPE, com.panda.promisedend.network.ShrinePayloads.Choose.STREAM_CODEC, (payload, context) -> {
                     if (context.player() instanceof net.minecraft.server.level.ServerPlayer p) com.panda.promisedend.block.ShrineAltarBlockEntity.chosen(p, payload);
                 }));

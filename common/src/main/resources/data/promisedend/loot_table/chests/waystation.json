@@ -41,6 +41,33 @@
       "entries": [
         {
           "type": "minecraft:item",
+          "name": "promisedend:mire_lily"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:resonite_shard"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:ancient_tablet"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
           "name": "minecraft:ender_pearl",
           "modifier": {
             "type": "minecraft:set_count",

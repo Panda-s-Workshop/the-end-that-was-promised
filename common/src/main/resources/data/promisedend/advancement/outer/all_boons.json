@@ -1,0 +1,59 @@
+{
+  "parent": "promisedend:outer/take_boon",
+  "criteria": {
+    "gliding_grace": {
+      "trigger": "minecraft:impossible"
+    },
+    "pearl_sense": {
+      "trigger": "minecraft:impossible"
+    },
+    "void_sight": {
+      "trigger": "minecraft:impossible"
+    },
+    "rift_step": {
+      "trigger": "minecraft:impossible"
+    },
+    "resonant_edge": {
+      "trigger": "minecraft:impossible"
+    },
+    "shulker_ward": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:shrine_altar"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.all_boons.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.all_boons.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "gliding_grace"
+    ],
+    [
+      "pearl_sense"
+    ],
+    [
+      "void_sight"
+    ],
+    [
+      "rift_step"
+    ],
+    [
+      "resonant_edge"
+    ],
+    [
+      "shulker_ward"
+    ]
+  ],
+  "sends_telemetry_event": false
+}
