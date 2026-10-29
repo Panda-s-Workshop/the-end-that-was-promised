@@ -17,6 +17,8 @@ public final class ModBlockEntities {
 
     public static final Supplier<BlockEntityType<com.panda.promisedend.block.ShrineAltarBlockEntity>> SHRINE_ALTAR = TYPES.register("shrine_altar",
             () -> new BlockEntityType<>(com.panda.promisedend.block.ShrineAltarBlockEntity::new, Set.of(ModBlocks.SHRINE_ALTAR.get())));
+    public static final Supplier<BlockEntityType<com.panda.promisedend.block.StarChartDeskBlockEntity>> STAR_CHART_DESK = TYPES.register("star_chart_desk",
+            () -> new BlockEntityType<>(com.panda.promisedend.block.StarChartDeskBlockEntity::new, Set.of(ModBlocks.STAR_CHART_DESK.get())));
 
     private ModBlockEntities() {}
 }

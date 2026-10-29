@@ -281,10 +281,16 @@ final class SentinelGameTests {
             var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(end)
                     .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, new Vec3(1500.5, 64, 0.5))
                     .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
+            int charts = 0;
             for (var item : table.getRandomItems(params)) {
-                if (item.is(net.minecraft.world.item.Items.MAP)) bad.add("a blank map");
-                if (item.is(net.minecraft.world.item.Items.FILLED_MAP) && item.get(net.minecraft.core.component.DataComponents.MAP_ID) == null) bad.add("a filled map with no map");
+                if (item.is(net.minecraft.world.item.Items.MAP) || item.is(net.minecraft.world.item.Items.FILLED_MAP)) bad.add("a vanilla map");
+                if (item.is(com.panda.promisedend.registry.ModItems.STAR_CHART.get())) {
+                    charts++;
+                    var kind = item.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get());
+                    if (kind == null || !kind.equals(PromisedEnd.id("on_foundry_charts"))) bad.add("a chart of " + kind);
+                }
             }
+            if (charts != 1) bad.add(charts + " Star Charts");
         }
         if (!bad.isEmpty()) helper.fail("the Waystation's chest, 20 rolls: " + bad);
         helper.succeed();

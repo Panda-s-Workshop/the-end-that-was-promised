@@ -246,10 +246,14 @@ public final class ModBlocks {
                     .noCollision().randomTicks().instabreak().sound(SoundType.CAVE_VINES).lightLevel(com.panda.promisedend.block.VoidBerryVineBlock::light)
                     .pushReaction(PushReaction.POPPED));
 
-    // ---- the Void Shrines: an altar that takes offerings for a boon; it can't be carried off (no drop)
+    // ---- the Void Shrines: an altar that takes offerings for a boon; it can't be broken in survival or carried off
     public static final DeferredBlock<com.panda.promisedend.block.ShrineAltarBlock> SHRINE_ALTAR = withHint(BLOCKS.registerBlock("shrine_altar",
             com.panda.promisedend.block.ShrineAltarBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).noLootTable()
-                    .strength(50.0F, 1200.0F).lightLevel(s -> 7).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)), 2);
+                    .strength(-1.0F, 3600000.0F).lightLevel(s -> 7).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)), 2);
+    // ---- the Fallen Observatories: a desk of charts, one to each player; as the altar, it stays where it stands
+    public static final DeferredBlock<com.panda.promisedend.block.StarChartDeskBlock> STAR_CHART_DESK = withHint(BLOCKS.registerBlock("star_chart_desk",
+            com.panda.promisedend.block.StarChartDeskBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).noLootTable().noOcclusion()
+                    .strength(-1.0F, 3600000.0F).lightLevel(s -> 4).sound(SoundType.STONE).pushReaction(PushReaction.IMMOVEABLE)), 2);
 
     private ModBlocks() {}
 

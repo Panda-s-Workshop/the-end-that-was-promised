@@ -7,32 +7,12 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:filled_map",
+          "name": "promisedend:star_chart",
           "modifier": [
             {
-              "type": "minecraft:exploration_map",
-              "destination": "#promisedend:on_foundry_charts",
-              "decoration": "minecraft:target_x",
-              "zoom": 3,
-              "search_radius": 100,
-              "skip_existing_chunks": false
-            },
-            {
-              "type": "minecraft:filtered",
-              "item_filter": {
-                "predicates": {
-                  "minecraft:map_id": {}
-                }
-              },
-              "on_fail": {
-                "type": "minecraft:discard"
-              }
-            },
-            {
-              "type": "minecraft:set_name",
-              "target": "item_name",
-              "name": {
-                "translate": "item.promisedend.star_chart.foundry"
+              "type": "minecraft:set_components",
+              "components": {
+                "promisedend:star_chart": "promisedend:on_foundry_charts"
               }
             }
           ]

@@ -147,6 +147,7 @@ public final class ServerCheck {
         add.accept(arrivals(server, end, terrain));
         add.accept(foundry(end));
         add.accept(shrine(end));
+        add.accept(observatory(end));
         add.accept(driftRoutes(end));
         return failures.isEmpty() ? null : String.join(" | ", failures);
     }
@@ -829,19 +830,25 @@ public final class ServerCheck {
         bullet.discard();
         pig.discard();
         if (failure != null) return failure;
-        // the Waystation's chest rolled where a portal sets a player down: its Star Chart marks this Foundry
+        // the Waystation's chest rolled where a portal sets a player down: its sealed Star Chart, unrolled there, marks
+        // this Foundry
         var table = end.getServer().reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(Registries.LOOT_TABLE, PromisedEnd.id("chests/waystation")));
         var items = table.getRandomItems(new net.minecraft.world.level.storage.loot.LootParams.Builder(end)
                 .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.atCenterOf(from))
                 .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST));
-        var chart = items.stream().filter(i -> i.is(net.minecraft.world.item.Items.FILLED_MAP)).findFirst().orElse(null);
-        if (chart == null) return "no Star Chart in the Waystation's chest: " + items;
+        var sealed = items.stream().filter(i -> i.is(com.panda.promisedend.registry.ModItems.STAR_CHART.get())).findFirst().orElse(null);
+        if (sealed == null) return "no Star Chart in the Waystation's chest: " + items;
+        var kind = sealed.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get());
+        if (kind == null) return "the Waystation's Star Chart is blank";
+        var chart = com.panda.promisedend.item.StarChartItem.unroll(end, from, kind);
+        if (chart == null) return "the Waystation's Star Chart (" + kind + ") found nothing from " + from;
         var marks = chart.getOrDefault(net.minecraft.core.component.DataComponents.MAP_DECORATIONS, net.minecraft.world.item.component.MapDecorations.EMPTY).decorations().values();
         String name = chart.getHoverName().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t ? t.getKey() : chart.getHoverName().getString();
         PromisedEnd.LOGGER.info("[promisedend servercheck] the Waystation's Star Chart: {}, map {}, marks {}", name, chart.get(net.minecraft.core.component.DataComponents.MAP_ID),
                 marks.stream().map(d -> d.type().getRegisteredName() + " at " + Math.round(d.x()) + ", " + Math.round(d.z())).toList());
         if (!name.equals("item." + PromisedEnd.MODID + ".star_chart.foundry")) return "the Star Chart is named " + name;
         if (marks.stream().noneMatch(d -> Math.hypot(d.x() - found.getX(), d.z() - found.getZ()) < 16)) return "the Star Chart marks no Foundry at " + found + ": " + marks;
+        WAYSTATION_MARK[0] = found;
         return null;
     }
 
@@ -875,6 +882,53 @@ public final class ServerCheck {
                 Math.round(Math.sqrt(at.distSqr(from))), from, at, altar, entity, sentries, end.getBiome(altar).getRegisteredName());
         if (!entity) return "the Shrine Altar at " + altar + " has no block entity";
         if (sentries < 2) return "the Void Shrine at " + altar + " has " + sentries + " Purpur Sentries";
+        return null;
+    }
+
+    /**
+     * The Fallen Observatory nearest a point 1500 out, generated here: its Star Chart Desk stands with its block entity
+     * and draws only kinds this world can chart, its chest and its Sentries are in place, and the chart it gives,
+     * unrolled there, marks a Foundry other than the one the Waystation's chart led to (each place is charted once).
+     */
+    /** Where the Waystation's chart led, for the observatory's check that the next chart leads elsewhere. */
+    private static final BlockPos[] WAYSTATION_MARK = {null};
+
+    private static String observatory(net.minecraft.server.level.ServerLevel end) {
+        BlockPos from = new BlockPos(1500, 64, 0);
+        BlockPos at = end.findNearestMapStructure(com.panda.promisedend.item.StarChartItem.tag(PromisedEnd.id("on_observatory_charts")), from,
+                com.panda.promisedend.item.StarChartItem.SEARCH_RINGS, false);
+        if (at == null) return "no Fallen Observatory within " + com.panda.promisedend.item.StarChartItem.SEARCH_RINGS + " rings of " + from;
+        for (int cx = (at.getX() >> 4) - 2; cx <= (at.getX() >> 4) + 2; cx++) {
+            for (int cz = (at.getZ() >> 4) - 2; cz <= (at.getZ() >> 4) + 2; cz++) end.getChunk(cx, cz);
+        }
+        BlockPos desk = null;
+        int chests = 0;
+        for (BlockPos q : BlockPos.betweenClosed(at.offset(-24, 40, -24), at.offset(24, 100, 24))) {
+            var state = end.getBlockState(q);
+            if (state.is(ModBlocks.STAR_CHART_DESK.get()) && desk == null) desk = q.immutable();
+            if (state.is(net.minecraft.world.level.block.Blocks.CHEST)) chests++;
+        }
+        if (desk == null) return "no Star Chart Desk in the Fallen Observatory at " + at;
+        if (!(end.getBlockEntity(desk) instanceof com.panda.promisedend.block.StarChartDeskBlockEntity entity)) return "the Star Chart Desk at " + desk + " has no block entity";
+        var kinds = new java.util.TreeSet<String>();
+        for (int i = 0; i < 20; i++) {
+            var drawn = entity.draw();
+            kinds.add(drawn.isEmpty() ? "nothing" : drawn.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get()).getPath());
+        }
+        int sentries = end.getEntitiesOfClass(com.panda.promisedend.entity.PurpurSentry.class, new net.minecraft.world.phys.AABB(desk).inflate(10)).size();
+        var chart = com.panda.promisedend.item.StarChartItem.unroll(end, desk, PromisedEnd.id("on_foundry_charts"));
+        var marks = chart == null ? java.util.List.<net.minecraft.world.item.component.MapDecorations.Entry>of()
+                : java.util.List.copyOf(chart.getOrDefault(net.minecraft.core.component.DataComponents.MAP_DECORATIONS, net.minecraft.world.item.component.MapDecorations.EMPTY).decorations().values());
+        PromisedEnd.LOGGER.info("[promisedend servercheck] Fallen Observatory {} from {} at {}: its desk at {} draws {}; {} chest(s), {} Purpur Sentries, on {}; its Foundry chart marks {}",
+                Math.round(Math.sqrt(at.distSqr(from))), from, at, desk, kinds, chests, sentries, end.getBiome(desk).getRegisteredName(),
+                marks.stream().map(d -> Math.round(d.x()) + ", " + Math.round(d.z())).toList());
+        if (!kinds.equals(new java.util.TreeSet<>(java.util.List.of("on_foundry_charts"))))
+            return "the desk draws " + kinds;
+        if (chests < 1) return "the Fallen Observatory at " + at + " has no chest";
+        if (sentries < 2) return "the Fallen Observatory at " + at + " has " + sentries + " Purpur Sentries";
+        if (marks.isEmpty()) return "a Foundry chart unrolled at " + desk + " marks nothing";
+        if (WAYSTATION_MARK[0] != null && marks.stream().anyMatch(d -> Math.hypot(d.x() - WAYSTATION_MARK[0].getX(), d.z() - WAYSTATION_MARK[0].getZ()) < 32))
+            return "the desk's chart leads back to the Foundry the Waystation's chart marked, " + WAYSTATION_MARK[0];
         return null;
     }
 

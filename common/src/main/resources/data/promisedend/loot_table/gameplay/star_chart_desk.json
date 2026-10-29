@@ -1,0 +1,50 @@
+{
+  "type": "minecraft:chest",
+  "random_sequence": "promisedend:gameplay/star_chart_desk",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:star_chart",
+          "weight": 3,
+          "modifier": [
+            {
+              "type": "minecraft:set_components",
+              "components": {
+                "promisedend:star_chart": "promisedend:on_foundry_charts"
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:star_chart",
+          "weight": 3,
+          "modifier": [
+            {
+              "type": "minecraft:set_components",
+              "components": {
+                "promisedend:star_chart": "promisedend:on_rift_maw_charts"
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:star_chart",
+          "weight": 2,
+          "modifier": [
+            {
+              "type": "minecraft:set_components",
+              "components": {
+                "promisedend:star_chart": "promisedend:on_citadel_charts"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

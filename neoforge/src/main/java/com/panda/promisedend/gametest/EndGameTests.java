@@ -161,6 +161,8 @@ public final class EndGameTests {
         FUNCTIONS.register("gliding_grace_halves_wear", () -> ShrineGameTests::glidingGraceHalvesWear);
         FUNCTIONS.register("void_sight_shows_vents", () -> ShrineGameTests::voidSightShowsVents);
         FUNCTIONS.register("altar_keeps_and_refuses", () -> ShrineGameTests::altarKeepsAndRefuses);
+        FUNCTIONS.register("star_chart_locates", () -> ChartGameTests::starChartLocates);
+        FUNCTIONS.register("desk_gives_one_chart", () -> ChartGameTests::deskGivesOneChart);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -5252,7 +5254,7 @@ public final class EndGameTests {
     }
 
     /** Our structures. */
-    private static final List<String> STRUCTURES = List.of("rim_outpost", "shulker_foundry", "void_shrine");
+    private static final List<String> STRUCTURES = List.of("rim_outpost", "shulker_foundry", "void_shrine", "fallen_observatory");
     /** Our structures with no chest of their own. */
     private static final java.util.Set<String> CHESTLESS = java.util.Set.of("void_shrine");
 
@@ -5285,7 +5287,7 @@ public final class EndGameTests {
         var access = helper.getLevel().registryAccess();
         var sets = access.lookupOrThrow(Registries.STRUCTURE_SET);
         List<String> bad = new ArrayList<>();
-        java.util.Map<String, String> home = java.util.Map.of("rim_outpost", "shattered_rim", "shulker_foundry", "shulker_reefs", "void_shrine", "chorus_thicket");
+        java.util.Map<String, String> home = java.util.Map.of("rim_outpost", "shattered_rim", "shulker_foundry", "shulker_reefs", "void_shrine", "chorus_thicket", "fallen_observatory", "hollow_highlands");
         for (String name : STRUCTURES) {
             var set = sets.get(ResourceKey.create(Registries.STRUCTURE_SET, PromisedEnd.id(name)));
             if (set.isEmpty()) {

@@ -119,6 +119,9 @@ public final class ModItems {
     // ---- the Promise Codex ------------------------------------------------------------------------
     public static final DeferredItem<com.panda.promisedend.item.PromiseCodexItem> PROMISE_CODEX = ITEMS.registerItem("promise_codex",
             com.panda.promisedend.item.PromiseCodexItem::new, p -> p.stacksTo(1));
+    /** A sealed Star Chart; what it leads to is its {@code promisedend:star_chart} component (loot and the desks set it). */
+    public static final DeferredItem<com.panda.promisedend.item.StarChartItem> STAR_CHART = ITEMS.registerItem("star_chart",
+            com.panda.promisedend.item.StarChartItem::new, p -> p.stacksTo(16));
 
     private static ToolMaterial material(GearTiers.Tier tier, TagKey<Block> incorrect, TagKey<Item> repair) {
         return new ToolMaterial(incorrect, tier.durability(), tier.speed(), tier.damageBonus(), tier.enchantability(), repair);

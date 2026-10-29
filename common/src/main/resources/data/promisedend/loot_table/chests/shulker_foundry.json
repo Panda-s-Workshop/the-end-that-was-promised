@@ -72,6 +72,23 @@
           "weight": 2
         }
       ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:star_chart",
+          "modifier": [
+            {
+              "type": "minecraft:set_components",
+              "components": {
+                "promisedend:star_chart": "promisedend:on_observatory_charts"
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

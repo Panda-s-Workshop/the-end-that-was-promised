@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "promisedend:block/star_chart_desk"
+    },
+    "facing=east": {
+      "model": "promisedend:block/star_chart_desk",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "promisedend:block/star_chart_desk",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "promisedend:block/star_chart_desk",
+      "y": 270
+    }
+  }
+}
