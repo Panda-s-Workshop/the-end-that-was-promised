@@ -277,22 +277,28 @@ final class SentinelGameTests {
         }
         var table = end.getServer().reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(Registries.LOOT_TABLE, PromisedEnd.id("chests/waystation")));
         List<String> bad = new ArrayList<>();
+        // the arrival's kit: one chart, sealed on the Foundry
+        int charts = 0;
+        for (var item : com.panda.promisedend.logic.Arrivals.kit()) {
+            if (item.is(net.minecraft.world.item.Items.MAP) || item.is(net.minecraft.world.item.Items.FILLED_MAP)) bad.add("a vanilla map in the kit");
+            if (item.is(com.panda.promisedend.registry.ModItems.STAR_CHART.get())) {
+                charts++;
+                var kind = item.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get());
+                if (kind == null || !kind.equals(PromisedEnd.id("on_foundry_charts"))) bad.add("a kit chart of " + kind);
+            }
+        }
+        if (charts != 1) bad.add(charts + " Star Charts in the kit");
+        // the chest shares no map, no chart and no Voidstone (which would keep Act I's stone goal unearned)
         for (int i = 0; i < 20; i++) {
             var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(end)
                     .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, new Vec3(1500.5, 64, 0.5))
                     .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
-            int charts = 0;
             for (var item : table.getRandomItems(params)) {
-                if (item.is(net.minecraft.world.item.Items.MAP) || item.is(net.minecraft.world.item.Items.FILLED_MAP)) bad.add("a vanilla map");
-                if (item.is(com.panda.promisedend.registry.ModItems.STAR_CHART.get())) {
-                    charts++;
-                    var kind = item.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get());
-                    if (kind == null || !kind.equals(PromisedEnd.id("on_foundry_charts"))) bad.add("a chart of " + kind);
-                }
+                if (item.is(net.minecraft.world.item.Items.MAP) || item.is(net.minecraft.world.item.Items.FILLED_MAP) || item.is(com.panda.promisedend.registry.ModItems.STAR_CHART.get())
+                        || item.is(com.panda.promisedend.registry.ModBlocks.VOIDSTONE_SET.base().get().asItem())) bad.add("the chest rolled " + item);
             }
-            if (charts != 1) bad.add(charts + " Star Charts");
         }
-        if (!bad.isEmpty()) helper.fail("the Waystation's chest, 20 rolls: " + bad);
+        if (!bad.isEmpty()) helper.fail("the Waystation's kit and chest: " + bad);
         helper.succeed();
     }
 

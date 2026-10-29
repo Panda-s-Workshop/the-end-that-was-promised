@@ -97,9 +97,10 @@ class DataNumbersTest {
     }
 
     @Test
-    void outpostChestNeverHoldsAChargedAnchor() throws IOException {
+    void outpostChestHoldsNoAnchor() throws IOException {
+        // the outposts are reached last, inside the Ward: an anchor there would be a first kit at the end
         String table = Files.readString(DATA.resolve("loot_table/chests/rim_outpost.json"));
         assertFalse(table.contains("\"promisedend:void_anchor\""), "a charged anchor in the chest ticks Make an anchor");
-        assertTrue(table.contains("\"promisedend:cracked_void_anchor\""));
+        assertFalse(table.contains("\"promisedend:cracked_void_anchor\""), "a starter's cracked anchor at the journey's end");
     }
 }

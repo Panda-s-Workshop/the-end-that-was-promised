@@ -17,6 +17,50 @@
             "type": "minecraft:set_count",
             "count": {
               "type": "minecraft:uniform",
+              "min": 2,
+              "max": 4
+            }
+          }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:golden_apple",
+          "weight": 4
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:arrow",
+          "weight": 8,
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 8,
+              "max": 16
+            }
+          }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:resonite_shard",
+          "weight": 6,
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 2,
+              "max": 4
+            }
+          }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:echo_amber",
+          "weight": 5,
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
               "min": 1,
               "max": 3
             }
@@ -24,8 +68,8 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:iron_ingot",
-          "weight": 10,
+          "name": "minecraft:gold_ingot",
+          "weight": 5,
           "modifier": {
             "type": "minecraft:set_count",
             "count": {
@@ -37,60 +81,8 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:iron_nugget",
-          "weight": 8,
-          "modifier": {
-            "type": "minecraft:set_count",
-            "count": {
-              "type": "minecraft:uniform",
-              "min": 4,
-              "max": 9
-            }
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "promisedend:polished_voidstone",
-          "weight": 8,
-          "modifier": {
-            "type": "minecraft:set_count",
-            "count": {
-              "type": "minecraft:uniform",
-              "min": 4,
-              "max": 12
-            }
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:chorus_fruit",
-          "weight": 6,
-          "modifier": {
-            "type": "minecraft:set_count",
-            "count": {
-              "type": "minecraft:uniform",
-              "min": 2,
-              "max": 6
-            }
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:gold_ingot",
-          "weight": 4,
-          "modifier": {
-            "type": "minecraft:set_count",
-            "count": {
-              "type": "minecraft:uniform",
-              "min": 1,
-              "max": 3
-            }
-          }
-        },
-        {
-          "type": "minecraft:item",
           "name": "promisedend:voidstone_bricks",
-          "weight": 6,
+          "weight": 4,
           "modifier": {
             "type": "minecraft:set_count",
             "count": {
@@ -102,43 +94,16 @@
         },
         {
           "type": "minecraft:item",
-          "name": "promisedend:voidstone_pickaxe",
+          "name": "minecraft:diamond",
           "weight": 3,
           "modifier": {
-            "type": "minecraft:set_damage",
-            "damage": {
+            "type": "minecraft:set_count",
+            "count": {
               "type": "minecraft:uniform",
-              "min": 0.4,
-              "max": 0.7
+              "min": 1,
+              "max": 2
             }
           }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "promisedend:voidstone_sword",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:set_damage",
-            "damage": {
-              "type": "minecraft:uniform",
-              "min": 0.4,
-              "max": 0.7
-            }
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond",
-          "weight": 1
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "promisedend:promise_codex"
         }
       ]
     },
@@ -148,20 +113,6 @@
         {
           "type": "minecraft:item",
           "name": "promisedend:ancient_tablet"
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "promisedend:cracked_void_anchor",
-          "weight": 1
-        },
-        {
-          "type": "minecraft:empty",
-          "weight": 2
         }
       ]
     }

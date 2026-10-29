@@ -80,9 +80,10 @@ public class StarChartItem extends Item {
     public static ItemStack unroll(ServerLevel level, BlockPos from, Identifier kind) {
         BlockPos found = level.findNearestMapStructure(tag(kind), from, SEARCH_RINGS, true);
         if (found == null) return null;
-        // centred between the reader and the mark (the map snaps its centre to its grid), so both are on it as often as
-        // can be; no biome preview, which only draws water and the End has none
-        ItemStack map = MapItem.create(level, (from.getX() + found.getX()) / 2, (from.getZ() + found.getZ()) / 2, ZOOM, true, true);
+        // on the mark, as vanilla's explorer maps: the map snaps its centre to a grid as wide as itself, so a map
+        // centred anywhere else can leave the mark off it; the reader, off it, shows at its edge on their way. No biome
+        // preview, which only draws water and the End has none
+        ItemStack map = MapItem.create(level, found.getX(), found.getZ(), ZOOM, true, true);
         MapItemSavedData.addTargetDecoration(map, found, "+", MapDecorationTypes.TARGET_X);
         map.set(DataComponents.ITEM_NAME, name(kind));
         map.set(DataComponents.LORE, new ItemLore(List.of(Component.translatable("tooltip.promisedend.star_chart.unrolled").withStyle(ChatFormatting.GRAY))));

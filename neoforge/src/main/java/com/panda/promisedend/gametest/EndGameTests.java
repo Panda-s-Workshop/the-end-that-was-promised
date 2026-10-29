@@ -3663,6 +3663,8 @@ public final class EndGameTests {
         again.postTeleportTransition().onTransition(player);
         int codices = player.getInventory().countItem(ModItems.PROMISE_CODEX.get());
         if (codices != 1) bad.add(codices + " Promise Codices after two arrivals");
+        int charts = player.getInventory().countItem(ModItems.STAR_CHART.get()), tablets = player.getInventory().countItem(ModItems.ANCIENT_TABLET.get());
+        if (charts != 1 || tablets != com.panda.promisedend.logic.Arrivals.FIRST_TABLETS) bad.add("the kit after two arrivals: " + charts + " charts, " + tablets + " tablets");
         // what it says, where it set them down: the Waystation, the way in with the Ward up, the pearl
         player.snapTo(at.x, at.y, at.z, 0, 0);
         var said = com.panda.promisedend.logic.Arrivals.greeting(player).stream()
@@ -4454,19 +4456,16 @@ public final class EndGameTests {
         player.getInventory().add(new net.minecraft.world.item.ItemStack(ModItems.VOID_ANCHOR.get()));
         player.inventoryMenu.broadcastChanges();
         if (!player.getAdvancements().getOrStartProgress(forge).isDone()) bad.add("an anchor in the inventory didn't tick forge_anchor");
-        // the outpost chest gives a cracked anchor, never a charged one
+        // the outpost chest never gives a charged anchor (nor, since it is reached last, a cracked one)
         var table = server.reloadableRegistries().getLootTable(ResourceKey.create(Registries.LOOT_TABLE, PromisedEnd.id("chests/rim_outpost")));
         var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(helper.getLevel())
                 .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, player.position())
                 .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
-        int cracked = 0;
         for (int i = 0; i < 60; i++) {
             for (var stack : table.getRandomItems(params, 1000 + i)) {
-                if (stack.is(ModItems.VOID_ANCHOR.get())) bad.add("an outpost chest rolled a charged Void Anchor");
-                if (stack.is(ModItems.CRACKED_VOID_ANCHOR.get())) cracked++;
+                if (stack.is(ModItems.VOID_ANCHOR.get()) || stack.is(ModItems.CRACKED_VOID_ANCHOR.get())) bad.add("an outpost chest rolled " + stack);
             }
         }
-        if (cracked == 0) bad.add("no outpost chest in 60 rolled a cracked anchor");
         if (!bad.isEmpty()) helper.fail("Act I goals: " + bad);
         helper.succeed();
     }

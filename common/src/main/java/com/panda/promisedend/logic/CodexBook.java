@@ -78,12 +78,12 @@ public final class CodexBook {
                     new Goal(PromisedEnd.id("rim/saved_by_anchor"), "saved_by_anchor"),
                     new Goal(PromisedEnd.id("outer/ride_drift"), "ride_drift"))),
             new Act("outer", FORGE_ANCHOR, List.of(
-                    new Goal(PromisedEnd.id("outer/find_foundry"), "find_foundry"),
-                    new Goal(DEFEAT_SENTINEL, "defeat_sentinel"),
-                    new Goal(PromisedEnd.id("outer/all_seven"), "all_seven"),
-                    new Goal(TAKE_BOON, "take_boon"),
+                    new Goal(TABLETS, "read_tablet"),
                     new Goal(GATE_TRAVEL, "gate_travel"),
-                    new Goal(TABLETS, "read_tablet"))),
+                    new Goal(TAKE_BOON, "take_boon"),
+                    new Goal(PromisedEnd.id("outer/all_seven"), "all_seven"),
+                    new Goal(PromisedEnd.id("outer/find_foundry"), "find_foundry"),
+                    new Goal(DEFEAT_SENTINEL, "defeat_sentinel"))),
             new Act("void", DEFEAT_SENTINEL, List.of(
                     new Goal(PromisedEnd.id("outer/find_observatory"), "find_observatory"),
                     new Goal(ALL_BOONS, "all_boons"),

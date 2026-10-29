@@ -833,14 +833,10 @@ public final class ServerCheck {
         bullet.discard();
         pig.discard();
         if (failure != null) return failure;
-        // the Waystation's chest rolled where a portal sets a player down: its sealed Star Chart, unrolled there, marks
-        // this Foundry
-        var table = end.getServer().reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(Registries.LOOT_TABLE, PromisedEnd.id("chests/waystation")));
-        var items = table.getRandomItems(new net.minecraft.world.level.storage.loot.LootParams.Builder(end)
-                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.atCenterOf(from))
-                .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST));
+        // the arrival's sealed Star Chart, unrolled where a portal sets a player down, marks this Foundry
+        var items = com.panda.promisedend.logic.Arrivals.kit();
         var sealed = items.stream().filter(i -> i.is(com.panda.promisedend.registry.ModItems.STAR_CHART.get())).findFirst().orElse(null);
-        if (sealed == null) return "no Star Chart in the Waystation's chest: " + items;
+        if (sealed == null) return "no Star Chart in the arrival's kit: " + items;
         var kind = sealed.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get());
         if (kind == null) return "the Waystation's Star Chart is blank";
         var chart = com.panda.promisedend.item.StarChartItem.unroll(end, from, kind);

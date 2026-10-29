@@ -7,67 +7,6 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "promisedend:star_chart",
-          "modifier": [
-            {
-              "type": "minecraft:set_components",
-              "components": {
-                "promisedend:star_chart": "promisedend:on_foundry_charts"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "promisedend:voidstone",
-          "modifier": {
-            "type": "minecraft:set_count",
-            "count": {
-              "type": "minecraft:uniform",
-              "min": 6,
-              "max": 10
-            }
-          }
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "promisedend:mire_lily"
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "promisedend:resonite_shard"
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "promisedend:ancient_tablet"
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
           "name": "minecraft:ender_pearl",
           "modifier": {
             "type": "minecraft:set_count",

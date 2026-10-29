@@ -63,11 +63,11 @@ final class TabletGameTests {
         helper.succeed();
     }
 
-    /** How many tablets each chest holds, over 40 rolls of each: the Waystation's 1, an Observatory's 1, a Foundry's 2, a Rim Outpost's 2. */
+    /** How many tablets each chest holds, over 40 rolls of each: the Waystation's none (the arrival gives three), an Observatory's 1, a Foundry's 2, a Rim Outpost's 2. */
     static void ancientTabletsInChests(GameTestHelper helper) {
         var level = helper.getLevel();
         List<String> bad = new ArrayList<>();
-        for (var c : List.of(new Object[] {"waystation", 1}, new Object[] {"fallen_observatory", 1}, new Object[] {"shulker_foundry", 2}, new Object[] {"rim_outpost", 2})) {
+        for (var c : List.of(new Object[] {"waystation", 0}, new Object[] {"fallen_observatory", 1}, new Object[] {"shulker_foundry", 2}, new Object[] {"rim_outpost", 2})) {
             var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE, PromisedEnd.id("chests/" + c[0]));
             var table = level.getServer().reloadableRegistries().getLootTable(key);
             java.util.Set<Integer> counts = new java.util.TreeSet<>();

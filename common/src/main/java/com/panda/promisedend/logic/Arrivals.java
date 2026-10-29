@@ -175,14 +175,29 @@ public final class Arrivals {
         template.get().placeInWorld(end, origin, origin, new StructurePlaceSettings(), end.getRandom(), 2);
     }
 
-    /** A player's first arrival: the Promise Codex, and a line on what the Waystation is. */
+    /** How many Ancient Tablets the arrival gives: their pages tell of the Ward and how the first guardian falls. */
+    public static final int FIRST_TABLETS = 3;
+
+    /**
+     * What each player is given on their first arrival, so a second player at the same Waystation isn't left with an
+     * empty chest: the Promise Codex, the Star Chart sealed on the Foundry, a Mire Lily and a Resonite Shard for the
+     * Rift Gate behind them, and the first Ancient Tablets.
+     */
+    public static List<ItemStack> kit() {
+        return List.of(new ItemStack(ModItems.PROMISE_CODEX.get()),
+                com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_foundry_charts")),
+                new ItemStack(com.panda.promisedend.registry.ModBlocks.MIRE_LILY.get()),
+                new ItemStack(ModItems.RESONITE_SHARD.get()),
+                new ItemStack(ModItems.ANCIENT_TABLET.get(), FIRST_TABLETS));
+    }
+
+    /** A player's first arrival: their kit, and a line on what the Waystation is. */
     private static void greet(Entity entity) {
         if (!(entity instanceof ServerPlayer player)) return;
         Stored stored = Stored.of(player.level().getServer());
         if (!stored.greeted.add(player.getUUID())) return;
         stored.setDirty();
-        ItemStack codex = new ItemStack(ModItems.PROMISE_CODEX.get());
-        player.getInventory().placeItemBackInInventory(codex, net.minecraft.util.Prediction.SERVER_ONLY);
+        for (ItemStack stack : kit()) player.getInventory().placeItemBackInInventory(stack, net.minecraft.util.Prediction.SERVER_ONLY);
         greeting(player).forEach(player::sendSystemMessage);
         title(player);
     }
