@@ -977,8 +977,8 @@ public final class ServerCheck {
         PromisedEnd.LOGGER.info("[promisedend servercheck] Fallen Observatory {} from {} at {}: its desk at {} draws {}; {} chest(s), {} Purpur Sentries, on {}; its Foundry chart marks {}",
                 Math.round(Math.sqrt(at.distSqr(from))), from, at, desk, kinds, chests, sentries, end.getBiome(desk).getRegisteredName(),
                 marks.stream().map(d -> Math.round(d.x()) + ", " + Math.round(d.z())).toList());
-        // the Foundry's and the Maw's (the Citadel's tag is empty till its place comes)
-        if (!kinds.equals(new java.util.TreeSet<>(java.util.List.of("on_foundry_charts", "on_rift_maw_charts"))))
+        // the three guardians' places
+        if (!kinds.equals(new java.util.TreeSet<>(java.util.List.of("on_foundry_charts", "on_rift_maw_charts", "on_citadel_charts"))))
             return "the desk draws " + kinds;
         if (chests < 1) return "the Fallen Observatory at " + at + " has no chest";
         if (sentries < 2) return "the Fallen Observatory at " + at + " has " + sentries + " Purpur Sentries";

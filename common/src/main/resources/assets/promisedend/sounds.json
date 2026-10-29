@@ -579,6 +579,27 @@
       }
     ]
   },
+  "block.amber_gate.open": {
+    "subtitle": "subtitles.promisedend.amber_gate.open",
+    "sounds": [
+      {
+        "name": "minecraft:block.vault.open_shutter",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 1.5
+      }
+    ]
+  },
+  "block.amber_gate.close": {
+    "subtitle": "subtitles.promisedend.amber_gate.close",
+    "sounds": [
+      {
+        "name": "minecraft:block.vault.close_shutter",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
   "item.voidsteel.hold": {
     "subtitle": "subtitles.promisedend.voidsteel.hold",
     "sounds": [

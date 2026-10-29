@@ -233,7 +233,8 @@ final class LeviathanGameTests {
 
     /**
      * Its death breaks the Maw's seal (and with every guardian in, the Ward still stands on the third), gives the
-     * player beside it the advancement, and drops 6 to 10 Voidsteel Scrap.
+     * player beside it the advancement and a Star Chart to the Unfinished Citadel, and drops 6 to 10 Voidsteel Scrap
+     * and 2 Leviathan Scales.
      */
     static void deathBreaksSeal(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -250,6 +251,10 @@ final class LeviathanGameTests {
         if ((AncientWard.broken(server) & 1) != 0) bad.add("the Foundry's seal broke with it");
         var defeated = server.getAdvancements().get(PromisedEnd.id("void/defeat_leviathan"));
         if (defeated == null || !p.getAdvancements().getOrStartProgress(defeated).isDone()) bad.add("no defeat_leviathan advancement");
+        boolean chart = false;
+        for (var stack : p.getInventory().getNonEquipmentItems()) chart |= stack.is(ModItems.STAR_CHART.get())
+                && PromisedEnd.id("on_citadel_charts").equals(stack.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get()));
+        if (!chart) bad.add("no Star Chart to the Citadel given");
         helper.runAfterDelay(2, () -> {
             // anywhere about the pool: it was carried to the lip
             int scrap = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
@@ -266,6 +271,9 @@ final class LeviathanGameTests {
             int starmetal = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
                     .filter(i -> i.getItem().is(ModItems.STARMETAL.get())).mapToInt(i -> i.getItem().getCount()).sum();
             if (starmetal != 2) bad.add(starmetal + " Starmetal dropped, not 2");
+            int scales = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
+                    .filter(i -> i.getItem().is(ModItems.LEVIATHAN_SCALE.get())).mapToInt(i -> i.getItem().getCount()).sum();
+            if (scales != 2) bad.add(scales + " Leviathan Scales dropped, not 2");
             Vec3 lip = VoidLeviathan.lip(Vec3.atBottomCenterOf(v.home()), p.position(), v.surface());
             long there = level.getEntitiesOfClass(ItemEntity.class, new net.minecraft.world.phys.AABB(lip, lip).inflate(1.5, 3, 1.5)).size();
             if (there == 0) bad.add("nothing it dropped was carried to the lip at " + lip);

@@ -109,4 +109,95 @@ final class LatticeGameTests {
             else helper.succeed();
         });
     }
+
+    /**
+     * The Amber Gate: a 3 by 4 gate and a lone gate block apart from it. Without a key (a stick, or a bare hand) it stays
+     * shut and solid; an Amber Key opens all twelve joined blocks (not the lone one), is spent, and leaves them walked
+     * through; a second key on the open gate isn't spent. Closing, each block pushes up a pig standing in it.
+     */
+    static void amberGateNeedsKey(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var gate = ModBlocks.AMBER_GATE.get();
+        java.util.List<BlockPos> joined = new java.util.ArrayList<>();
+        for (int x = 2; x <= 4; x++) for (int y = 2; y <= 5; y++) joined.add(helper.absolutePos(new BlockPos(x, y, 2)));
+        for (BlockPos p : joined) level.setBlock(p, gate.defaultBlockState(), 3);
+        BlockPos lone = helper.absolutePos(new BlockPos(7, 2, 2));
+        level.setBlock(lone, gate.defaultBlockState(), 3);
+        var player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(GameType.SURVIVAL);
+        var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
+        BlockPos used = joined.get(1);
+        var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(used), net.minecraft.core.Direction.SOUTH, used, false);
+        java.util.List<String> bad = new java.util.ArrayList<>();
+        java.util.function.Predicate<BlockPos> open = p -> level.getBlockState(p).getValue(com.panda.promisedend.block.AmberGateBlock.OPEN);
+        var stick = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK);
+        player.setItemInHand(hand, stick);
+        level.getBlockState(used).useItemOn(stick, level, player, hand, hit);
+        if (joined.stream().anyMatch(open)) bad.add("a stick opened it");
+        if (level.getBlockState(used).getCollisionShape(level, used).isEmpty()) bad.add("the shut gate can be walked through");
+        var key = new net.minecraft.world.item.ItemStack(com.panda.promisedend.registry.ModItems.AMBER_KEY.get(), 2);
+        player.setItemInHand(hand, key);
+        level.getBlockState(used).useItemOn(key, level, player, hand, hit);
+        long opened = joined.stream().filter(open).count();
+        if (opened != joined.size()) bad.add(opened + " of the " + joined.size() + " joined blocks opened");
+        if (open.test(lone)) bad.add("the lone block apart from the gate opened");
+        if (key.getCount() != 1) bad.add("opening it left " + key.getCount() + " keys of 2");
+        if (!level.getBlockState(used).getCollisionShape(level, used).isEmpty()) bad.add("the open gate still blocks");
+        level.getBlockState(used).useItemOn(key, level, player, hand, hit);
+        if (key.getCount() != 1) bad.add("a key on the open gate was spent");
+        // a pig in the gate's bottom middle as it closes
+        BlockPos middle = joined.get(4);
+        var pig = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, helper.relativePos(middle));
+        pig.setNoAi(true);
+        pig.snapTo(middle.getX() + 0.5, middle.getY() + 0.1, middle.getZ() + 0.5, 0, 0);
+        for (BlockPos p : joined) level.getBlockState(p).tick(level, p, level.getRandom());
+        if (joined.stream().anyMatch(open)) bad.add("its tick didn't close it");
+        if (pig.getY() < middle.getY() + 1 - 0.01) bad.add("the closing gate left the pig in it, at y " + pig.getY());
+        PromisedEnd.LOGGER.info("[amber_gate_needs_key] {} opened by the key, {} keys left; the pig at y {} (the block's top {})", opened, key.getCount(), pig.getY(), middle.getY() + 1);
+        player.discard();
+        if (!bad.isEmpty()) helper.fail("amber gate: " + bad);
+        else helper.succeed();
+    }
+
+    /**
+     * The Unfinished Citadel's template: its Amber Gate is one gate of 3 by 4, shut, in the south wall; the arena over
+     * the shaft is Lattice Tile with the open shaft under it between the spokes; eight Lumen Lamps, one chest; its
+     * structure keeps monsters out of its box; the Leviathan's chart kind names it.
+     */
+    static void unfinishedCitadelPlaces(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var template = server.getStructureTemplateManager().get(PromisedEnd.id("unfinished_citadel"));
+        if (template.isEmpty()) {
+            helper.fail("no Citadel template");
+            return;
+        }
+        var t = template.get();
+        var settings = new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings();
+        java.util.List<String> bad = new java.util.ArrayList<>();
+        var gate = t.filterBlocks(BlockPos.ZERO, settings, ModBlocks.AMBER_GATE.get());
+        if (gate.size() != 12) bad.add(gate.size() + " gate blocks, not 12");
+        int middle = t.getSize().getX() / 2;
+        for (var g : gate) {
+            if (g.state().getValue(com.panda.promisedend.block.AmberGateBlock.OPEN)) bad.add("a gate block placed open at " + g.pos());
+            if (g.pos().getZ() <= middle || Math.abs(g.pos().getX() - middle) > 1) bad.add("a gate block off the south wall at " + g.pos());
+        }
+        var tiles = t.filterBlocks(BlockPos.ZERO, settings, ModBlocks.LATTICE_TILE.get());
+        long arena = tiles.stream().filter(b -> Math.hypot(b.pos().getX() - middle, b.pos().getZ() - middle) <= 15).count();
+        if (arena < 600) bad.add("only " + arena + " Lattice Tile in the arena over the shaft");
+        int lamps = t.filterBlocks(BlockPos.ZERO, settings, ModBlocks.LUMEN_LAMP.get()).size();
+        if (lamps != 8) bad.add(lamps + " Lumen Lamps");
+        if (t.filterBlocks(BlockPos.ZERO, settings, Blocks.CHEST).size() != 1) bad.add("not one chest");
+        var structure = server.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                .get(PromisedEnd.id("unfinished_citadel"));
+        if (structure.isEmpty()) bad.add("no unfinished_citadel structure");
+        else if (structure.get().value().spawnOverrides().get(net.minecraft.world.entity.MobCategory.MONSTER) == null
+                || !structure.get().value().spawnOverrides().get(net.minecraft.world.entity.MobCategory.MONSTER).spawns().isEmpty())
+            bad.add("monsters may spawn in the Citadel's box");
+        var charts = server.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                .getTagOrEmpty(com.panda.promisedend.item.StarChartItem.tag(PromisedEnd.id("on_citadel_charts")));
+        if (!charts.iterator().hasNext()) bad.add("no structure on the Citadel's charts");
+        PromisedEnd.LOGGER.info("[unfinished_citadel_places] {} gate blocks, {} arena tiles, {} lamps; size {}", gate.size(), arena, lamps, t.getSize());
+        if (!bad.isEmpty()) helper.fail("the Citadel: " + bad);
+        else helper.succeed();
+    }
 }

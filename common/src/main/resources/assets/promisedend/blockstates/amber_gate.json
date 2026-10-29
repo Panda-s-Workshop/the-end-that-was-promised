@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "open=false": {
+      "model": "promisedend:block/amber_gate"
+    },
+    "open=true": {
+      "model": "promisedend:block/amber_gate_open"
+    }
+  }
+}

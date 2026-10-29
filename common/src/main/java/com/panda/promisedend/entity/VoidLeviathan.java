@@ -9,6 +9,7 @@ import com.geckolib.util.GeckoLibUtil;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.logic.AncientWard;
 import com.panda.promisedend.registry.ModBlocks;
+import com.panda.promisedend.registry.ModItems;
 import com.panda.promisedend.registry.ModSounds;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -63,7 +64,7 @@ import org.jspecify.annotations.Nullable;
  *
  * With no player in the arena for {@link #REST_TICKS} it goes back to sleep in the throat, keeping its wounds. On its
  * death the Maw's seal breaks, and everyone who fought it (struck it, or stood within {@link #WITNESS} at the end) is
- * given the advancement that opens the Codex's next act.
+ * given the advancement that opens the Codex's next act and a Star Chart to the Unfinished Citadel.
  */
 public class VoidLeviathan extends Monster implements GeoEntity {
     public static final double WAKE_RANGE = 24.0;
@@ -539,7 +540,12 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         // witnesses who could have fought it; one who struck it is rewarded whatever their mode now
         for (ServerPlayer p : level.players()) if (!p.isSpectator() && !p.isCreative() && p.distanceToSqr(this) <= WITNESS * WITNESS) rewarded.add(p);
         var defeated = level.getServer().getAdvancements().get(DEFEATED);
-        for (ServerPlayer p : rewarded) if (defeated != null) p.getAdvancements().award(defeated, "defeated");
+        for (ServerPlayer p : rewarded) {
+            if (defeated != null) p.getAdvancements().award(defeated, "defeated");
+            // and the way on: a chart to the nearest Unfinished Citadel, where the third seal is kept
+            net.minecraft.world.item.ItemStack chart = com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_citadel_charts"));
+            if (!p.getInventory().add(chart)) p.spawnAtLocation(level, chart);
+        }
     }
 
     /**

@@ -130,6 +130,11 @@ public final class ModItems {
     /** The Void Leviathan's, one a kill. */
     public static final DeferredItem<HintItem> LEVIATHAN_FIN = ITEMS.registerItem("leviathan_fin", p -> new HintItem(p, "leviathan_fin", 2),
             p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));
+    /** The Void Leviathan's, two a kill: the Amber Key's. */
+    public static final DeferredItem<HintItem> LEVIATHAN_SCALE = ITEMS.registerItem("leviathan_scale", p -> new HintItem(p, "leviathan_scale", 1));
+    /** Opens the Unfinished Citadel's Amber Gate, and is spent on it. */
+    public static final DeferredItem<HintItem> AMBER_KEY = ITEMS.registerItem("amber_key", p -> new HintItem(p, "amber_key", 2),
+            p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));
     /** The Void Leviathan's: smiths Resonite gear into Voidsteel. */
     public static final DeferredItem<com.panda.promisedend.item.VoidsteelTemplateItem> VOIDSTEEL_UPGRADE_SMITHING_TEMPLATE = ITEMS.registerItem(
             "voidsteel_upgrade_smithing_template", com.panda.promisedend.item.VoidsteelTemplateItem::new, p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));

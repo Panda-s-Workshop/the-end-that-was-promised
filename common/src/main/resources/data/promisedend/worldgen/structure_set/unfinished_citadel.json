@@ -1,0 +1,16 @@
+{
+  "structures": [
+    {
+      "structure": "promisedend:unfinished_citadel",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "promisedend:ring_spread",
+    "spacing": 96,
+    "separation": 32,
+    "salt": 1379110759,
+    "min_distance": 7400,
+    "max_distance": 30000000
+  }
+}

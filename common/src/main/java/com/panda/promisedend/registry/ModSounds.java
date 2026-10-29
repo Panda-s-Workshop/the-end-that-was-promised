@@ -94,6 +94,8 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> LATTICE_CRAWLER_TEAR = sound("entity.lattice_crawler.tear");
     public static final Supplier<SoundEvent> VOIDSTEEL_HOLD = sound("item.voidsteel.hold");
     public static final Supplier<SoundEvent> VOIDSTEEL_RELEASE = sound("item.voidsteel.release");
+    public static final Supplier<SoundEvent> AMBER_GATE_OPEN = sound("block.amber_gate.open");
+    public static final Supplier<SoundEvent> AMBER_GATE_CLOSE = sound("block.amber_gate.close");
     public static final Supplier<SoundEvent> LATTICE_GROAN = sound("block.lattice.groan");
     public static final Supplier<SoundEvent> LATTICE_TEAR = sound("block.lattice.tear");
     public static final Supplier<SoundEvent> LATTICE_REFORM = sound("block.lattice.reform");

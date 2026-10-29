@@ -199,6 +199,16 @@ public final class ModBlocks {
                     .noCollision().noOcclusion().lightLevel(s -> 4).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)
                     .isSuffocating((s, l, pos) -> false).isViewBlocking((s, l, pos, box) -> false).isValidSpawn((s, l, pos, e) -> false));
 
+    /**
+     * The Unfinished Citadel's way in: a wall of amber nothing breaks, opened for a while by an Amber Key (no item; the
+     * Citadel places it). Lit, and lit more while open.
+     */
+    public static final DeferredBlock<com.panda.promisedend.block.AmberGateBlock> AMBER_GATE = BLOCKS.registerBlock("amber_gate",
+            com.panda.promisedend.block.AmberGateBlock::new, p -> p.mapColor(MapColor.COLOR_ORANGE).strength(-1.0F, 3600000.0F).noLootTable()
+                    .noOcclusion().lightLevel(s -> s.getValue(com.panda.promisedend.block.AmberGateBlock.OPEN) ? 12 : 7).sound(SoundType.GLASS)
+                    .pushReaction(PushReaction.IMMOVEABLE).isValidSpawn((s, l, pos, e) -> false)
+                    .isSuffocating((s, l, pos) -> false).isViewBlocking((s, l, pos, box) -> false).isRedstoneConductor((s, l, pos) -> false));
+
     // ---- the Shulker Reefs: Ancient Purpur, the purpur the reefs grow as coral, and what the Ancients cut from it
     /** As vanilla's purpur (1.5 / 6, a pickaxe), the grown block with coral's sound. */
     private static final UnaryOperator<BlockBehaviour.Properties> ANCIENT_PURPUR_GROWN =

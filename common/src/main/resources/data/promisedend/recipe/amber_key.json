@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ASA",
+    "PCP",
+    " S "
+  ],
+  "key": {
+    "A": "promisedend:echo_amber",
+    "S": "promisedend:leviathan_scale",
+    "P": "promisedend:ancient_purpur_scrap",
+    "C": "promisedend:ancient_core"
+  },
+  "result": {
+    "id": "promisedend:amber_key"
+  }
+}

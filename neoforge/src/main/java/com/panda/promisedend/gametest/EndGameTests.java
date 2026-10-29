@@ -180,6 +180,8 @@ public final class EndGameTests {
         FUNCTIONS.register("starfall_crater_respects_tag", () -> StarfallGameTests::craterRespectsTag);
         FUNCTIONS.register("crawler_only_tears_lattice", () -> LatticeGameTests::crawlerOnlyTearsLattice);
         FUNCTIONS.register("phantom_lattice_reforms", () -> LatticeGameTests::phantomLatticeReforms);
+        FUNCTIONS.register("amber_gate_needs_key", () -> LatticeGameTests::amberGateNeedsKey);
+        FUNCTIONS.register("unfinished_citadel_places", () -> LatticeGameTests::unfinishedCitadelPlaces);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
