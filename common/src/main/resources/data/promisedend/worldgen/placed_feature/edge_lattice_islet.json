@@ -1,0 +1,32 @@
+{
+  "feature": "promisedend:edge_lattice_islet",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "edge_lattice_islet"
+    },
+    {
+      "type": "promisedend:chunk_chance",
+      "chance": 2,
+      "salt": "edge_lattice_islet"
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "min_inclusive": {
+          "absolute": 50
+        },
+        "max_inclusive": {
+          "absolute": 80
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

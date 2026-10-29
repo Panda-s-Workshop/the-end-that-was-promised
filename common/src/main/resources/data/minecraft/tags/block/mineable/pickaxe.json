@@ -35,6 +35,9 @@
     "promisedend:ancient_purpur_brick_slab",
     "promisedend:ancient_purpur_brick_wall",
     "promisedend:ancient_purpur_tiles",
-    "promisedend:ancient_purpur_pillar"
+    "promisedend:ancient_purpur_pillar",
+    "promisedend:raw_lattice",
+    "promisedend:lattice_tile",
+    "promisedend:lattice_scaffold"
   ]
 }

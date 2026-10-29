@@ -43,6 +43,10 @@ public final class ModWorldgen {
             () -> com.panda.promisedend.worldgen.HollowCavernFeature.CODEC);
     public static final Supplier<MapCodec<com.panda.promisedend.worldgen.HangingVineFeature>> HANGING_VINE = FEATURE_TYPES.register("hanging_vine",
             () -> com.panda.promisedend.worldgen.HangingVineFeature.CODEC);
+    public static final Supplier<MapCodec<com.panda.promisedend.worldgen.EdgeGroundFeature>> EDGE_GROUND = FEATURE_TYPES.register("edge_ground",
+            () -> com.panda.promisedend.worldgen.EdgeGroundFeature.CODEC);
+    public static final Supplier<MapCodec<com.panda.promisedend.worldgen.EdgeScaffoldFeature>> EDGE_SCAFFOLD = FEATURE_TYPES.register("edge_scaffold",
+            () -> com.panda.promisedend.worldgen.EdgeScaffoldFeature.CODEC);
     public static final Supplier<MapCodec<TerrainOffFilter>> TERRAIN_OFF = MODIFIERS.register("terrain_off", () -> TerrainOffFilter.CODEC);
     public static final Supplier<MapCodec<com.panda.promisedend.worldgen.ChunkChanceFilter>> CHUNK_CHANCE = MODIFIERS.register("chunk_chance",
             () -> com.panda.promisedend.worldgen.ChunkChanceFilter.CODEC);

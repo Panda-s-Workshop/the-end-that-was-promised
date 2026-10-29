@@ -60,6 +60,8 @@ public final class ModItems {
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.RIFT_STALKER.get()));
     public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> PURPUR_SENTRY_SPAWN_EGG = ITEMS.registerItem("purpur_sentry_spawn_egg",
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.PURPUR_SENTRY.get()));
+    public static final DeferredItem<net.minecraft.world.item.SpawnEggItem> LATTICE_CRAWLER_SPAWN_EGG = ITEMS.registerItem("lattice_crawler_spawn_egg",
+            net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.LATTICE_CRAWLER.get()));
     /** The Purpur Sentry's: the Ancient Purpur set's and the Amber Key's. */
     public static final DeferredItem<HintItem> ANCIENT_PURPUR_SCRAP = ITEMS.registerItem("ancient_purpur_scrap", p -> new HintItem(p, "ancient_purpur_scrap", 3));
     /** The Hollow Sentinel's: its heart, one to each who fought it, and the template it guards. */

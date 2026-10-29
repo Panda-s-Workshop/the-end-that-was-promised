@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:lattice_tile"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_raw_lattice": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:raw_lattice"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_raw_lattice"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:lattice_tile"
+    ]
+  }
+}

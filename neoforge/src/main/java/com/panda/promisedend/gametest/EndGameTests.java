@@ -178,6 +178,8 @@ public final class EndGameTests {
         FUNCTIONS.register("augment_drift_weave_reduces_wear", () -> AugmentGameTests::driftWeaveReducesWear);
         FUNCTIONS.register("augment_smithing_table_awards_the_goal", () -> AugmentGameTests::smithingTableAwardsTheGoal);
         FUNCTIONS.register("starfall_crater_respects_tag", () -> StarfallGameTests::craterRespectsTag);
+        FUNCTIONS.register("crawler_only_tears_lattice", () -> LatticeGameTests::crawlerOnlyTearsLattice);
+        FUNCTIONS.register("phantom_lattice_reforms", () -> LatticeGameTests::phantomLatticeReforms);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -191,7 +193,8 @@ public final class EndGameTests {
             java.util.Map.entry("sentinel_opens_after_three_returns", 260), java.util.Map.entry("sentinel_wakes_for_survival", 100),
             java.util.Map.entry("sentinel_volleys_never_crack_itself", 260), java.util.Map.entry("sentinel_opens_onto_its_rest", 260),
             java.util.Map.entry("leviathan_breach_telegraphs", 320), java.util.Map.entry("leviathan_pairs_and_draws", 360),
-            java.util.Map.entry("set_bonus_void_touched", 400), java.util.Map.entry("ward_bounces_pearls", 160));
+            java.util.Map.entry("set_bonus_void_touched", 400), java.util.Map.entry("ward_bounces_pearls", 160),
+            java.util.Map.entry("crawler_only_tears_lattice", 340), java.util.Map.entry("phantom_lattice_reforms", 200));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -5141,6 +5144,8 @@ public final class EndGameTests {
                 new Rig("lumen_wisp", com.panda.promisedend.entity.LumenWisp.CLIPS, java.util.Map.of()),
                 new Rig("rift_stalker", com.panda.promisedend.entity.RiftStalker.CLIPS, java.util.Map.of(
                         "gather", com.panda.promisedend.entity.RiftStalker.GATHER_TICKS, "strike", com.panda.promisedend.entity.RiftStalker.STRIKE_TICKS)),
+                new Rig("lattice_crawler", com.panda.promisedend.entity.LatticeCrawler.CLIPS, java.util.Map.of(
+                        "tear", com.panda.promisedend.entity.LatticeCrawler.TEAR_TICKS)),
                 new Rig("purpur_sentry", com.panda.promisedend.entity.PurpurSentry.CLIPS, java.util.Map.of(
                         "lunge", com.panda.promisedend.entity.PurpurSentry.LUNGE_TICKS)),
                 new Rig("void_leviathan", com.panda.promisedend.entity.VoidLeviathan.CLIPS, java.util.Map.of(

@@ -30,6 +30,9 @@
     "promisedend:ancient_purpur_bricks",
     "promisedend:ancient_purpur_tiles",
     "promisedend:ancient_purpur_pillar",
+    "promisedend:raw_lattice",
+    "promisedend:lattice_tile",
+    "promisedend:lattice_scaffold",
     "#minecraft:slabs",
     "#minecraft:stairs",
     "#minecraft:walls"

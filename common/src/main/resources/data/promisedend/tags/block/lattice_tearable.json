@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "promisedend:raw_lattice",
+    "promisedend:lattice_scaffold",
+    "promisedend:lattice_tile"
+  ]
+}

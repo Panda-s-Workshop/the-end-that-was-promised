@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "promisedend:block/lattice_scaffold"
+    }
+  }
+}

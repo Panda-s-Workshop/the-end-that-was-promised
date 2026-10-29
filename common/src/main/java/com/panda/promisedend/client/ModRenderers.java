@@ -23,6 +23,8 @@ public final class ModRenderers {
         sink.register(ModEntities.PURPUR_SENTRY.get(), c -> new ConstructRenderer<>(c, "purpur_sentry", com.panda.promisedend.entity.PurpurSentry.MODEL_SCALE, 0.7F, 7));
         sink.register(ModEntities.HOLLOW_SENTINEL.get(), c -> new ConstructRenderer<>(c, "hollow_sentinel", com.panda.promisedend.entity.HollowSentinel.MODEL_SCALE, 1.2F, 7));
         sink.register(ModEntities.VOID_LEVIATHAN.get(), c -> new ConstructRenderer<>(c, "void_leviathan", com.panda.promisedend.entity.VoidLeviathan.MODEL_SCALE, 0.0F, 7));
+        // the crawler's lattice holds a little of its seams' light, as the stalker's voidstone does
+        sink.register(ModEntities.LATTICE_CRAWLER.get(), c -> new ConstructRenderer<>(c, "lattice_crawler", com.panda.promisedend.entity.LatticeCrawler.MODEL_SCALE, 0.6F, 7));
         // a Resonite shard, lit, so a shot reads against the void and the arena alike
         sink.register(ModEntities.RESONANT_BULLET.get(), c -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(c, 1.25F, true));
     }

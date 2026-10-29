@@ -1,0 +1,12 @@
+{
+  "feature": "promisedend:edge_ground",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "edge_ground"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

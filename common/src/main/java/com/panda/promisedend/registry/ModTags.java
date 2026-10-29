@@ -47,6 +47,10 @@ public final class ModTags {
     /** What a fallen star's crater takes, and what may stand within 8 of where it lands (anything else is a player's). */
     public static final TagKey<Block> STARFALL_REPLACEABLE = TagKey.create(Registries.BLOCK, PromisedEnd.id("starfall_replaceable"));
     public static final TagKey<Block> STARFALL_NATURAL = TagKey.create(Registries.BLOCK, PromisedEnd.id("starfall_natural"));
+    /** The lattice that tears and re-forms (block.PhantomLatticeBlock): only ours, so nothing else is ever torn. */
+    public static final TagKey<Block> LATTICE_TEARABLE = TagKey.create(Registries.BLOCK, PromisedEnd.id("lattice_tearable"));
+    /** What a Lattice Crawler climbs. */
+    public static final TagKey<Block> LATTICE_CLIMBABLE = TagKey.create(Registries.BLOCK, PromisedEnd.id("lattice_climbable"));
     /** What a Drift Blossom grows on: end stone. */
     public static final TagKey<Block> DRIFT_BLOSSOM_GROUND = TagKey.create(Registries.BLOCK, PromisedEnd.id("drift_blossom_ground"));
     /** What Void Grass grows on: end stone and the End's mosses (VoidGrassBlock). */

@@ -53,6 +53,9 @@ public final class ModEntities {
     public static final Supplier<EntityType<com.panda.promisedend.entity.VoidLeviathan>> VOID_LEVIATHAN = ENTITIES.registerEntityType("void_leviathan",
             com.panda.promisedend.entity.VoidLeviathan::new, MobCategory.MONSTER, b -> b.sized(2.5F, 6.5F).eyeHeight(5.5F)
                     .clientTrackingRange(10).fireImmune());
+    // low and wide at the rig's scale 1: its legs 19 px across (1.2 blocks), its keystone's top 12 px up
+    public static final Supplier<EntityType<com.panda.promisedend.entity.LatticeCrawler>> LATTICE_CRAWLER = ENTITIES.registerEntityType("lattice_crawler",
+            com.panda.promisedend.entity.LatticeCrawler::new, MobCategory.MONSTER, b -> b.sized(1.2F, 0.8F).eyeHeight(0.55F).clientTrackingRange(8));
     /** Its shot: small, and tracked every tick, so a blow aimed at it lands where it is seen. */
     public static final Supplier<EntityType<com.panda.promisedend.entity.ResonantBullet>> RESONANT_BULLET = ENTITIES.registerEntityType("resonant_bullet",
             com.panda.promisedend.entity.ResonantBullet::new, MobCategory.MISC, b -> b.sized(0.5F, 0.5F).clientTrackingRange(8).updateInterval(1));
@@ -75,6 +78,7 @@ public final class ModEntities {
         sink.accept(PURPUR_SENTRY.get(), PurpurSentry.createAttributes());
         sink.accept(HOLLOW_SENTINEL.get(), com.panda.promisedend.entity.HollowSentinel.createAttributes());
         sink.accept(VOID_LEVIATHAN.get(), com.panda.promisedend.entity.VoidLeviathan.createAttributes());
+        sink.accept(LATTICE_CRAWLER.get(), com.panda.promisedend.entity.LatticeCrawler.createAttributes());
     }
 
     /** A loader's way of registering a spawn placement (NeoForge: the event; Fabric: {@code SpawnPlacements.register}). */
@@ -87,6 +91,8 @@ public final class ModEntities {
         rules.set(CHORUS_WEAVER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, ChorusWeaver::canSpawn);
         rules.set(LUMEN_WISP.get(), SpawnPlacementTypes.NO_RESTRICTIONS, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, LumenWisp::canSpawn);
         rules.set(RIFT_STALKER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, RiftStalker::canSpawn);
+        rules.set(LATTICE_CRAWLER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                com.panda.promisedend.entity.LatticeCrawler::canSpawn);
     }
 
     private ModEntities() {}

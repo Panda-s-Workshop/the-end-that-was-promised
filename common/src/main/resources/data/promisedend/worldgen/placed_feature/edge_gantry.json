@@ -1,0 +1,24 @@
+{
+  "feature": "promisedend:edge_gantry",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "edge_gantry"
+    },
+    {
+      "type": "promisedend:chunk_chance",
+      "chance": 4,
+      "salt": "edge_gantry"
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

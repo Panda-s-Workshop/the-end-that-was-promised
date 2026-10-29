@@ -1,6 +1,9 @@
 {
   "replace": false,
   "values": [
-    "promisedend:starmetal_ore"
+    "promisedend:starmetal_ore",
+    "promisedend:raw_lattice",
+    "promisedend:lattice_tile",
+    "promisedend:lattice_scaffold"
   ]
 }

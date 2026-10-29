@@ -1,0 +1,16 @@
+{
+  "type": "promisedend:edge_scaffold",
+  "post": {
+    "id": "promisedend:lattice_scaffold"
+  },
+  "deck": {
+    "id": "promisedend:lattice_tile"
+  },
+  "rib": {
+    "id": "promisedend:raw_lattice"
+  },
+  "floating": true,
+  "min_height": 2,
+  "max_height": 5,
+  "max_reach": 0
+}

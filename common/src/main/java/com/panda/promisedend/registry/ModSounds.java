@@ -86,6 +86,15 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> SHRINE_GRANT = sound("block.shrine_altar.grant");
     public static final Supplier<SoundEvent> RIFT_GATE_ATTUNE = sound("block.rift_gate.attune");
     public static final Supplier<SoundEvent> RIFT_GATE_TRAVEL = sound("block.rift_gate.travel");
+    /** The Lattice Crawler, and the lattice it tears: the groan while it goes, the tear, the block re-forming. */
+    public static final Supplier<SoundEvent> LATTICE_CRAWLER_AMBIENT = sound("entity.lattice_crawler.ambient");
+    public static final Supplier<SoundEvent> LATTICE_CRAWLER_HURT = sound("entity.lattice_crawler.hurt");
+    public static final Supplier<SoundEvent> LATTICE_CRAWLER_DEATH = sound("entity.lattice_crawler.death");
+    public static final Supplier<SoundEvent> LATTICE_CRAWLER_STEP = sound("entity.lattice_crawler.step");
+    public static final Supplier<SoundEvent> LATTICE_CRAWLER_TEAR = sound("entity.lattice_crawler.tear");
+    public static final Supplier<SoundEvent> LATTICE_GROAN = sound("block.lattice.groan");
+    public static final Supplier<SoundEvent> LATTICE_TEAR = sound("block.lattice.tear");
+    public static final Supplier<SoundEvent> LATTICE_REFORM = sound("block.lattice.reform");
     /** The Starfall: its far rumble as it is seen coming, and its landing. */
     public static final Supplier<SoundEvent> STARFALL_WARNING = sound("event.starfall.warning");
     public static final Supplier<SoundEvent> STARFALL_IMPACT = sound("event.starfall.impact");

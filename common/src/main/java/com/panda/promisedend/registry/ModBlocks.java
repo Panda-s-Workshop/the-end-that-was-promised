@@ -182,6 +182,23 @@ public final class ModBlocks {
             "crumbling_voidstone", com.panda.promisedend.block.CrumblingVoidstoneBlock::new,
             p -> p.mapColor(MapColor.TERRACOTTA_PURPLE).strength(1.5F, 3.0F).sound(SoundType.TUFF).requiresCorrectToolForDrops()), 2);
 
+    // ---- the Unfinished Edge's lattice: what the Edge is built of, the Ancients' floor and scaffolding, and
+    // the ghost of a torn block
+    /** Raw Lattice: as hard as deepslate tiles twice over, blast-proof as obsidian, an iron pickaxe. */
+    public static final DeferredBlock<Block> RAW_LATTICE = withHint(BLOCKS.registerSimpleBlock("raw_lattice",
+            p -> p.mapColor(MapColor.COLOR_BLACK).strength(7.0F, 1200.0F).sound(SoundType.DEEPSLATE).requiresCorrectToolForDrops()), 2);
+    public static final DeferredBlock<Block> LATTICE_TILE = simple("lattice_tile",
+            p -> p.mapColor(MapColor.COLOR_BLACK).strength(7.0F, 1200.0F).sound(SoundType.DEEPSLATE_TILES).requiresCorrectToolForDrops());
+    /** An open frame: seen through, nothing smothers in it. */
+    public static final DeferredBlock<Block> LATTICE_SCAFFOLD = simple("lattice_scaffold",
+            p -> p.mapColor(MapColor.COLOR_BLACK).strength(4.0F, 1200.0F).sound(SoundType.CHAIN).requiresCorrectToolForDrops().noOcclusion()
+                    .isSuffocating((s, l, pos) -> false).isViewBlocking((s, l, pos, box) -> false).isRedstoneConductor((s, l, pos) -> false));
+    /** No item, no drop, nothing to stand on or break; faintly lit, it re-forms as what it was. */
+    public static final DeferredBlock<com.panda.promisedend.block.PhantomLatticeBlock> PHANTOM_LATTICE = BLOCKS.registerBlock("phantom_lattice",
+            com.panda.promisedend.block.PhantomLatticeBlock::new, p -> p.mapColor(MapColor.NONE).strength(-1.0F, 3600000.0F).noLootTable()
+                    .noCollision().noOcclusion().lightLevel(s -> 4).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)
+                    .isSuffocating((s, l, pos) -> false).isViewBlocking((s, l, pos, box) -> false).isValidSpawn((s, l, pos, e) -> false));
+
     // ---- the Shulker Reefs: Ancient Purpur, the purpur the reefs grow as coral, and what the Ancients cut from it
     /** As vanilla's purpur (1.5 / 6, a pickaxe), the grown block with coral's sound. */
     private static final UnaryOperator<BlockBehaviour.Properties> ANCIENT_PURPUR_GROWN =

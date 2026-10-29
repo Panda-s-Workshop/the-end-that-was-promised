@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "# #",
+    " # ",
+    "# #"
+  ],
+  "key": {
+    "#": "promisedend:raw_lattice"
+  },
+  "result": {
+    "id": "promisedend:lattice_scaffold",
+    "count": 10
+  }
+}

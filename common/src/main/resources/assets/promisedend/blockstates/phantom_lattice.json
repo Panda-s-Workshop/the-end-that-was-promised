@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "form=raw_lattice": {
+      "model": "promisedend:block/phantom_lattice"
+    },
+    "form=lattice_scaffold": {
+      "model": "promisedend:block/phantom_lattice"
+    },
+    "form=lattice_tile": {
+      "model": "promisedend:block/phantom_lattice"
+    }
+  }
+}

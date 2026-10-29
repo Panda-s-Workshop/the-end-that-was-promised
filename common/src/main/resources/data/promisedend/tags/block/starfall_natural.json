@@ -17,6 +17,7 @@
     "promisedend:voidsteel_scrap_ore",
     "promisedend:void_water",
     "promisedend:mire_lily",
-    "promisedend:updraft_vent"
+    "promisedend:updraft_vent",
+    "#promisedend:lattice_tearable"
   ]
 }

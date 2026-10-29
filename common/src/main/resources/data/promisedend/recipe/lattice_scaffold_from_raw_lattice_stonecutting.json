@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": "promisedend:raw_lattice",
+  "result": {
+    "id": "promisedend:lattice_scaffold",
+    "count": 2
+  }
+}

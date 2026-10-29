@@ -1,0 +1,9 @@
+{
+  "type": "promisedend:edge_ground",
+  "lattice": {
+    "id": "promisedend:raw_lattice"
+  },
+  "cell": 8,
+  "open": 0.3,
+  "depth": 3
+}

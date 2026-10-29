@@ -499,6 +499,86 @@
       }
     ]
   },
+  "entity.lattice_crawler.ambient": {
+    "subtitle": "subtitles.promisedend.lattice_crawler.ambient",
+    "sounds": [
+      {
+        "name": "minecraft:block.chain.hit",
+        "type": "event",
+        "pitch": 1.2
+      }
+    ]
+  },
+  "entity.lattice_crawler.hurt": {
+    "subtitle": "subtitles.promisedend.lattice_crawler.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:block.deepslate_tiles.hit",
+        "type": "event",
+        "pitch": 0.9
+      }
+    ]
+  },
+  "entity.lattice_crawler.death": {
+    "subtitle": "subtitles.promisedend.lattice_crawler.death",
+    "sounds": [
+      {
+        "name": "minecraft:block.deepslate_tiles.break",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.lattice_crawler.step": {
+    "subtitle": "subtitles.promisedend.lattice_crawler.step",
+    "sounds": [
+      {
+        "name": "minecraft:block.chain.step",
+        "type": "event",
+        "pitch": 1.3
+      }
+    ]
+  },
+  "entity.lattice_crawler.tear": {
+    "subtitle": "subtitles.promisedend.lattice_crawler.tear",
+    "sounds": [
+      {
+        "name": "minecraft:block.grindstone.use",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
+  "block.lattice.groan": {
+    "subtitle": "subtitles.promisedend.lattice.groan",
+    "sounds": [
+      {
+        "name": "minecraft:block.chain.break",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "block.lattice.tear": {
+    "subtitle": "subtitles.promisedend.lattice.tear",
+    "sounds": [
+      {
+        "name": "minecraft:block.deepslate_tiles.break",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
+  "block.lattice.reform": {
+    "subtitle": "subtitles.promisedend.lattice.reform",
+    "sounds": [
+      {
+        "name": "minecraft:block.end_portal_frame.fill",
+        "type": "event",
+        "pitch": 1.4
+      }
+    ]
+  },
   "entity.resonant_bullet.return": {
     "subtitle": "subtitles.promisedend.resonant_bullet.return",
     "sounds": [
@@ -663,6 +743,17 @@
         "name": "minecraft:block.cave_vines.step",
         "type": "event",
         "pitch": 0.7,
+        "volume": 0.5
+      }
+    ]
+  },
+  "ambient.unfinished_edge.additions": {
+    "subtitle": "subtitles.promisedend.unfinished_edge.additions",
+    "sounds": [
+      {
+        "name": "minecraft:block.chain.step",
+        "type": "event",
+        "pitch": 0.5,
         "volume": 0.5
       }
     ]

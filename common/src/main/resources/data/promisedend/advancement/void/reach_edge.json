@@ -1,0 +1,40 @@
+{
+  "parent": "promisedend:void/defeat_leviathan",
+  "criteria": {
+    "edge": {
+      "trigger": "minecraft:location",
+      "conditions": {
+        "player": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:location": {
+              "biomes": "promisedend:unfinished_edge"
+            }
+          }
+        }
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:raw_lattice"
+    },
+    "title": {
+      "translate": "advancements.promisedend.void.reach_edge.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.void.reach_edge.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "edge"
+    ]
+  ],
+  "sends_telemetry_event": false
+}
