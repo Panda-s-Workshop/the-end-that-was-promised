@@ -97,8 +97,9 @@ public record Augments(List<Identifier> list) implements TooltipProvider {
     }
 
     /**
-     * A glider pressed the jump key ({@code BoostPayload}): gliding on the Architect's Lattice and its lattice set, it
-     * is boosted as by a flight-1 rocket (one is fired from it, as vanilla's); still setting, it is told how long.
+     * A glider pressed the jump key ({@code BoostPayload}): gliding on wings with the Architect's Lattice, its lattice
+     * set (its cooldown run out), it is boosted as by a flight-1 rocket (one is fired from it, as vanilla's); still
+     * setting, it is told how long.
      * Returns whether it boosted.
      */
     public static boolean boost(ServerPlayer player) {

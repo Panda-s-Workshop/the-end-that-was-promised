@@ -81,6 +81,8 @@ public final class ServerCheck {
         PromisedEnd.LOGGER.info("[promisedend servercheck] biome at {}: {}", centre, id);
         boolean terrain = EndConfig.terrainEnabled();
         PromisedEnd.LOGGER.info("[promisedend servercheck] terrain {}", terrain ? "on" : "off");
+        // the seed, so a failure on a random world can be run again (dedicated.sh SEED=n)
+        PromisedEnd.LOGGER.info("[promisedend servercheck] world seed {}", end.getSeed());
         if (terrain && !id.equals("promisedend:shattered_rim")) return "expected the Shattered Rim at x=300, got " + id;
         if (!terrain && id.startsWith(PromisedEnd.MODID + ":")) return "terrain is off, yet x=300 is " + id;
         if (!biome.is(TagKey.create(Registries.BIOME, Identifier.parse("c:is_end")))) return id + " isn't in #c:is_end";
@@ -147,6 +149,9 @@ public final class ServerCheck {
         add.accept(arrivals(server, end, terrain));
         add.accept(foundry(end));
         add.accept(maw(end));
+        add.accept(citadel(end));
+        // the Edge's grid: Raw Lattice on the lines over its islands
+        if (terrain) add.accept(biome(end, "unfinished_edge", "Unfinished Edge", ModBlocks.RAW_LATTICE.get(), 40));
         add.accept(shrine(end));
         add.accept(observatory(end));
         add.accept(driftRoutes(end));
@@ -889,6 +894,42 @@ public final class ServerCheck {
         if (chart == null) return "the Sentinel's Star Chart found no Maw from " + from;
         var marks = chart.getOrDefault(net.minecraft.core.component.DataComponents.MAP_DECORATIONS, net.minecraft.world.item.component.MapDecorations.EMPTY).decorations().values();
         if (marks.stream().noneMatch(d -> Math.hypot(d.x() - found.getX(), d.z() - found.getZ()) < 16)) return "the Star Chart marks no Maw at " + found + ": " + marks;
+        return null;
+    }
+
+    /**
+     * The Unfinished Citadel nearest a point 9000 out, as the Leviathan's chart and a held pearl find it, generated here:
+     * its Architect is in place over the arena's hub, dormant and bound. Bound, it holds its rest over 40 ticks and doesn't
+     * wake; unbound and woken with no one near, it ticks 40 times awake over its hub. It must load and tick without a
+     * client.
+     */
+    private static String citadel(net.minecraft.server.level.ServerLevel end) {
+        BlockPos from = new BlockPos(9000, 64, 0);
+        BlockPos found = end.findNearestMapStructure(com.panda.promisedend.registry.ModTags.ON_CITADEL_CHARTS, from, com.panda.promisedend.logic.PearlGuide.SEARCH, false);
+        if (found == null) return "no Unfinished Citadel within " + com.panda.promisedend.logic.PearlGuide.SEARCH + " chunks of " + from;
+        for (int cx = (found.getX() >> 4) - 5; cx <= (found.getX() >> 4) + 5; cx++) {
+            for (int cz = (found.getZ() >> 4) - 5; cz <= (found.getZ() >> 4) + 5; cz++) end.getChunk(cx, cz);
+        }
+        var architects = end.getEntitiesOfClass(com.panda.promisedend.entity.TheArchitect.class, new net.minecraft.world.phys.AABB(found).inflate(72, 256, 72));
+        PromisedEnd.LOGGER.info("[promisedend servercheck] Unfinished Citadel {} from {} at {}: {} Architect(s){}", Math.round(Math.sqrt(found.distSqr(from))), from, found,
+                architects.size(), architects.isEmpty() ? "" : " at " + architects.getFirst().blockPosition() + ", " + architects.getFirst().state()
+                        + (architects.getFirst().bound() ? ", bound" : ", not bound"));
+        if (architects.size() != 1) return "the Citadel at " + found + " has " + architects.size() + " Architects";
+        var architect = architects.getFirst();
+        if (architect.state() != com.panda.promisedend.entity.TheArchitect.State.DORMANT) return "the Citadel's Architect is " + architect.state();
+        if (!architect.bound()) return "the Citadel's Architect isn't bound behind its gate";
+        net.minecraft.world.phys.Vec3 at = architect.position();
+        for (int i = 0; i < 40; i++) architect.tick();
+        if (architect.state() != com.panda.promisedend.entity.TheArchitect.State.DORMANT) return "the bound Architect woke: " + architect.state();
+        double still = architect.position().distanceTo(at);
+        architect.unbind();
+        architect.wake();
+        for (int i = 0; i < 40; i++) architect.tick();
+        PromisedEnd.LOGGER.info("[promisedend servercheck] the Architect held {} from its rest over 40 ticks bound; unbound and woken, {} after 40 ticks, {} from its rest",
+                String.format(java.util.Locale.ROOT, "%.2f", still), architect.state(), String.format(java.util.Locale.ROOT, "%.2f", architect.position().distanceTo(at)));
+        if (still > 1) return "the bound Architect moved " + still + " from its rest";
+        if (architect.state() == com.panda.promisedend.entity.TheArchitect.State.DORMANT) return "woken with no one near, the Architect slept again at once";
+        if (architect.position().distanceTo(at) > 2) return "woken with no one near, the Architect left its hub: " + architect.position().distanceTo(at);
         return null;
     }
 

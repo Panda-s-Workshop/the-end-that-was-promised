@@ -9,6 +9,7 @@ import com.geckolib.util.GeckoLibUtil;
 import com.panda.promisedend.PromisedEnd;
 import com.panda.promisedend.block.PhantomLatticeBlock;
 import com.panda.promisedend.logic.AncientWard;
+import com.panda.promisedend.logic.ArchitectFight;
 import com.panda.promisedend.logic.WeakPoint;
 import com.panda.promisedend.registry.ModBlocks;
 import com.panda.promisedend.registry.ModEntities;
@@ -58,9 +59,10 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The Architect, the Unfinished Citadel's guardian and the keeper of the Ancients' third seal. The Citadel's template
- * places it over the hub of its arena, dormant and bowed: it can't be hurt until a player in survival or adventure
- * comes within {@link #WAKE_RANGE} of it (or strikes it). Then it rises with a boss bar and builds against them, over
- * its disc of Lattice Tile:
+ * places it over the hub of its arena, dormant, bowed and bound: it can't be hurt or woken until its Amber Gate has been
+ * opened with a key ({@link #unbind}), and then not until a player in survival or adventure comes within
+ * {@link #WAKE_RANGE} of it (or strikes it). Then it rises with a boss bar and builds against them, over its disc of
+ * Lattice Tile:
  *
  * <ul>
  *   <li><b>Phase 1</b>, it raises walls of lattice ({@link #WALL_LENGTH} long, {@link #WALL_HEIGHT} high, for
@@ -71,8 +73,11 @@ import org.jspecify.annotations.Nullable;
  *   <li><b>Phase 3</b>, below {@link #PHASES}[1], it does both, and calls {@link #CRAWLERS} Lattice Crawlers.</li>
  * </ul>
  *
- * A blow or a shot that meets its keystone, the lit stone before its chest, deals {@link #KEYSTONE_DAMAGE} times the
- * damage ({@link WeakPoint}). Everything it builds or unmakes is Phantom Lattice over the arena's own lattice: it never
+ * Its cage is shut while it works: it can be hurt only while it stands open, from a throw's leaving it to its next work
+ * ({@link ArchitectFight#openAfterThrow}), and only by a fighter on its disc. A blow or a shot that meets its keystone,
+ * the lit stone in front of its chest, deals {@link #KEYSTONE_DAMAGE} times the damage ({@link WeakPoint}). A fighter
+ * under it on its hub, where it neither walls nor unmakes, is swept out onto the tiles.
+ * Everything it builds or unmakes is Phantom Lattice over the arena's own lattice: it never
  * touches another block. With no player within {@link #RESET_RANGE} for {@link #RESET_TICKS} (a minute), or when it
  * dies, the arena is put back as it was: walls gone, tiles re-formed, its Crawlers gone, and it settles dormant with its
  * wounds. On its death the Citadel's seal breaks, and everyone who fought it is given the Architect's Promise, the
@@ -88,9 +93,10 @@ public class TheArchitect extends Monster implements GeoEntity {
     public static final double LEASH = 5.0, HOVER = 1.0;
     public static final int RESET_RANGE = 64, RESET_TICKS = 1200;
     /** The pause between its works, and the shorter one in its last phase. */
-    public static final int REST_BETWEEN = 50, REST_BETWEEN_LAST = 35;
+    public static final int REST_BETWEEN = ArchitectFight.REST_BETWEEN, REST_BETWEEN_LAST = ArchitectFight.REST_BETWEEN_LAST;
     /** Its clips' lengths, and the tick in each the work lands on (the clips' own: gen_constructs architect). */
-    public static final int RAISE_TICKS = 20, RAISE_AT = 12, THROW_TICKS = 20, THROW_WINDUP = 12, UNMAKE_TELL = 40;
+    public static final int RAISE_TICKS = ArchitectFight.RAISE_TICKS, RAISE_AT = ArchitectFight.RAISE_AT,
+            THROW_TICKS = ArchitectFight.THROW_TICKS, THROW_WINDUP = ArchitectFight.THROW_WINDUP, UNMAKE_TELL = ArchitectFight.UNMAKE_TELL;
     public static final int WALL_LENGTH = 7, WALL_HEIGHT = 3, WALL_TICKS = 200;
     /** A wall stands this far from its target, on its side. */
     public static final double WALL_OUT = 3.0;
@@ -99,15 +105,22 @@ public class TheArchitect extends Monster implements GeoEntity {
     public static final int UNMAKE_TICKS = 200;
     /** The keystone: in front of its chest (the rig's (0, 20, -5) px at {@link #MODEL_SCALE}), and how near it a blow lands. */
     public static final double KEYSTONE_UP = 2.5, KEYSTONE_FORWARD = 0.625, KEYSTONE_RADIUS = 0.7;
-    public static final float KEYSTONE_DAMAGE = 2.0F;
+    public static final float KEYSTONE_DAMAGE = ArchitectFight.KEYSTONE_DAMAGE;
     /** The phases begin at these shares of its health. */
-    public static final float[] PHASES = {0.6F, 0.25F};
+    public static final float[] PHASES = ArchitectFight.PHASES;
+    /** Its hub: a target within this of its rest stands under it, and is swept out for this, this hard. */
+    public static final double HUB_REACH = 3.0, SWEEP_PUSH = 1.4;
+    public static final float SWEEP_DAMAGE = 6.0F;
+    /** A throw leads its target by their pace over its flight, this far at most. */
+    public static final double LEAD_MOST = 6.0;
+    /** It leans this share of the way toward its target, so it stays behind the walls it raises between them. */
+    public static final double LEAN = 0.3;
     public static final int CRAWLERS = 2;
     /** Where its Crawlers come out: on the arena, this far from its rest. */
     public static final int CRAWLER_OUT = 8;
     /** A player this near when it dies counts as having fought it. */
     public static final double WITNESS = 32.0;
-    public static final double HEALTH = 600.0, ARMOUR = 12.0;
+    public static final double HEALTH = ArchitectFight.HEALTH, ARMOUR = ArchitectFight.ARMOUR;
     /** The renderer draws the rig at this scale; the hitbox is measured at it. */
     public static final float MODEL_SCALE = 2.0F;
     /** The tag a player gets once told how to fight it (the hint is said once). */
@@ -117,11 +130,9 @@ public class TheArchitect extends Monster implements GeoEntity {
 
     public enum State { DORMANT, IDLE, RAISE, THROW, UNMAKE }
 
-    /** What it does in turn, in each phase. */
-    private static final List<List<State>> WORKS = List.of(
-            List.of(State.RAISE, State.THROW, State.THROW),
-            List.of(State.UNMAKE, State.THROW, State.THROW),
-            List.of(State.RAISE, State.UNMAKE, State.THROW));
+    /** What it does in turn, in each phase ({@link ArchitectFight#WORKS}). */
+    private static final List<List<State>> WORKS = ArchitectFight.WORKS.stream()
+            .map(works -> works.stream().map(w -> State.valueOf(w.name())).toList()).toList();
 
     private static final EntityDataAccessor<Byte> DATA_STATE = SynchedEntityData.defineId(TheArchitect.class, EntityDataSerializers.BYTE);
 
@@ -143,10 +154,22 @@ public class TheArchitect extends Monster implements GeoEntity {
     private int rest = REST_BETWEEN;
     private int next;
     private int alone;
+    /** Ticks its cage has left open; shut at 0. */
+    private int open;
+    /** Bound behind its gate: placed so by the Citadel, until the gate is opened. */
+    private boolean bound;
+    /** The game time it was saved at, read back on its load, to count the time it was away toward its reset. */
+    private long savedAt = -1;
+    /** Its target's pace, a tick, from where it stood the tick before; for the throws' lead. */
+    private @Nullable UUID seenId;
+    private Vec3 seen = Vec3.ZERO, pace = Vec3.ZERO;
+    private int toldAt = -100;
+    /** Its works as they began, the tick and the work, for the tests (the last 32, not saved). */
+    private final List<String> began = new ArrayList<>();
     /** The tiles glowing in an unmaking, to go at its end. */
     private final List<BlockPos> marked = new ArrayList<>();
     /** What it has done since it loaded (not saved): for the tests and the harness. */
-    private int walls, unmade, throwsMade, keystoneHits;
+    private int walls, unmade, throwsMade, keystoneHits, sweeps;
     /** Everyone who struck it, for the rewards and the advancement. */
     private final Set<UUID> fought = new LinkedHashSet<>();
     /** The Crawlers it called, sent away when the arena resets. */
@@ -212,6 +235,43 @@ public class TheArchitect extends Monster implements GeoEntity {
         return keystoneHits;
     }
 
+    public int sweeps() {
+        return sweeps;
+    }
+
+    /** Its works as they began, each "tick work" (for tests). */
+    public List<String> began() {
+        return List.copyOf(began);
+    }
+
+    /** Whether its cage stands open, so a blow can land. */
+    public boolean isOpen() {
+        return open > 0;
+    }
+
+    /** Opens its cage for {@code ticks} now (for tests: as a throw does). */
+    public void openCage(int ticks) {
+        this.open = ticks;
+    }
+
+    public boolean bound() {
+        return bound;
+    }
+
+    public void setBound(boolean bound) {
+        this.bound = bound;
+    }
+
+    /** Its gate is open: from now on it may wake. */
+    public void unbind() {
+        if (!bound) return;
+        this.bound = false;
+        if (level() instanceof ServerLevel level) {
+            Vec3 key = keystonePosition();
+            level.sendParticles(ParticleTypes.WAX_OFF, key.x, key.y, key.z, 20, 0.6, 0.8, 0.6, 0.02);
+        }
+    }
+
     public List<UUID> called() {
         return List.copyOf(called);
     }
@@ -274,7 +334,7 @@ public class TheArchitect extends Monster implements GeoEntity {
 
     /** Wakes it (public for tests): it rises with its bar, and tells the arena once where to strike. */
     public void wake() {
-        if (state() != State.DORMANT) return;
+        if (state() != State.DORMANT || bound) return;
         setState(State.IDLE);
         this.rest = REST_BETWEEN;
         this.alone = 0;
@@ -288,6 +348,8 @@ public class TheArchitect extends Monster implements GeoEntity {
                 p.addTag(HINTED);
                 p.sendOverlayMessage(Component.translatable("hint.promisedend.the_architect.keystone"));
             }
+            // woken again in its last phase, after a reset sent them away
+            if (phase >= 2 && called.isEmpty()) callCrawlers(level);
         }
     }
 
@@ -297,11 +359,20 @@ public class TheArchitect extends Monster implements GeoEntity {
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         if (home == null) home = blockPosition();
+        if (savedAt >= 0) {
+            // loaded again: the time it was away, unloaded, counts toward its reset
+            if (state() != State.DORMANT) alone += (int) Math.min(RESET_TICKS, Math.max(0L, level.getGameTime() - savedAt));
+            savedAt = -1;
+        }
         if (tickCount % 10 == 0) updateBar(level);
         if (state() == State.DORMANT) {
             hold(Vec3.atBottomCenterOf(home));
-            if (tickCount % 10 == 0 && !near(level, WAKE_RANGE).isEmpty()) wake();
+            if (tickCount % 10 == 0 && !bound && !near(level, WAKE_RANGE).isEmpty()) wake();
             return;
+        }
+        if (open > 0 && --open % 4 == 0) {
+            Vec3 key = keystonePosition();
+            level.sendParticles(GLOW, key.x, key.y, key.z, 2, 0.25, 0.25, 0.25, 0.0);
         }
         // the arena put back after a minute with no one near
         if (near(level, RESET_RANGE).isEmpty()) {
@@ -322,14 +393,23 @@ public class TheArchitect extends Monster implements GeoEntity {
             return;
         }
         face(target);
-        // a little toward its target, so it stays behind the walls it raises between them
-        Vec3 lean = target.position().subtract(over).multiply(1, 0, 1).scale(0.3);
+        if (!target.getUUID().equals(seenId)) {
+            seenId = target.getUUID();
+            pace = Vec3.ZERO;
+        } else {
+            pace = pace.scale(0.5).add(target.position().subtract(seen).scale(0.5));
+        }
+        seen = target.position();
+        Vec3 lean = target.position().subtract(over).multiply(1, 0, 1).scale(LEAN);
         if (lean.length() > LEASH) lean = lean.normalize().scale(LEASH);
         hold(over.add(lean));
         stateTicks++;
         switch (state()) {
             case IDLE -> {
-                if (--rest <= 0) begin(level, target);
+                if (--rest <= 0) {
+                    if (onHub(target)) sweep(level, target);
+                    else begin(level, target);
+                }
             }
             case RAISE -> {
                 if (stateTicks == RAISE_AT) raiseWall(level, target);
@@ -356,6 +436,10 @@ public class TheArchitect extends Monster implements GeoEntity {
         State work = works.get(next % works.size());
         next++;
         setState(work);
+        if (open > 0) playSound(ModSounds.ARCHITECT_SHUT.get(), 1.5F, 1.0F);
+        open = 0;
+        if (began.size() >= 32) began.removeFirst();
+        began.add(tickCount + " " + work);
         switch (work) {
             case RAISE -> playSound(ModSounds.ARCHITECT_RAISE.get(), 2.5F, 1.0F);
             case THROW -> playSound(ModSounds.ARCHITECT_THROW.get(), 2.0F, 1.0F);
@@ -366,7 +450,43 @@ public class TheArchitect extends Monster implements GeoEntity {
 
     private void done() {
         setState(State.IDLE);
-        this.rest = phase >= 2 ? REST_BETWEEN_LAST : REST_BETWEEN;
+        this.rest = ArchitectFight.rest(phase);
+    }
+
+    /** Whether {@code e} stands under it, on its hub, where its walls and unmaking can't reach. */
+    private boolean onHub(Entity e) {
+        BlockPos home = rest();
+        return Math.hypot(e.getX() - (home.getX() + 0.5), e.getZ() - (home.getZ() + 0.5)) <= HUB_REACH;
+    }
+
+    /** Whether {@code e} stands over its disc: only a fighter there finds its cage open. */
+    private boolean onDisc(Entity e) {
+        BlockPos home = rest();
+        return Math.hypot(e.getX() - (home.getX() + 0.5), e.getZ() - (home.getZ() + 0.5)) <= ARENA_RADIUS + 1.0;
+    }
+
+    /**
+     * Its answer to a fighter under it on the hub, in the place of its next work: a sweep of its frames that deals
+     * {@link #SWEEP_DAMAGE} and throws them out onto the tiles (public for tests).
+     */
+    public void sweep(ServerLevel level, LivingEntity target) {
+        Vec3 out = target.position().subtract(Vec3.atBottomCenterOf(rest())).multiply(1, 0, 1);
+        if (out.lengthSqr() < 1.0E-4) out = Vec3.directionFromRotation(0.0F, getYRot()).multiply(1, 0, 1);
+        out = out.normalize();
+        target.hurtServer(level, damageSources().mobAttack(this), SWEEP_DAMAGE);
+        target.setDeltaMovement(out.x * SWEEP_PUSH, 0.45, out.z * SWEEP_PUSH);
+        // to the trackers, and (syncVelocity) to a swept player's own client too
+        target.needsSync = true;
+        if (target instanceof ServerPlayer p) p.syncVelocity = true;
+        for (int i = 0; i < 8; i++) {
+            double a = Math.PI * 2 * i / 8;
+            level.sendParticles(ParticleTypes.SWEEP_ATTACK, getX() + Math.cos(a) * 2.0, rest().getY() + 1.0, getZ() + Math.sin(a) * 2.0, 1, 0, 0, 0, 0);
+        }
+        playSound(ModSounds.ARCHITECT_SWEEP.get(), 2.5F, 1.0F);
+        sweeps++;
+        if (began.size() >= 32) began.removeFirst();
+        began.add(tickCount + " SWEEP");
+        this.rest = ArchitectFight.rest(phase);
     }
 
     /** Whether ({@code x}, {@code z}) is on its arena: within the disc, and off the hub it hangs over. */
@@ -410,9 +530,19 @@ public class TheArchitect extends Monster implements GeoEntity {
         return state.is(ModTags.LATTICE_TEARABLE) || state.is(ModBlocks.PHANTOM_LATTICE.get());
     }
 
+    /** A throw at where its target will be when it comes down, and its cage opens. */
     private void throwShard(ServerLevel level, LivingEntity target) {
-        level.addFreshEntity(new LatticeShard(level, this, target));
+        Vec3 from = keystonePosition(), body = target.position().add(0, target.getBbHeight() * 0.4, 0), aim = body;
+        for (int i = 0; i < 2; i++) {
+            Vec3 lead = pace.multiply(1, 0, 1).scale(ArchitectFight.flight(Math.hypot(aim.x - from.x, aim.z - from.z), LatticeShard.SPEED));
+            if (lead.length() > LEAD_MOST) lead = lead.normalize().scale(LEAD_MOST);
+            aim = body.add(lead);
+        }
+        level.addFreshEntity(new LatticeShard(level, this, aim));
         throwsMade++;
+        open = ArchitectFight.openAfterThrow(phase);
+        level.sendParticles(ParticleTypes.END_ROD, from.x, from.y, from.z, 12, 0.3, 0.3, 0.3, 0.05);
+        playSound(ModSounds.ARCHITECT_OPEN.get(), 2.0F, 1.0F);
     }
 
     /** Marks the tiles round its target's feet to go at the end of {@link #UNMAKE_TELL} (public for tests). */
@@ -468,6 +598,7 @@ public class TheArchitect extends Monster implements GeoEntity {
         setState(State.DORMANT);
         this.alone = 0;
         this.next = 0;
+        this.open = 0;
         marked.clear();
         setTarget(null);
         bar.setVisible(false);
@@ -545,13 +676,24 @@ public class TheArchitect extends Monster implements GeoEntity {
         for (ServerPlayer p : near) bar.addPlayer(p);
     }
 
-    // ---- damage: the keystone takes it twice; its phases ----------------------------------------------------------
+    // ---- damage: only while its cage is open, the keystone harder; its phases -------------------------------------
 
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) return super.hurtServer(level, source, amount);
         if (state() == State.DORMANT) {
-            if (source.getEntity() instanceof ServerPlayer p && !p.isCreative() && !p.isSpectator()) wake();
+            if (source.getEntity() instanceof ServerPlayer p && !p.isCreative() && !p.isSpectator()) {
+                if (bound) tell(p, "message.promisedend.the_architect.bound");
+                else wake();
+            }
+            return false;
+        }
+        Entity attacker = source.getEntity();
+        if (open <= 0 || attacker == null || !onDisc(attacker)) {
+            if (attacker instanceof ServerPlayer p) {
+                playSound(ModSounds.ARCHITECT_SHUT.get(), 1.5F, 1.2F);
+                tell(p, onDisc(p) ? "hint.promisedend.the_architect.shut" : "hint.promisedend.the_architect.off_disc");
+            }
             return false;
         }
         boolean key = onKeystone(source);
@@ -567,11 +709,16 @@ public class TheArchitect extends Monster implements GeoEntity {
         return hurt;
     }
 
-    /** The phase its health has reached, forward only: one big blow past both thresholds starts the last. */
+    /** Tells {@code p} why a blow did nothing, at most once in two seconds. */
+    private void tell(ServerPlayer p, String key) {
+        if (tickCount - toldAt < 40) return;
+        toldAt = tickCount;
+        p.sendOverlayMessage(Component.translatable(key));
+    }
+
+    /** The phase its health has reached ({@link ArchitectFight#phaseFor}). */
     public static int phaseFor(float share, int current) {
-        int phase = current;
-        for (int i = current; i < PHASES.length; i++) if (share <= PHASES[i]) phase = i + 1;
-        return phase;
+        return ArchitectFight.phaseFor(share, current);
     }
 
     private void checkPhase(ServerLevel level) {
@@ -581,6 +728,8 @@ public class TheArchitect extends Monster implements GeoEntity {
         this.next = 0;
         if (phase >= 2) callCrawlers(level);
         playSound(ModSounds.ARCHITECT_PHASE.get(), 3.0F, 1.0F);
+        Vec3 key = keystonePosition();
+        level.sendParticles(ParticleTypes.END_ROD, key.x, key.y, key.z, 30 + 20 * phase, 0.8, 1.2, 0.8, 0.12);
     }
 
     /** Two Lattice Crawlers onto the arena, either side of its target's way to it (public for tests). */
@@ -687,6 +836,8 @@ public class TheArchitect extends Monster implements GeoEntity {
         super.addAdditionalSaveData(output);
         output.storeNullable("home", BlockPos.CODEC, home);
         output.putBoolean("awake", state() != State.DORMANT);
+        output.putBoolean("bound", bound);
+        output.putLong("saved_at", level().getGameTime());
         output.putInt("phase", phase);
         output.store("fought", UUIDUtil.CODEC.listOf(), List.copyOf(fought));
         output.store("called", UUIDUtil.CODEC.listOf(), List.copyOf(called));
@@ -700,6 +851,8 @@ public class TheArchitect extends Monster implements GeoEntity {
         setState(input.getBooleanOr("awake", false) ? State.IDLE : State.DORMANT);
         bar.setVisible(state() != State.DORMANT);
         this.phase = input.getIntOr("phase", 0);
+        this.bound = input.getBooleanOr("bound", false);
+        this.savedAt = input.getLongOr("saved_at", -1L);
         fought.clear();
         fought.addAll(input.read("fought", UUIDUtil.CODEC.listOf()).orElse(List.of()));
         called.clear();

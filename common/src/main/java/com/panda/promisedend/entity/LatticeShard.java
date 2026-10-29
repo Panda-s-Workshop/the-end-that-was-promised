@@ -1,5 +1,6 @@
 package com.panda.promisedend.entity;
 
+import com.panda.promisedend.logic.ArchitectFight;
 import com.panda.promisedend.registry.ModBlocks;
 import com.panda.promisedend.registry.ModEntities;
 import com.panda.promisedend.registry.ModSounds;
@@ -23,8 +24,11 @@ import net.minecraft.world.phys.Vec3;
  */
 public class LatticeShard extends ThrowableItemProjectile {
     public static final float DAMAGE = 7.0F;
-    /** Its fall, in blocks a tick a tick, and how fast it goes out across the ground. */
-    public static final double GRAVITY = 0.04, SPEED = 0.7;
+    /**
+     * Its fall, in blocks a tick a tick, and how fast it goes out across the ground: slow, and in the air a second at
+     * least ({@link ArchitectFight#FLIGHT_LEAST}), so it goes up over the walls before it comes down.
+     */
+    public static final double GRAVITY = 0.04, SPEED = 0.4;
     /** It breaks up after this long, wherever it is. */
     public static final int LIFETIME = 120;
 
@@ -32,23 +36,17 @@ public class LatticeShard extends ThrowableItemProjectile {
         super(type, level);
     }
 
-    /** A lob from {@code architect}'s keystone onto {@code target}. */
-    public LatticeShard(Level level, TheArchitect architect, LivingEntity target) {
+    /** A lob from {@code architect}'s keystone, to come down on {@code aim}. */
+    public LatticeShard(Level level, TheArchitect architect, Vec3 aim) {
         super(ModEntities.LATTICE_SHARD.get(), architect, level, ModBlocks.RAW_LATTICE.get().asItem().getDefaultInstance());
         this.setPos(architect.keystonePosition());
-        setDeltaMovement(lob(position(), target.position().add(0, target.getBbHeight() * 0.4, 0), SPEED, GRAVITY));
+        setDeltaMovement(lob(position(), aim, SPEED, GRAVITY));
     }
 
-    /**
-     * The throw from {@code from} that comes down on {@code to}: out at {@code speed} across the ground, up enough to
-     * fall {@code gravity} a tick a tick onto it, a little long for the air's drag (0.99 a tick).
-     */
+    /** The throw from {@code from} that comes down on {@code to} ({@link ArchitectFight#lob}). */
     public static Vec3 lob(Vec3 from, Vec3 to, double speed, double gravity) {
-        Vec3 d = to.subtract(from);
-        double across = Math.sqrt(d.x * d.x + d.z * d.z);
-        double t = Math.max(8.0, across / speed);
-        double drag = t / ((1.0 - Math.pow(0.99, t)) / 0.01);
-        return new Vec3(d.x / t * drag, (d.y / t + gravity * (t + 1) * 0.5) * drag, d.z / t * drag);
+        double[] v = ArchitectFight.lob(to.x - from.x, to.y - from.y, to.z - from.z, speed, gravity);
+        return new Vec3(v[0], v[1], v[2]);
     }
 
     @Override

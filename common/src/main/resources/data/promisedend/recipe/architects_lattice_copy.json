@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "#S#",
+    "#A#",
+    "###"
+  ],
+  "key": {
+    "#": "promisedend:raw_lattice",
+    "A": "promisedend:echo_amber",
+    "S": "promisedend:architects_lattice"
+  },
+  "result": {
+    "id": "promisedend:architects_lattice",
+    "count": 2
+  }
+}

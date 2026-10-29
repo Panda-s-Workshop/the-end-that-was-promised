@@ -1,11 +1,14 @@
 package com.panda.promisedend.gametest;
 
 import com.panda.promisedend.PromisedEnd;
+import com.panda.promisedend.block.AmberGateBlock;
 import com.panda.promisedend.block.PhantomLatticeBlock;
 import com.panda.promisedend.entity.LatticeCrawler;
+import com.panda.promisedend.entity.LatticeShard;
 import com.panda.promisedend.entity.TheArchitect;
 import com.panda.promisedend.item.Augments;
 import com.panda.promisedend.logic.AncientWard;
+import com.panda.promisedend.logic.ArchitectFight;
 import com.panda.promisedend.logic.LatticeBoost;
 import com.panda.promisedend.registry.ModBlocks;
 import com.panda.promisedend.registry.ModEntities;
@@ -156,7 +159,7 @@ final class ArchitectGameTests {
     /**
      * The arena resets. Awake, with a wall up, tiles unmade and its two Crawlers called, the Architect puts it all back
      * once no player is near for {@link TheArchitect#RESET_TICKS} (the count run on from 10 short): no Phantom Lattice
-     * left, every tile of the disc a tile, the Crawlers gone, and the Architect dormant, its bar hidden.
+     * left, every tile of the disc a tile, the Crawlers gone, and the Architect dormant, its bar hidden, with its wounds.
      */
     static void arenaResets(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -169,6 +172,7 @@ final class ArchitectGameTests {
         helper.runAtTickTime(1, () -> hold(p, new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 6.5)));
         helper.runAtTickTime(3, () -> {
             a.wake();
+            a.setHealth(a.getMaxHealth() * 0.5F);
             if (a.raiseWall(level, p) == 0) bad.add("no wall raised");
             a.startUnmaking(level, p);
             a.finishUnmaking(level);
@@ -194,6 +198,7 @@ final class ArchitectGameTests {
             if (crawlers != 0) bad.add(crawlers + " Crawlers left");
             if (a.state() != TheArchitect.State.DORMANT) bad.add("it didn't settle: " + a.state());
             if (a.bar().isVisible()) bad.add("its bar still shows");
+            if (a.getHealth() != a.getMaxHealth() * 0.5F) bad.add("its wounds didn't keep: " + a.getHealth());
             a.discard();
             clearDisc(helper);
             if (!bad.isEmpty()) helper.fail("the Architect's arena reset: " + bad);
@@ -202,10 +207,11 @@ final class ArchitectGameTests {
     }
 
     /**
-     * Its keystone takes a blow twice. Awake (its AI off, so it holds still and faces the player), it is struck for 10
-     * by a player looking at the keystone and by one looking at its mast: the first lands on the keystone and takes off
-     * more than half again as much (after its armour 12, 18.1 against 7.2). An arrow flown at the keystone counts too;
-     * one at the mast doesn't. Dormant, a blow does nothing.
+     * Its keystone takes a blow harder. Awake (its AI off, so it holds still and faces the player), with its cage shut
+     * a blow does nothing; with it open, it is struck for 10 by a player looking at the keystone and by one looking at
+     * its mast: the first lands on the keystone for {@link TheArchitect#KEYSTONE_DAMAGE} times, so after its armour 12
+     * it takes 11.7 against 7.2. An arrow flown at the keystone counts too; one at the mast doesn't. Dormant, a blow
+     * does nothing.
      */
     static void keystoneTakesDouble(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -224,6 +230,9 @@ final class ArchitectGameTests {
             if (a.hurtServer(level, level.damageSources().playerAttack(p), 10.0F) || a.getHealth() != before) bad.add("a dormant Architect was hurt");
             a.wake();
             lookAt(p, a.keystonePosition());
+            if (a.hurtServer(level, level.damageSources().playerAttack(p), 10.0F) || a.getHealth() != before) bad.add("a blow landed with its cage shut");
+            a.damageCooldownTime = 0;
+            a.openCage(1000);
             a.hurtServer(level, level.damageSources().playerAttack(p), 10.0F);
             float onKey = before - a.getHealth();
             int hits = a.keystoneHits();
@@ -234,7 +243,9 @@ final class ArchitectGameTests {
             float onMast = mid - a.getHealth();
             PromisedEnd.LOGGER.info("[architect_keystone_takes_double] 10 on the keystone took {}, on the mast {}; keystone hits {} then {}", onKey, onMast, hits, a.keystoneHits());
             if (hits != 1 || a.keystoneHits() != 1) bad.add("keystone hits " + hits + " then " + a.keystoneHits() + ", not 1 and 1");
-            if (!(onKey > onMast * 1.6F)) bad.add("the keystone took " + onKey + " and the mast " + onMast);
+            float wantKey = com.panda.promisedend.logic.Balance.afterArmour(10.0F * TheArchitect.KEYSTONE_DAMAGE, (float) TheArchitect.ARMOUR, 0.0F);
+            float wantMast = com.panda.promisedend.logic.Balance.afterArmour(10.0F, (float) TheArchitect.ARMOUR, 0.0F);
+            if (Math.abs(onKey - wantKey) > 0.05F || Math.abs(onMast - wantMast) > 0.05F) bad.add("the keystone took " + onKey + " and the mast " + onMast + ", not " + wantKey + " and " + wantMast);
             a.damageCooldownTime = 0;
             // the arrows: the player stood aside, out of their flight
             hold(p, a.position().add(3.0, 0, 3.0));
@@ -266,8 +277,10 @@ final class ArchitectGameTests {
     }
 
     /**
-     * Its death breaks the Citadel's seal: everyone who fought it is given the Architect's Promise and the Architect's
-     * Lattice and earns {@code void/defeat_architect}; it drops 8-12 Raw Lattice; and its arena is put back.
+     * Its death breaks the Citadel's seal: each who fought it (two here) and a survival witness within
+     * {@link TheArchitect#WITNESS} who never struck is given the Architect's Promise and the Architect's Lattice and
+     * earns {@code void/defeat_architect}, and one further off is not; it drops 8-12 Raw Lattice; and its arena is put
+     * back.
      */
     static void deathBreaksSeal(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -275,20 +288,33 @@ final class ArchitectGameTests {
         AncientWard.reset(server);
         layDisc(helper);
         TheArchitect a = architect(helper);
-        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL), second = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        ServerPlayer witness = EndGameTests.realPlayer(helper, GameType.SURVIVAL), far = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
         BlockPos floor = helper.absolutePos(MIDDLE);
         List<String> bad = new ArrayList<>();
         helper.runAtTickTime(2, () -> {
             hold(p, new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 6.5));
+            hold(second, new Vec3(floor.getX() - 5.5, floor.getY() + 1, floor.getZ() + 0.5));
+            hold(witness, new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() - 25.5));
+            hold(far, new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() - 40.5));
             a.wake();
             a.raiseWall(level, p);
+            a.openCage(1000);
             a.hurtServer(level, level.damageSources().playerAttack(p), 5.0F);
+            a.damageCooldownTime = 0;
+            a.hurtServer(level, level.damageSources().playerAttack(second), 5.0F);
+            // the second fighter has gone over to creative since: one who struck it is rewarded whatever their mode
+            second.setGameMode(GameType.CREATIVE);
             a.hurtServer(level, level.damageSources().genericKill(), Float.MAX_VALUE);
             if ((AncientWard.broken(server) & 0b100) == 0) bad.add("the Citadel's seal didn't break");
-            if (p.getInventory().countItem(ModBlocks.ARCHITECTS_PROMISE.get().asItem()) != 1) bad.add("no Architect's Promise for its fighter");
-            if (p.getInventory().countItem(ModItems.ARCHITECTS_LATTICE.get()) != 1) bad.add("no Architect's Lattice for its fighter");
             var defeated = server.getAdvancements().get(PromisedEnd.id("void/defeat_architect"));
-            if (defeated == null || !p.getAdvancements().getOrStartProgress(defeated).isDone()) bad.add("no defeat_architect advancement");
+            for (ServerPlayer who : List.of(p, second, witness, far)) {
+                boolean want = who != far, promise = who.getInventory().countItem(ModBlocks.ARCHITECTS_PROMISE.get().asItem()) == 1;
+                boolean lattice = who.getInventory().countItem(ModItems.ARCHITECTS_LATTICE.get()) == 1;
+                boolean earned = defeated != null && who.getAdvancements().getOrStartProgress(defeated).isDone();
+                String name = who == p ? "its fighter" : who == second ? "its second fighter" : who == witness ? "a witness 26 off" : "a player 41 off";
+                if (promise != want || lattice != want || earned != want) bad.add(name + ": the Promise " + promise + ", the Lattice " + lattice + ", the advancement " + earned);
+            }
             for (BlockPos at : disc(helper)) {
                 for (int y = 1; y <= TheArchitect.WALL_HEIGHT; y++) if (level.getBlockState(at.above(y)).is(ModBlocks.PHANTOM_LATTICE.get())) bad.add("a wall stood after its death");
             }
@@ -300,8 +326,233 @@ final class ArchitectGameTests {
             if (lattice < 8 || lattice > 12) bad.add(lattice + " Raw Lattice dropped, not 8-12");
             AncientWard.reset(server);
             clearDisc(helper);
-            level.getServer().getPlayerList().remove(p);
+            for (ServerPlayer who : List.of(p, second, witness, far)) level.getServer().getPlayerList().remove(who);
             if (!bad.isEmpty()) helper.fail("the Architect's death: " + bad);
+            else helper.succeed();
+        });
+    }
+
+    /** A mob's blow of {@code damage} on a player, as the level's difficulty makes it (Normal is as written). */
+    private static float onPlayer(ServerLevel level, float damage) {
+        return switch (level.getDifficulty()) {
+            case PEACEFUL -> 0.0F;
+            case EASY -> com.panda.promisedend.logic.Balance.onEasy(damage);
+            case NORMAL -> damage;
+            case HARD -> damage * com.panda.promisedend.logic.Balance.HARD;
+        };
+    }
+
+    /**
+     * The fight as it runs, its AI on, against a survival player held still on a tile 8 out. Phase 1's works come in
+     * their turn (a wall, a throw, a throw, a wall), each {@link ArchitectFight#REST_BETWEEN} after the last one's end.
+     * A throw comes down on the player for {@link LatticeShard#DAMAGE}. A blow lands only while its cage is open, from a
+     * throw to its next work; one while it raises a wall does nothing. A wall's blocks are gone
+     * {@link TheArchitect#WALL_TICKS} after it rose. A blow in an open window that takes it under 60 % starts phase 2,
+     * whose first work is an unmaking: the tiles go at the end of its tell and are back {@link TheArchitect#UNMAKE_TICKS}
+     * after.
+     */
+    static void runsItsTurns(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        layDisc(helper);
+        TheArchitect a = architect(helper);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        BlockPos floor = helper.absolutePos(MIDDLE);
+        Vec3 stand = new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 8.5);
+        List<String> bad = new ArrayList<>(), notes = new ArrayList<>();
+        int[] raisedAt = {-1}, tornAt = {-1}, struck = {0}, phased = {-1}, shut = {0};
+        List<BlockPos> wall = new ArrayList<>(), torn = new ArrayList<>();
+        List<Float> throwsTaken = new ArrayList<>();
+        java.util.Map<java.util.UUID, Vec3> flying = new java.util.HashMap<>();
+        int end = 740;
+        for (int t = 1; t <= end; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                // held where it stands (its own client would keep it on its feet), its blows counted, then healed
+                p.snapTo(stand.x, stand.y, stand.z, p.getYRot(), p.getXRot());
+                p.setDeltaMovement(Vec3.ZERO);
+                p.setOnGround(true);
+                if (p.getHealth() < p.getMaxHealth()) {
+                    var last = p.getLastDamageSource();
+                    if (last != null && last.getDirectEntity() instanceof LatticeShard) throwsTaken.add(p.getMaxHealth() - p.getHealth());
+                    p.setHealth(p.getMaxHealth());
+                }
+                // each throw in the air, and where it was last seen when it went
+                java.util.Set<java.util.UUID> now = new java.util.HashSet<>();
+                for (LatticeShard shard : level.getEntitiesOfClass(LatticeShard.class, a.getBoundingBox().inflate(24))) {
+                    now.add(shard.getUUID());
+                    flying.put(shard.getUUID(), shard.position());
+                }
+                for (var it = flying.entrySet().iterator(); it.hasNext(); ) {
+                    var e = it.next();
+                    if (now.contains(e.getKey())) continue;
+                    Vec3 at = e.getValue();
+                    notes.add("a throw went at " + String.format(java.util.Locale.ROOT, "%.2f %.2f %.2f", at.x - stand.x, at.y - stand.y, at.z - stand.z)
+                            + " from the player on tick " + tick + " (loaded " + p.connection.hasClientLoaded() + ")");
+                    it.remove();
+                }
+                if (raisedAt[0] < 0 && a.walls() > 0) {
+                    raisedAt[0] = tick;
+                    for (BlockPos at : disc(helper)) {
+                        for (int y = 1; y <= TheArchitect.WALL_HEIGHT; y++) if (level.getBlockState(at.above(y)).is(ModBlocks.PHANTOM_LATTICE.get())) wall.add(at.above(y));
+                    }
+                }
+                if (raisedAt[0] > 0 && tick == raisedAt[0] + TheArchitect.WALL_TICKS + 4) {
+                    long left = wall.stream().filter(w -> level.getBlockState(w).is(ModBlocks.PHANTOM_LATTICE.get())).count();
+                    notes.add("wall of " + wall.size() + " at " + raisedAt[0] + ", " + left + " left at +" + (TheArchitect.WALL_TICKS + 4));
+                    if (wall.isEmpty() || left > 0) bad.add("its wall of " + wall.size() + " left " + left + " standing " + (TheArchitect.WALL_TICKS + 4) + " ticks after it rose");
+                }
+                // a blow while it raises a wall does nothing
+                if (a.state() == TheArchitect.State.RAISE && shut[0] == 0) {
+                    a.damageCooldownTime = 0;
+                    float before = a.getHealth();
+                    if (a.hurtServer(level, level.damageSources().playerAttack(p), 4.0F) || a.getHealth() != before) bad.add("a blow landed while it raised a wall");
+                    shut[0] = tick;
+                }
+                // in its first open window a blow lands; in its third, one takes it under 60 %
+                if (a.isOpen() && a.state() == TheArchitect.State.IDLE && phased[0] < 0) {
+                    if (struck[0] == 0) {
+                        a.damageCooldownTime = 0;
+                        float before = a.getHealth();
+                        if (!a.hurtServer(level, level.damageSources().playerAttack(p), 4.0F) || a.getHealth() >= before) bad.add("a blow in its open window did nothing");
+                        struck[0] = a.throwsMade();
+                    } else if (a.throwsMade() >= 3 && a.throwsMade() > struck[0]) {
+                        a.setHealth(a.getMaxHealth() * 0.61F);
+                        a.damageCooldownTime = 0;
+                        a.hurtServer(level, level.damageSources().playerAttack(p), 20.0F);
+                        phased[0] = tick;
+                        if (a.phase() != 1) bad.add("a blow under 60 % left it in phase " + (a.phase() + 1));
+                    }
+                }
+                if (tornAt[0] < 0 && a.unmade() > 0) {
+                    tornAt[0] = tick;
+                    for (BlockPos at : disc(helper)) if (level.getBlockState(at).is(ModBlocks.PHANTOM_LATTICE.get())) torn.add(at);
+                }
+                if (tornAt[0] > 0 && tick == tornAt[0] + TheArchitect.UNMAKE_TICKS + 4) {
+                    long back = torn.stream().filter(at -> level.getBlockState(at).is(ModBlocks.LATTICE_TILE.get())).count();
+                    notes.add(torn.size() + " tiles torn at " + tornAt[0] + ", " + back + " back at +" + (TheArchitect.UNMAKE_TICKS + 4));
+                    if (torn.isEmpty() || back != torn.size()) bad.add(back + " of " + torn.size() + " unmade tiles back " + (TheArchitect.UNMAKE_TICKS + 4) + " ticks after they went");
+                }
+                if (tick == end) {
+                    List<String> began = a.began();
+                    PromisedEnd.LOGGER.info("[architect_runs_its_turns] its works {}; throws taken {}; phase 2 at {}; {}", began, throwsTaken, phased[0], notes);
+                    // the turn, and the rests: each work begins its length and a rest after the last began
+                    List<String> want = List.of("RAISE", "THROW", "THROW", "RAISE");
+                    for (int i = 0; i < want.size(); i++) {
+                        if (began.size() <= i || !began.get(i).endsWith(" " + want.get(i))) bad.add("work " + (i + 1) + " was " + (began.size() > i ? began.get(i) : "none") + ", not " + want.get(i));
+                    }
+                    for (int i = 0; i + 1 < Math.min(4, began.size()); i++) {
+                        int from = Integer.parseInt(began.get(i).split(" ")[0]), to = Integer.parseInt(began.get(i + 1).split(" ")[0]);
+                        ArchitectFight.Work work = ArchitectFight.Work.valueOf(began.get(i).split(" ")[1]);
+                        int gap = ArchitectFight.length(work) + ArchitectFight.REST_BETWEEN;
+                        if (Math.abs(to - from - gap) > 2) bad.add("work " + (i + 2) + " began " + (to - from) + " after work " + (i + 1) + ", not " + gap);
+                    }
+                    int unmaking = -1;
+                    for (int i = 0; i < began.size(); i++) if (began.get(i).endsWith(" UNMAKE")) unmaking = i;
+                    if (unmaking < 0) bad.add("phase 2 never unmade");
+                    float want7 = onPlayer(level, LatticeShard.DAMAGE);
+                    if (throwsTaken.isEmpty()) bad.add("no throw came down on the player in " + a.throwsMade());
+                    for (float taken : throwsTaken) if (Math.abs(taken - want7) > 0.05F) bad.add("a throw took " + taken + ", not " + want7);
+                    a.resetArena(level);
+                    a.discard();
+                    clearDisc(helper);
+                    level.getServer().getPlayerList().remove(p);
+                    if (!bad.isEmpty()) helper.fail("the Architect's turns: " + bad);
+                    else helper.succeed();
+                }
+            });
+        }
+    }
+
+    /**
+     * A fighter under it on its hub, where its walls and unmaking can't reach, is swept out: held there, at its first
+     * work's turn the Architect sweeps instead, dealing {@link TheArchitect#SWEEP_DAMAGE} and throwing them out off the
+     * hub, onto the tiles.
+     */
+    static void sweepsTheHub(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        layDisc(helper);
+        TheArchitect a = architect(helper);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        BlockPos floor = helper.absolutePos(MIDDLE);
+        Vec3 stand = new Vec3(floor.getX() + 1.5, floor.getY() + 1, floor.getZ() + 0.5);
+        // held bound (unwoken) until the player can be hurt
+        a.setBound(true);
+        List<String> bad = new ArrayList<>();
+        float[] took = {0};
+        Vec3[] flung = {Vec3.ZERO};
+        int[] woke = {-1};
+        for (int t = 1; t <= 200; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (a.sweeps() == 0) {
+                    p.snapTo(stand.x, stand.y, stand.z, 0, 0);
+                    p.setDeltaMovement(Vec3.ZERO);
+                    p.setOnGround(true);
+                    p.setHealth(p.getMaxHealth());
+                    // a new player can't be hurt until their client counts as loaded (60 ticks here)
+                    if (woke[0] < 0 && p.connection.hasClientLoaded()) {
+                        woke[0] = tick;
+                        a.unbind();
+                        a.wake();
+                    }
+                } else if (flung[0] == Vec3.ZERO) {
+                    took[0] = p.getMaxHealth() - p.getHealth();
+                    flung[0] = p.getDeltaMovement();
+                }
+                if (tick == 200) {
+                    PromisedEnd.LOGGER.info("[architect_sweeps_the_hub] woken on tick {};", woke[0]);
+                    PromisedEnd.LOGGER.info("[architect_sweeps_the_hub] sweeps {}, works {}; it took {} and flung them {}", a.sweeps(), a.began(), took[0], flung[0]);
+                    if (a.sweeps() < 1) bad.add("no sweep in the 200 ticks under it: " + a.began());
+                    if (a.walls() > 0 || a.unmade() > 0) bad.add("it walled or unmade for one on its hub");
+                    float want = onPlayer(level, TheArchitect.SWEEP_DAMAGE);
+                    if (Math.abs(took[0] - want) > 0.05F) bad.add("the sweep took " + took[0] + ", not " + want);
+                    if (flung[0].x < 1.0 || Math.abs(flung[0].z) > 0.2) bad.add("the sweep flung them " + flung[0] + ", not out (+x) off the hub");
+                    a.discard();
+                    clearDisc(helper);
+                    level.getServer().getPlayerList().remove(p);
+                    if (!bad.isEmpty()) helper.fail("the hub: " + bad);
+                    else helper.succeed();
+                }
+            });
+        }
+    }
+
+    /**
+     * It wakes for a survival player within {@link TheArchitect#WAKE_RANGE} (16), not for one 17 out; and placed bound
+     * by the Citadel, it wakes for no one, struck or near, until its Amber Gate is opened.
+     */
+    static void wakesAtSixteenOnceUnbound(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        TheArchitect a = architect(helper);
+        a.setBound(true);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        BlockPos floor = helper.absolutePos(MIDDLE);
+        BlockPos gate = floor.offset(0, 1, -3);
+        level.setBlock(gate, ModBlocks.AMBER_GATE.get().defaultBlockState(), 3);
+        level.setBlock(gate.above(), ModBlocks.AMBER_GATE.get().defaultBlockState(), 3);
+        List<String> bad = new ArrayList<>();
+        Vec3 near = new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 6.5);
+        helper.runAtTickTime(1, () -> p.snapTo(near.x, near.y, near.z, 0, 0));
+        helper.runAtTickTime(25, () -> {
+            if (a.state() != TheArchitect.State.DORMANT) bad.add("bound, it woke for a player 6 out");
+            if (a.hurtServer(level, level.damageSources().playerAttack(p), 10.0F) || a.state() != TheArchitect.State.DORMANT) bad.add("bound, a blow woke or hurt it");
+            AmberGateBlock.open(level, gate);
+            if (a.bound()) bad.add("its gate opened, it was still bound");
+            Vec3 far = new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 17.5);
+            p.snapTo(far.x, far.y, far.z, 0, 0);
+        });
+        helper.runAtTickTime(50, () -> {
+            if (a.state() != TheArchitect.State.DORMANT) bad.add("it woke for a player 17 out");
+            Vec3 in = new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 15.5);
+            p.snapTo(in.x, in.y, in.z, 0, 0);
+        });
+        helper.runAtTickTime(75, () -> {
+            if (a.state() == TheArchitect.State.DORMANT) bad.add("it didn't wake for a player 15 out");
+            level.setBlock(gate, Blocks.AIR.defaultBlockState(), 3);
+            level.setBlock(gate.above(), Blocks.AIR.defaultBlockState(), 3);
+            a.discard();
+            level.getServer().getPlayerList().remove(p);
+            if (!bad.isEmpty()) helper.fail("its waking: " + bad);
             else helper.succeed();
         });
     }
@@ -338,7 +589,7 @@ final class ArchitectGameTests {
         else helper.succeed();
     }
 
-    /** The Citadel's template places one Architect, over the arena's hub, a block over its tiles. */
+    /** The Citadel's template places one Architect, bound, over the arena's hub, a block over its tiles. */
     static void citadelPlacesArchitect(GameTestHelper helper) {
         var template = helper.getLevel().getServer().getStructureTemplateManager().get(PromisedEnd.id("unfinished_citadel"));
         if (template.isEmpty()) {
@@ -348,9 +599,11 @@ final class ArchitectGameTests {
         var saved = template.get().save(new net.minecraft.nbt.CompoundTag());
         var entities = saved.getListOrEmpty("entities");
         List<BlockPos> found = new ArrayList<>();
+        boolean[] bound = {true};
         for (int i = 0; i < entities.size(); i++) {
             var e = entities.getCompoundOrEmpty(i);
             if (!e.getCompoundOrEmpty("nbt").getStringOr("id", "").equals("promisedend:the_architect")) continue;
+            bound[0] &= e.getCompoundOrEmpty("nbt").getBooleanOr("bound", false);
             var pos = e.getListOrEmpty("blockPos");
             found.add(new BlockPos(pos.getIntOr(0, 0), pos.getIntOr(1, 0), pos.getIntOr(2, 0)));
         }
@@ -362,6 +615,7 @@ final class ArchitectGameTests {
         if (found.size() != 1) helper.fail(found.size() + " Architects in the Citadel");
         else if (found.getFirst().getX() != middle || found.getFirst().getZ() != middle) helper.fail("the Architect at " + found.getFirst() + ", off the middle " + middle);
         else if (!onHub) helper.fail("the Architect isn't over the arena's hub of raw lattice");
+        else if (!bound[0]) helper.fail("the Citadel's Architect isn't bound behind its gate");
         else helper.succeed();
     }
 }

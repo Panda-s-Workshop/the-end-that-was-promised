@@ -44,4 +44,15 @@ class BalanceTest {
         assertTrue(hard >= 5, "lunges survived on Hard " + hard);
         assertTrue(easy >= normal, "Easy is kinder: " + easy);
     }
+
+    @Test
+    void voidsteelPlayerTakesFourToEightMinutesOnTheArchitect() {
+        float sword = GearTiers.VOIDSTEEL.swordDamage(), swings = 4.0F + GearTiers.SWORD_SPEED;
+        double body = ArchitectFight.seconds(sword, swings);
+        double keystone = ArchitectFight.seconds(sword * ArchitectFight.KEYSTONE_DAMAGE, swings);
+        System.out.printf("Architect: %.0f s on its body, %.0f s on its keystone (%.2f times as fast), a Voidsteel sword at %.1f a second%n",
+                body, keystone, body / keystone, swings);
+        assertTrue(body >= 240 && body <= 480, "on its body " + body + " s");
+        assertTrue(body / keystone >= 1.5 && body / keystone <= 1.7, "the keystone " + body / keystone + " times as fast");
+    }
 }

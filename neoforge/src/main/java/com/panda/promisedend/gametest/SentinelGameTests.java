@@ -375,15 +375,29 @@ final class SentinelGameTests {
      * cell's candidate chunk in reach whose biome the Foundry allows.
      */
     static void foundriesWithinReach(GameTestHelper helper) {
-        withinReach(helper, "shulker_foundry", "foundries_within_reach");
+        withinReach(helper, "shulker_foundry", "foundries_within_reach", 1500, null);
     }
 
     /** As the Foundries: a Rift Maw within a pearl's search of anywhere a portal sets a player down. */
     static void riftMawsWithinReach(GameTestHelper helper) {
-        withinReach(helper, "rift_maw", "rift_maws_within_reach");
+        withinReach(helper, "rift_maw", "rift_maws_within_reach", 1500, null);
     }
 
-    private static void withinReach(GameTestHelper helper, String name, String test) {
+    /**
+     * The Unfinished Citadel, nearest a point 9000 out as the Leviathan's chart and a pearl find it, is within a pearl's
+     * reach on 16 seeds, and with the terrain on, four in five of them stand in the Unfinished Edge at their middle (its
+     * tag also takes vanilla's outer biomes, for the terrain off).
+     */
+    static void citadelsWithinReach(GameTestHelper helper) {
+        withinReach(helper, "unfinished_citadel", "citadels_within_reach", 9000,
+                com.panda.promisedend.EndConfig.terrainEnabled() ? "unfinished_edge" : null);
+    }
+
+    /**
+     * The nearest {@code name} to each of eight points {@code out} from the middle, on 16 seeds: within a pearl's reach,
+     * four in five standing in its own biomes at their middle, and (when {@code own} is given) four in five in that one.
+     */
+    private static void withinReach(GameTestHelper helper, String name, String test, int out, String own) {
         var access = helper.getLevel().registryAccess();
         ChunkGenerator generator = access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.NORMAL).value()
                 .createWorldDimensions().get(LevelStem.END).orElseThrow().generator();
@@ -411,7 +425,7 @@ final class SentinelGameTests {
                 Set<net.minecraft.world.level.ChunkPos> seen = new HashSet<>();
                 for (int k = 0; k < 8; k++) {
                     double a = Math.PI / 4 * k;
-                    int px = (int) (1500 * Math.cos(a)) >> 4, pz = (int) (1500 * Math.sin(a)) >> 4;
+                    int px = (int) (out * Math.cos(a)) >> 4, pz = (int) (out * Math.sin(a)) >> 4;
                     int nearest = Integer.MAX_VALUE;
                     net.minecraft.world.level.ChunkPos best = null;
                     for (int gx = Math.floorDiv(px - reach, spacing); gx <= Math.floorDiv(px + reach, spacing); gx++) {
@@ -444,10 +458,12 @@ final class SentinelGameTests {
         } finally {
             EndBiomes.setSeed(previous);
         }
-        PromisedEnd.LOGGER.info("[{}] the farthest nearest {} from a point 1500 out, per seed (blocks): {}", test, name, report);
+        PromisedEnd.LOGGER.info("[{}] the farthest nearest {} from a point {} out, per seed (blocks): {}", test, name, out, report);
         PromisedEnd.LOGGER.info("[{}] the biome at the middle of the nearest ones: {} of {} in its own biomes; {}", test, allowedMiddles[0], allowedMiddles[1], middles);
         if (allowedMiddles[1] == 0 || allowedMiddles[0] * 5 < allowedMiddles[1] * 4)
             bad.add("only " + allowedMiddles[0] + " of " + allowedMiddles[1] + " stand in their own biomes at their middle: " + middles);
+        if (own != null && middles.getOrDefault(own, 0) * 5 < allowedMiddles[1] * 4)
+            bad.add("only " + middles.getOrDefault(own, 0) + " of " + allowedMiddles[1] + " stand in the " + own + " at their middle: " + middles);
         if (!bad.isEmpty()) helper.fail(name + " out of a pearl's reach: " + bad);
         helper.succeed();
     }

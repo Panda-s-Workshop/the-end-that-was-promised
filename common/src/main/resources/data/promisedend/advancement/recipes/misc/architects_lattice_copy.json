@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:architects_lattice_copy"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_architects_lattice": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:architects_lattice"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_architects_lattice"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:architects_lattice_copy"
+    ]
+  }
+}

@@ -172,6 +172,7 @@ public final class EndGameTests {
         FUNCTIONS.register("leviathan_death_breaks_seal", () -> LeviathanGameTests::deathBreaksSeal);
         FUNCTIONS.register("rift_maw_places", () -> LeviathanGameTests::riftMawPlaces);
         FUNCTIONS.register("rift_maws_within_reach", () -> SentinelGameTests::riftMawsWithinReach);
+        FUNCTIONS.register("citadels_within_reach", () -> SentinelGameTests::citadelsWithinReach);
         FUNCTIONS.register("voidsteel_gear", () -> VoidsteelGameTests::voidsteelGear);
         FUNCTIONS.register("set_bonus_void_touched", () -> VoidsteelGameTests::setBonusVoidTouched);
         FUNCTIONS.register("augment_applies_in_smithing", () -> AugmentGameTests::appliesInSmithing);
@@ -182,11 +183,15 @@ public final class EndGameTests {
         FUNCTIONS.register("phantom_lattice_reforms", () -> LatticeGameTests::phantomLatticeReforms);
         FUNCTIONS.register("amber_gate_needs_key", () -> LatticeGameTests::amberGateNeedsKey);
         FUNCTIONS.register("unfinished_citadel_places", () -> LatticeGameTests::unfinishedCitadelPlaces);
+        FUNCTIONS.register("reach_edge_with_terrain_off", () -> LatticeGameTests::reachEdgeWithTerrainOff);
         FUNCTIONS.register("architect_only_edits_lattice", () -> ArchitectGameTests::onlyEditsLattice);
         FUNCTIONS.register("architect_arena_resets", () -> ArchitectGameTests::arenaResets);
         FUNCTIONS.register("architect_keystone_takes_double", () -> ArchitectGameTests::keystoneTakesDouble);
         FUNCTIONS.register("architect_death_breaks_seal", () -> ArchitectGameTests::deathBreaksSeal);
         FUNCTIONS.register("architect_lattice_boosts", () -> ArchitectGameTests::latticeBoosts);
+        FUNCTIONS.register("architect_runs_its_turns", () -> ArchitectGameTests::runsItsTurns);
+        FUNCTIONS.register("architect_sweeps_the_hub", () -> ArchitectGameTests::sweepsTheHub);
+        FUNCTIONS.register("architect_wakes_at_sixteen_once_unbound", () -> ArchitectGameTests::wakesAtSixteenOnceUnbound);
         FUNCTIONS.register("citadel_places_architect", () -> ArchitectGameTests::citadelPlacesArchitect);
     }
 
@@ -203,7 +208,8 @@ public final class EndGameTests {
             java.util.Map.entry("leviathan_breach_telegraphs", 320), java.util.Map.entry("leviathan_pairs_and_draws", 360),
             java.util.Map.entry("set_bonus_void_touched", 400), java.util.Map.entry("ward_bounces_pearls", 160),
             java.util.Map.entry("crawler_only_tears_lattice", 340), java.util.Map.entry("phantom_lattice_reforms", 200),
-            java.util.Map.entry("architect_only_edits_lattice", 90));
+            java.util.Map.entry("architect_only_edits_lattice", 90), java.util.Map.entry("architect_runs_its_turns", 780),
+            java.util.Map.entry("architect_sweeps_the_hub", 240));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -230,7 +236,14 @@ public final class EndGameTests {
             "leviathan_exposed_window_only", "leviathan_breach_telegraphs", "leviathan_pairs_and_draws", "leviathan_death_breaks_seal",
             // an Architect wakes for and builds against any survival player in 48, lays its disc past the test's bounds,
             // and its seal is the world's
-            "architect_only_edits_lattice", "architect_arena_resets", "architect_keystone_takes_double", "architect_death_breaks_seal");
+            "architect_only_edits_lattice", "architect_arena_resets", "architect_keystone_takes_double", "architect_death_breaks_seal",
+            "architect_runs_its_turns", "architect_sweeps_the_hub", "architect_wakes_at_sixteen_once_unbound");
+
+    /**
+     * Tests open to the sky: a test's arena is roofed with barrier otherwise, a few blocks over its floor, and the
+     * Architect's lobbed throws struck it two ticks out.
+     */
+    private static final java.util.Set<String> SKY = java.util.Set.of("architect_runs_its_turns");
 
     private EndGameTests() {}
 
@@ -249,7 +262,10 @@ public final class EndGameTests {
             int timeout = TIMEOUTS.getOrDefault(path, 100);
             var testEnv = OWN_BATCH.containsKey(path) ? own.get(OWN_BATCH.get(path))
                     : ALONE.contains(path) ? event.registerEnvironment(PromisedEnd.id("alone_" + path)) : env;
-            event.registerTest(key.identifier(), new FunctionGameTestInstance(key, new TestData<>(testEnv, ARENA, timeout, 0, true)));
+            var data = SKY.contains(path)
+                    ? new TestData<>(testEnv, net.minecraft.world.level.Level.OVERWORLD, ARENA, timeout, 0, true, net.minecraft.world.level.block.Rotation.NONE, false, 1, 1, true, 0)
+                    : new TestData<>(testEnv, ARENA, timeout, 0, true);
+            event.registerTest(key.identifier(), new FunctionGameTestInstance(key, data));
         }
     }
 

@@ -158,7 +158,7 @@ final class LeviathanGameTests {
         double surface = rest.y + VoidLeviathan.SURFACE + 1;
         Vec3 stand = new Vec3(rest.x + 18, surface, rest.z), air = new Vec3(rest.x + 18, surface + 1, rest.z + 3),
                 edge = new Vec3(rest.x + 15, surface, rest.z - 3);
-        int[] began = {-1}, shoves = {0}, lifted = {0}, held = {0};
+        int[] began = {-1}, shoves = {0}, lifted = {0}, held = {0}, ended = {0};
         double[] longest = {0};
         // where it will rear: in a chunk held ticking above, whose entities load in the background
         BlockPos rearsAt = BlockPos.containing(VoidLeviathan.breachPoint(rest, stand, surface));
@@ -187,7 +187,14 @@ final class LeviathanGameTests {
                 if (v.state() == VoidLeviathan.State.EXPOSED) {
                     // what the last tick gave each, then each set back where it stood
                     Vec3 got = p.getDeltaMovement(), up = flying.getDeltaMovement(), at = lip.getDeltaMovement();
-                    if (Math.hypot(at.x, at.z) > 0.05) held[0]++;
+                    if (Math.hypot(at.x, at.z) > 0.05) {
+                        held[0]++;
+                        Vec3 middle = Vec3.atBottomCenterOf(BlockPos.containing(rest));
+                        var hurt = lip.getLastDamageSource();
+                        PromisedEnd.LOGGER.info("[leviathan_pairs_and_draws] the lip player moved {} on tick {}: at {} ({} from the middle, held within {}), the Leviathan {} at {} ({} from them), its last hurt {}",
+                                at, tick, lip.position(), String.format(java.util.Locale.ROOT, "%.2f", Math.hypot(lip.getX() - middle.x, lip.getZ() - middle.z)), VoidLeviathan.HOLD_AT,
+                                v.state(), v.position(), String.format(java.util.Locale.ROOT, "%.2f", v.position().distanceTo(lip.position())), hurt == null ? "none" : hurt.getMsgId());
+                    }
                     double flat = Math.hypot(got.x, got.z);
                     if (flat > 0.05) {
                         shoves[0]++;
@@ -205,7 +212,7 @@ final class LeviathanGameTests {
                     lip.setDeltaMovement(Vec3.ZERO);
                     lip.setOnGround(true);
                 }
-                if (v.state() == VoidLeviathan.State.SUBMERGED) {
+                if (v.state() == VoidLeviathan.State.SUBMERGED && ended[0]++ == 0) {
                     PromisedEnd.LOGGER.info("[leviathan_pairs_and_draws] reared, it drew {} times, the player read {} shoves (longest {}), the one in the air {}; the next breach in {}",
                             v.pulls(), shoves[0], String.format(java.util.Locale.ROOT, "%.3f", longest[0]), lifted[0], v.timer());
                     // the count is the Leviathan's own: the player's side misses the first and the last (read only while EXPOSED)

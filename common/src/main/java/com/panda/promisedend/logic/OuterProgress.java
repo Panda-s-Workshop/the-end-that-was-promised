@@ -22,7 +22,8 @@ import net.minecraft.world.level.block.Block;
  * {@code outer/enter_outer}. With terrain off our biomes never generate, so each biome visit's second criterion,
  * {@code in_fallback}, is awarded here instead: out there, within {@link #NEAR} blocks of a block in that biome's
  * {@code #promisedend:visit_marker/<biome>} tag (what the terrain-off copies of its features build on vanilla's
- * highlands and midlands). With terrain on the biome criterion does it.
+ * highlands and midlands). With terrain on the biome criterion does it. The Unfinished Edge is the same: with terrain
+ * off there is none, so {@code void/reach_edge} is awarded as far out as it would begin ({@code terrain.edge_distance}).
  */
 public final class OuterProgress {
     public static final Identifier ENTER_OUTER = PromisedEnd.id("outer/enter_outer");
@@ -32,6 +33,7 @@ public final class OuterProgress {
     /** The outer End's seven (the Wilds' four aside): visiting all of them earns {@link #ALL_SEVEN}, a criterion each. */
     public static final List<String> SEVEN = List.of("chorus_thicket", "lumen_mire", "resonant_spires", "skyfall_archipelago", "voidscar_wastes", "shulker_reefs", "hollow_highlands");
     public static final Identifier ALL_SEVEN = PromisedEnd.id("outer/all_seven");
+    public static final Identifier REACH_EDGE = PromisedEnd.id("void/reach_edge");
     public static final int NEAR = 4;
     /** The terrain-off check reads a 9-block cube round the player, so it runs every other distance check. */
     public static final int MARKER_INTERVAL = RimProgress.CHECK_INTERVAL * 2;
@@ -59,6 +61,10 @@ public final class OuterProgress {
         var enter = advancements.get(ENTER_OUTER);
         if (enter != null) player.getAdvancements().award(enter, "far_out");
         allSeven(player);
+        if (!EndConfig.terrainEnabled() && Math.hypot(at.getX(), at.getZ()) >= EndConfig.edgeDistance()) {
+            var edge = advancements.get(REACH_EDGE);
+            if (edge != null) player.getAdvancements().award(edge, "edge");
+        }
         if (EndConfig.terrainEnabled() || player.tickCount % MARKER_INTERVAL != 0) return;
         // the visits still to earn, and their markers: one pass over the cube for all of them
         List<AdvancementHolder> pending = new ArrayList<>();

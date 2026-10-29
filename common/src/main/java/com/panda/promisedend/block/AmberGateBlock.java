@@ -1,5 +1,6 @@
 package com.panda.promisedend.block;
 
+import com.panda.promisedend.entity.TheArchitect;
 import com.panda.promisedend.registry.ModItems;
 import com.panda.promisedend.registry.ModSounds;
 import java.util.ArrayDeque;
@@ -25,6 +26,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -34,7 +36,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * The Unfinished Citadel's Amber Gate: a wall of amber set in lattice that nothing breaks. An Amber Key used on it is
  * spent, and the whole gate (every gate block joined to that one, {@link #MOST} at most) opens for {@link #OPEN_TICKS}:
  * clear amber light you walk through. Then it closes, pushing up and out anything left standing in it. Opened, it also
- * wakes the Architect inside (its arena reads {@link #OPEN}); a gate opened already takes no second key.
+ * unbinds the Architect inside, for good ({@link TheArchitect#unbind}): until then it can't be woken, however a player
+ * came in. A gate opened already takes no second key.
  */
 public class AmberGateBlock extends Block {
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -42,6 +45,8 @@ public class AmberGateBlock extends Block {
     public static final int OPEN_TICKS = 12000;
     /** The most gate blocks one key opens. */
     public static final int MOST = 64;
+    /** How far from the gate the Architect it unbinds may be (the Citadel's is 30.5 in). */
+    public static final double UNBINDS = 48.0;
 
     public AmberGateBlock(Properties properties) {
         super(properties);
@@ -109,6 +114,7 @@ public class AmberGateBlock extends Block {
             level.sendParticles(ParticleTypes.WAX_OFF, p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5, 4, 0.3, 0.3, 0.3, 0.02);
         }
         level.playSound(null, pos, ModSounds.AMBER_GATE_OPEN.get(), SoundSource.BLOCKS, 1.5F, 1.0F);
+        for (TheArchitect a : level.getEntitiesOfClass(TheArchitect.class, new AABB(pos).inflate(UNBINDS))) a.unbind();
     }
 
     @Override

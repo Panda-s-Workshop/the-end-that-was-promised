@@ -106,6 +106,9 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> ARCHITECT_UNMAKE = sound("entity.the_architect.unmake");
     public static final Supplier<SoundEvent> ARCHITECT_KEYSTONE = sound("entity.the_architect.keystone");
     public static final Supplier<SoundEvent> ARCHITECT_PHASE = sound("entity.the_architect.phase");
+    public static final Supplier<SoundEvent> ARCHITECT_OPEN = sound("entity.the_architect.open");
+    public static final Supplier<SoundEvent> ARCHITECT_SHUT = sound("entity.the_architect.shut");
+    public static final Supplier<SoundEvent> ARCHITECT_SWEEP = sound("entity.the_architect.sweep");
     public static final Supplier<SoundEvent> LATTICE_SHARD_HIT = sound("entity.lattice_shard.hit");
     /** The Architect's Lattice: a glider's boost, and its press while the lattice is still setting. */
     public static final Supplier<SoundEvent> LATTICE_BOOST = sound("item.architects_lattice.boost");

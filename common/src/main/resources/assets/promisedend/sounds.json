@@ -710,10 +710,42 @@
     "subtitle": "subtitles.promisedend.the_architect.phase",
     "sounds": [
       {
-        "name": "minecraft:block.end_portal.spawn",
+        "name": "minecraft:block.trial_spawner.ominous_activate",
         "type": "event",
-        "pitch": 1.2,
-        "volume": 0.8
+        "pitch": 0.8,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.the_architect.open": {
+    "subtitle": "subtitles.promisedend.the_architect.open",
+    "sounds": [
+      {
+        "name": "minecraft:block.vault.open_shutter",
+        "type": "event",
+        "pitch": 0.8,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.the_architect.shut": {
+    "subtitle": "subtitles.promisedend.the_architect.shut",
+    "sounds": [
+      {
+        "name": "minecraft:block.vault.close_shutter",
+        "type": "event",
+        "pitch": 0.9
+      }
+    ]
+  },
+  "entity.the_architect.sweep": {
+    "subtitle": "subtitles.promisedend.the_architect.sweep",
+    "sounds": [
+      {
+        "name": "minecraft:entity.player.attack.sweep",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 2.0
       }
     ]
   },

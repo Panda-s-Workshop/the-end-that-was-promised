@@ -20,7 +20,8 @@ import net.minecraft.world.phys.Vec3;
  * Ender Pearls show the way: in the End, out past the main island, a player holding one sees a stream of pearl-green
  * motes rise before them and drift toward where they go next. While the Ancients' Ward stands that is the place of the
  * first of its seals still binding it, where that seal's guardian keeps it: the nearest Shulker Foundry, then the
- * nearest Rift Maw; after, the heart of the End, where the dragon waits. Only they see it.
+ * nearest Rift Maw, then the nearest Unfinished Citadel; after, the heart of the End, where the dragon waits. Only they
+ * see it.
  */
 public final class PearlGuide {
     /** Nearer the centre than this, the main island is in sight and the pearl shows nothing. */

@@ -83,6 +83,52 @@ final class LatticeGameTests {
     }
 
     /**
+     * With the terrain off there is no Unfinished Edge, so {@code void/reach_edge} is earned as far out as it would
+     * begin: a survival player in the End 100 short of {@code terrain.edge_distance} hasn't it, one 100 past has. With
+     * the terrain on, only the biome earns it.
+     */
+    static void reachEdgeWithTerrainOff(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        var edge = server.getAdvancements().get(com.panda.promisedend.logic.OuterProgress.REACH_EDGE);
+        var previous = com.panda.promisedend.EndConfig.current();
+        java.util.List<String> bad = new java.util.ArrayList<>();
+        var p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        int far = previous.edgeDistance();
+        java.util.function.BiConsumer<Boolean, Integer> at = (terrain, x) -> {
+            com.panda.promisedend.EndConfig.use(new com.panda.promisedend.EndConfig.Source() {
+                @Override public boolean terrainEnabled() { return terrain; }
+                @Override public int edgeDistance() { return previous.edgeDistance(); }
+                @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
+                @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
+                @Override public boolean dragonWrath() { return previous.dragonWrath(); }
+                @Override public int maxWrath() { return previous.maxWrath(); }
+                @Override public boolean arrivalByCoordinates() { return previous.arrivalByCoordinates(); }
+            });
+            p.teleport(new net.minecraft.world.level.portal.TeleportTransition(end, new net.minecraft.world.phys.Vec3(x + 0.5, 300, 0.5),
+                    net.minecraft.world.phys.Vec3.ZERO, 0, 0, net.minecraft.world.level.portal.TeleportTransition.DO_NOTHING));
+            p.tickCount = com.panda.promisedend.logic.RimProgress.CHECK_INTERVAL * 7;
+            com.panda.promisedend.logic.OuterProgress.tick(p);
+        };
+        try {
+            if (edge == null) bad.add("no void/reach_edge");
+            else {
+                at.accept(true, far + 100);
+                if (p.getAdvancements().getOrStartProgress(edge).isDone()) bad.add("earned past the line with the terrain on, out of the biome");
+                at.accept(false, far - 100);
+                if (p.getAdvancements().getOrStartProgress(edge).isDone()) bad.add("earned 100 short of the line with the terrain off");
+                at.accept(false, far + 100);
+                if (!p.getAdvancements().getOrStartProgress(edge).isDone()) bad.add("not earned 100 past the line with the terrain off");
+            }
+        } finally {
+            com.panda.promisedend.EndConfig.use(previous);
+        }
+        server.getPlayerList().remove(p);
+        if (!bad.isEmpty()) helper.fail("reach_edge with the terrain off: " + bad);
+        else helper.succeed();
+    }
+
+    /**
      * Phantom Lattice re-forms as each form it can take, and pushes up what stands in it: a tile torn under an iron
      * golem standing in its space is back {@link PhantomLatticeBlock#REFORM} ticks on, with the golem on top of it. A
      * block that isn't lattice doesn't tear.
