@@ -1,0 +1,39 @@
+{
+  "parent": "promisedend:outer/enter_outer",
+  "criteria": {
+    "in_foundry": {
+      "trigger": "minecraft:location",
+      "conditions": {
+        "player": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:location": {
+              "structures": "promisedend:shulker_foundry"
+            }
+          }
+        }
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:ancient_purpur_tiles"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.find_foundry.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.find_foundry.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "in_foundry"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

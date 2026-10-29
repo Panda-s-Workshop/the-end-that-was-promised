@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "promisedend:crystal_warden",
-    "promisedend:lumen_wisp"
+    "promisedend:lumen_wisp",
+    "promisedend:hollow_sentinel"
   ]
 }

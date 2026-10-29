@@ -289,6 +289,140 @@
       }
     ]
   },
+  "entity.hollow_sentinel.ambient": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.ambient",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.ambient",
+        "type": "event",
+        "pitch": 0.5
+      }
+    ]
+  },
+  "entity.hollow_sentinel.hurt": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.hurt",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.hollow_sentinel.hurt_closed": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.hurt_closed",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.hurt_closed",
+        "type": "event",
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.hollow_sentinel.death": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.death",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.death",
+        "type": "event",
+        "pitch": 0.5
+      }
+    ]
+  },
+  "entity.hollow_sentinel.wake": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.wake",
+    "sounds": [
+      {
+        "name": "minecraft:block.end_portal_frame.fill",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.hollow_sentinel.volley": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.volley",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.resonate",
+        "type": "event",
+        "pitch": 1.6
+      }
+    ]
+  },
+  "entity.hollow_sentinel.shoot": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.shoot",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.shoot",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.hollow_sentinel.open": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.open",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.open",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.hollow_sentinel.close": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.close",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker.close",
+        "type": "event",
+        "pitch": 0.5
+      }
+    ]
+  },
+  "entity.hollow_sentinel.phase": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.phase",
+    "sounds": [
+      {
+        "name": "minecraft:block.end_portal.spawn",
+        "type": "event",
+        "pitch": 1.4,
+        "volume": 0.8
+      }
+    ]
+  },
+  "entity.hollow_sentinel.enrage": {
+    "subtitle": "subtitles.promisedend.hollow_sentinel.enrage",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.roar",
+        "type": "event",
+        "pitch": 1.6
+      }
+    ]
+  },
+  "entity.resonant_bullet.return": {
+    "subtitle": "subtitles.promisedend.resonant_bullet.return",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.chime",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 2.0
+      }
+    ]
+  },
+  "entity.resonant_bullet.hit": {
+    "subtitle": "subtitles.promisedend.resonant_bullet.hit",
+    "sounds": [
+      {
+        "name": "minecraft:entity.shulker_bullet.hit",
+        "type": "event",
+        "pitch": 1.3
+      }
+    ]
+  },
   "entity.ender_dragon.call_wardens": {
     "subtitle": "subtitles.promisedend.ender_dragon.call_wardens",
     "sounds": [

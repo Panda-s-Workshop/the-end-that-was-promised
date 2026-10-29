@@ -64,8 +64,12 @@ public class CodexScreen extends Screen {
         return done(act.opensWith());
     }
 
-    /** Whether the act's opening is in the game at all: an act whose guardian isn't yet has blank pages, not a seal. */
+    /**
+     * Whether the act is in the game at all: it has goals, and its opening exists. An act whose guardian isn't yet has
+     * blank pages, not a seal.
+     */
     public boolean written(CodexBook.Act act) {
+        if (act.goals().isEmpty()) return false;
         return act.opensWith() == null || minecraft.player == null || minecraft.player.connection.getAdvancements().get(act.opensWith()) != null;
     }
 

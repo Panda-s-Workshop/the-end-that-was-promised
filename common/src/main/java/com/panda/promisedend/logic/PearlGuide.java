@@ -1,7 +1,14 @@
 package com.panda.promisedend.logic;
 
 import com.panda.promisedend.EndConfig;
+import com.panda.promisedend.registry.ModTags;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.WeakHashMap;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.TrailParticleOption;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -10,8 +17,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Ender Pearls show the way in: in the End, out past the main island, a player holding one sees a stream of
- * pearl-green motes rise before them and drift toward the heart of the End, where the dragon waits. Only they see it.
+ * Ender Pearls show the way: in the End, out past the main island, a player holding one sees a stream of pearl-green
+ * motes rise before them and drift toward where they go next. While the Foundry's seal binds the Ancients' Ward that is
+ * the nearest Shulker Foundry, where its guardian keeps it; after, the heart of the End, where the dragon waits. Only
+ * they see it.
  */
 public final class PearlGuide {
     /** Nearer the centre than this, the main island is in sight and the pearl shows nothing. */
@@ -32,8 +41,63 @@ public final class PearlGuide {
      * of the End's uses, where white end-rod sparks were already the Waystation's posts and the Ward's wall.
      */
     public static final int COLOUR = 0xFF4CFFC0;
+    /**
+     * The Foundry is searched for this many chunks round (as an explorer map), again once a player is this far on, and
+     * not more often than every {@link #RESEARCH_TICKS} (a pearl held through a run of throws).
+     */
+    public static final int SEARCH = 100, RESEARCH = 256, RESEARCH_TICKS = 200;
+    /** This near the Foundry it leads to, the pearl shows nothing: it is in sight. */
+    public static final double THERE = 32;
+
+    /**
+     * Each player's Foundry, and where and when they stood when it was found: a search loads chunks, so it isn't run
+     * often. Kept per server, weakly: a world left in single player takes its leads with it.
+     */
+    private record Lead(BlockPos from, long when, @org.jspecify.annotations.Nullable BlockPos to) {}
+
+    private static final Map<MinecraftServer, Map<UUID, Lead>> LEADS = java.util.Collections.synchronizedMap(new WeakHashMap<>());
 
     private PearlGuide() {}
+
+    /**
+     * Where a held pearl leads {@code player}: the nearest Shulker Foundry while its seal binds the Ward (null when none
+     * is within {@link #SEARCH} chunks), the centre (0, 0) after. Public for the tests.
+     */
+    public static @org.jspecify.annotations.Nullable BlockPos lead(ServerPlayer player) {
+        ServerLevel level = (ServerLevel) player.level();
+        MinecraftServer server = level.getServer();
+        if (!AncientWard.stands(server) || !AncientWard.binds(AncientWard.broken(server), AncientWard.guarded() & 1)) return BlockPos.ZERO;
+        Map<UUID, Lead> leads = LEADS.computeIfAbsent(server, s -> new HashMap<>());
+        Lead known = leads.get(player.getUUID());
+        long now = level.getGameTime();
+        if (known == null || known.from().distSqr(player.blockPosition()) > (double) RESEARCH * RESEARCH && now - known.when() >= RESEARCH_TICKS) {
+            BlockPos to = level.findNearestMapStructure(ModTags.ON_FOUNDRY_CHARTS, player.blockPosition(), SEARCH, false);
+            known = new Lead(player.blockPosition(), now, to == null ? null : centre(level, to));
+            leads.put(player.getUUID(), known);
+        }
+        return known.to();
+    }
+
+    /**
+     * The middle of the Foundry found at {@code found}: a search gives its chunk's corner, which by its turn can lie 28
+     * blocks from the dais. Its start is read from the chunk at its structure stage, before any terrain is made.
+     */
+    private static BlockPos centre(ServerLevel level, BlockPos found) {
+        var chunk = level.getChunk(found.getX() >> 4, found.getZ() >> 4, net.minecraft.world.level.chunk.status.ChunkStatus.STRUCTURE_STARTS, true);
+        var structures = level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+        for (var start : chunk.getAllStarts().entrySet()) {
+            if (start.getValue().isValid() && structures.wrapAsHolder(start.getKey()).is(ModTags.ON_FOUNDRY_CHARTS)) {
+                BlockPos mid = start.getValue().getBoundingBox().getCenter();
+                return new BlockPos(mid.getX(), found.getY(), mid.getZ());
+            }
+        }
+        return found;
+    }
+
+    /** The way from ({@code x}, {@code z}) to {@code to}: a unit vector on the ground's plane. */
+    public static double[] way(double x, double z, BlockPos to) {
+        return way(x - to.getX() - 0.5, z - to.getZ() - 0.5);
+    }
 
     /** The way in from ({@code x}, {@code z}): a unit vector toward the centre on the ground's plane. */
     public static double[] way(double x, double z) {
@@ -51,11 +115,13 @@ public final class PearlGuide {
         return player.getItemInHand(InteractionHand.MAIN_HAND).is(Items.ENDER_PEARL) || player.getItemInHand(InteractionHand.OFF_HAND).is(Items.ENDER_PEARL);
     }
 
-    /** Each player's tick: every {@link #EVERY} ticks a mote before them, sent to them alone, that drifts inward. */
+    /** Each player's tick: every {@link #EVERY} ticks a mote before them, sent to them alone, that drifts on the way. */
     public static void tick(ServerPlayer player) {
         if (player.tickCount % EVERY != 0 || !guides(player)) return;
         ServerLevel level = (ServerLevel) player.level();
-        double[] w = way(player.getX(), player.getZ());
+        BlockPos lead = lead(player);
+        if (lead == null || (lead != BlockPos.ZERO && Math.hypot(player.getX() - lead.getX(), player.getZ() - lead.getZ()) < THERE)) return;
+        double[] w = way(player.getX(), player.getZ(), lead);
         // a few steps ahead on the ground's plane (looking straight up or down, toward the way in), a little below the
         // eyes: seen whichever way they look, and never a blot over the view
         Vec3 look = player.getLookAngle();
@@ -70,9 +136,9 @@ public final class PearlGuide {
         double x = player.getX() + lx * AHEAD + (level.getRandom().nextDouble() - 0.5) * 0.6;
         double y = player.getEyeY() - 0.6 + (level.getRandom().nextDouble() - 0.5) * 0.4;
         double z = player.getZ() + lz * AHEAD + (level.getRandom().nextDouble() - 0.5) * 0.6;
-        boolean lead = player.tickCount % LEAD_EVERY == 0;
-        double reach = lead ? LEAD_REACH : REACH;
-        Vec3 to = new Vec3(x + w[0] * reach, y + (lead ? 0.6 : 0.3), z + w[1] * reach);
-        level.sendParticles(player, new TrailParticleOption(to, COLOUR, lead ? LEAD_DRIFT : DRIFT), true, false, x, y, z, 1, 0, 0, 0, 0);
+        boolean leads = player.tickCount % LEAD_EVERY == 0;
+        double reach = leads ? LEAD_REACH : REACH;
+        Vec3 to = new Vec3(x + w[0] * reach, y + (leads ? 0.6 : 0.3), z + w[1] * reach);
+        level.sendParticles(player, new TrailParticleOption(to, COLOUR, leads ? LEAD_DRIFT : DRIFT), true, false, x, y, z, 1, 0, 0, 0, 0);
     }
 }

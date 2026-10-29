@@ -146,6 +146,16 @@ public final class EndGameTests {
         FUNCTIONS.register("purpur_sentry_shields_and_lunges", () -> EndGameTests::purpurSentryShieldsAndLunges);
         FUNCTIONS.register("lumen_lamp_lights", () -> EndGameTests::lumenLampLights);
         FUNCTIONS.register("biome_visits_award", () -> EndGameTests::biomeVisitsAward);
+        FUNCTIONS.register("sentinel_closed_is_invulnerable", () -> SentinelGameTests::closedIsInvulnerable);
+        FUNCTIONS.register("sentinel_opens_after_three_returns", () -> SentinelGameTests::opensAfterThreeReturns);
+        FUNCTIONS.register("sentinel_phases_call_sentries", () -> SentinelGameTests::phasesCallSentries);
+        FUNCTIONS.register("sentinel_volleys_never_crack_itself", () -> SentinelGameTests::volleysNeverCrackItself);
+        FUNCTIONS.register("sentinel_death_breaks_seal", () -> SentinelGameTests::deathBreaksSeal);
+        FUNCTIONS.register("sentinel_wakes_for_survival", () -> SentinelGameTests::wakesForSurvival);
+        FUNCTIONS.register("foundry_places_sentinel", () -> SentinelGameTests::foundryPlacesSentinel);
+        FUNCTIONS.register("foundries_within_reach", () -> SentinelGameTests::foundriesWithinReach);
+        FUNCTIONS.register("sentinel_opens_onto_its_rest", () -> SentinelGameTests::opensOntoItsRest);
+        FUNCTIONS.register("waystation_chart_never_blank", () -> SentinelGameTests::waystationChartNeverBlank);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -155,7 +165,9 @@ public final class EndGameTests {
             java.util.Map.entry("dragon_phase3_triggers", 460), java.util.Map.entry("updraft_lifts_entity", 360),
             java.util.Map.entry("echo_amber_flares", 180), java.util.Map.entry("cave_dark_held_off", 200), java.util.Map.entry("drift_islet_blocked_turns", 160), java.util.Map.entry("drift_islet_headroom_turns", 160), java.util.Map.entry("current_carries_entity", 560),
             java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("lumen_wisp_lights_the_way", 460),
-            java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("constructs_edges_walls_and_swarms", 200), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260));
+            java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("constructs_edges_walls_and_swarms", 200), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260),
+            java.util.Map.entry("sentinel_opens_after_three_returns", 260), java.util.Map.entry("sentinel_wakes_for_survival", 100),
+            java.util.Map.entry("sentinel_volleys_never_crack_itself", 260), java.util.Map.entry("sentinel_opens_onto_its_rest", 260));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -173,7 +185,10 @@ public final class EndGameTests {
             // counts constructs within 32 blocks, which reaches into the arenas beside it
             "construct_spawns_keep_to_their_lands",
             // waits on the light engine, which in a busy batch never lit its cluster's light in 175 ticks (P100)
-            "cave_dark_held_off");
+            "cave_dark_held_off",
+            // a Sentinel targets and wakes for any survival player in 48 or 20, and the phases count Sentries in 16
+            "sentinel_opens_after_three_returns", "sentinel_phases_call_sentries", "sentinel_wakes_for_survival", "sentinel_death_breaks_seal",
+            "sentinel_volleys_never_crack_itself", "sentinel_opens_onto_its_rest");
 
     private EndGameTests() {}
 
@@ -279,7 +294,7 @@ public final class EndGameTests {
             for (int angle = 0; angle < 360; angle += 30) {
                 double r = Math.toRadians(angle);
                 expect.accept(new double[] {300 * Math.cos(r), 300 * Math.sin(r)}, "promisedend:shattered_rim");
-                // the Rim reaches out to the outer lands (DECISIONS 87)
+                // the Rim reaches out to the outer lands, so the way to the heart is never a long gap of void
                 expect.accept(new double[] {700 * Math.cos(r), 700 * Math.sin(r)}, "promisedend:shattered_rim");
                 expect.accept(new double[] {1000 * Math.cos(r), 1000 * Math.sin(r)}, "promisedend:shattered_rim");
             }
@@ -3643,8 +3658,12 @@ public final class EndGameTests {
         var said = com.panda.promisedend.logic.Arrivals.greeting(player).stream()
                 .map(c -> c.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t ? t.getKey() : c.getString()).toList();
         PromisedEnd.LOGGER.info("[arrival_by_coordinates] the greeting: {}", said);
-        var lines = com.panda.promisedend.logic.AncientWard.stands(server) ? List.of("arrival.promisedend.first", "arrival.promisedend.ward", "arrival.promisedend.pearl")
-                : List.of("arrival.promisedend.first", "arrival.promisedend.heart", "arrival.promisedend.pearl");
+        // the pearl leads to the Foundry while its seal binds the Ward, to the heart after
+        boolean stands = com.panda.promisedend.logic.AncientWard.stands(server);
+        boolean foundry = stands && (com.panda.promisedend.logic.AncientWard.broken(server) & 1) == 0;
+        String pearlLine = foundry ? "arrival.promisedend.pearl.foundry" : "arrival.promisedend.pearl";
+        var lines = stands ? List.of("arrival.promisedend.first", "arrival.promisedend.ward", pearlLine)
+                : List.of("arrival.promisedend.first", "arrival.promisedend.heart", pearlLine);
         if (!said.equals(lines)) bad.add("the greeting said " + said);
         player.discard();
         if (!bad.isEmpty()) helper.fail("arrival: " + bad);
@@ -3672,7 +3691,7 @@ public final class EndGameTests {
         return out;
     }
 
-    private static net.minecraft.server.level.ServerPlayer realPlayer(GameTestHelper helper, net.minecraft.world.level.GameType mode) {
+    static net.minecraft.server.level.ServerPlayer realPlayer(GameTestHelper helper, net.minecraft.world.level.GameType mode) {
         var level = helper.getLevel();
         var cookie = net.minecraft.server.network.CommonListenerCookie.createInitial(new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "test-walker"), false);
         var player = new net.minecraft.server.level.ServerPlayer(level.getServer(), level, cookie.gameProfile(), cookie.clientInformation());
@@ -3825,6 +3844,11 @@ public final class EndGameTests {
         if (com.panda.promisedend.logic.PearlGuide.guides(p)) bad.add("shown the way in the Overworld");
         double[] way = com.panda.promisedend.logic.PearlGuide.way(1000, -1000);
         if (Math.abs(way[0] + Math.sqrt(0.5)) > 1e-9 || Math.abs(way[1] - Math.sqrt(0.5)) > 1e-9) bad.add("the way from (1000, -1000) is " + java.util.Arrays.toString(way));
+        // while the Foundry's seal binds the Ward the pearl leads to the nearest Foundry (logged: this level's End
+        // may have none in reach); the motes are counted with it broken, when the way is inward
+        wardAt(end, p, 1000.0);
+        PromisedEnd.LOGGER.info("[pearl_shows_the_way] with the Foundry's seal whole the pearl leads to {}", com.panda.promisedend.logic.PearlGuide.lead(p));
+        com.panda.promisedend.logic.AncientWard.breakSeal(server, 0);
         // the motes: 12 ticks, a mote each 3 to the holder alone, a trail to a point 6 inward; a player beside, without
         // a pearl, sent none
         wardAt(end, p, 1000.0);
@@ -3849,8 +3873,15 @@ public final class EndGameTests {
                 bad.add("a mote of " + m.particle().getType());
                 continue;
             }
-            if (trail.target().x - m.x() > -com.panda.promisedend.logic.PearlGuide.REACH + 0.01) bad.add("a mote drifting to " + trail.target() + " from x " + m.x() + ", not inward");
+            // on the way the pearl leads: to the nearest Foundry while its seal binds the Ward, else inward
+            double[] lead = com.panda.promisedend.logic.PearlGuide.way(p.getX(), p.getZ(), com.panda.promisedend.logic.PearlGuide.lead(p));
+            double along = (trail.target().x - m.x()) * lead[0] + (trail.target().z - m.z()) * lead[1];
+            if (along < com.panda.promisedend.logic.PearlGuide.REACH - 0.01) bad.add("a mote drifting to " + trail.target() + " from " + m.x() + ", " + m.z() + ", not on the way");
         }
+        // with the Foundry's seal broken, the way is the heart of the End
+        com.panda.promisedend.logic.AncientWard.breakSeal(server, 0);
+        if (com.panda.promisedend.logic.PearlGuide.lead(p) != net.minecraft.core.BlockPos.ZERO) bad.add("led to " + com.panda.promisedend.logic.PearlGuide.lead(p) + " with the Foundry's seal broken");
+        com.panda.promisedend.logic.AncientWard.reset(server);
         // off with arrivals by coordinates off
         var previous = com.panda.promisedend.EndConfig.current();
         com.panda.promisedend.EndConfig.use(new com.panda.promisedend.EndConfig.Source() {
@@ -5216,7 +5247,7 @@ public final class EndGameTests {
     }
 
     /** Our structures. */
-    private static final List<String> STRUCTURES = List.of("rim_outpost");
+    private static final List<String> STRUCTURES = List.of("rim_outpost", "shulker_foundry");
 
     /** Every template loads, and each chest in it names a loot table that exists. */
     private static void structuresPlace(GameTestHelper helper) {
@@ -5247,7 +5278,7 @@ public final class EndGameTests {
         var access = helper.getLevel().registryAccess();
         var sets = access.lookupOrThrow(Registries.STRUCTURE_SET);
         List<String> bad = new ArrayList<>();
-        java.util.Map<String, String> home = java.util.Map.of("rim_outpost", "shattered_rim");
+        java.util.Map<String, String> home = java.util.Map.of("rim_outpost", "shattered_rim", "shulker_foundry", "shulker_reefs");
         for (String name : STRUCTURES) {
             var set = sets.get(ResourceKey.create(Registries.STRUCTURE_SET, PromisedEnd.id(name)));
             if (set.isEmpty()) {
@@ -6663,7 +6694,7 @@ public final class EndGameTests {
     /**
      * The Lumen Wisp. In the arena a player 7 blocks off with empty hands draws nothing for 20 ticks; with Lumen in hand
      * the wisp comes within 4 blocks of them in 80 ticks, leaving Wisp Lights on its way, and a light it left is out
-     * again by its 100 ticks; with the Lumen put away it stops following. Killed, it leaves a light where it was,
+     * again by its 100 ticks unless the wisp is still beside it (hovering there, it lights it again); with the Lumen put away it stops following. Killed, it leaves a light where it was,
      * scheduled to go out (30 s), and no other block.
      */
     private static void lumenWispLightsTheWay(GameTestHelper helper) {
@@ -6709,7 +6740,7 @@ public final class EndGameTests {
                 }
                 if (near[0] < 0 && in == 100) helper.fail("the wisp didn't come within 4 of a player holding Lumen in 80 ticks: " + wisp.distanceTo(player));
                 if (light[0] != null && in == litAt[0] + com.panda.promisedend.entity.LumenWisp.TRAIL_TICKS + 5
-                        && level.getBlockState(light[0]).is(wispLight) && !light[0].equals(wisp.blockPosition()))
+                        && level.getBlockState(light[0]).is(wispLight) && light[0].distManhattan(wisp.blockPosition()) > 2)
                     helper.fail("a light the wisp left at " + light[0] + " was still lit " + (com.panda.promisedend.entity.LumenWisp.TRAIL_TICKS + 5) + " ticks on");
                 if (near[0] > 0 && putAway[0] < 0 && in >= near[0] + 20) {
                     putAway[0] = in;

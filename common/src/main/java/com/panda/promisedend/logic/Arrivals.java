@@ -202,7 +202,9 @@ public final class Arrivals {
         } else {
             lines.add(Component.translatable("arrival.promisedend.heart", (int) Math.round(out / 10) * 10, way));
         }
-        lines.add(Component.translatable("arrival.promisedend.pearl"));
+        // while the Foundry's seal binds the Ward, the pearl leads there first
+        boolean foundry = AncientWard.stands(player.level().getServer()) && AncientWard.binds(AncientWard.broken(player.level().getServer()), AncientWard.guarded() & 1);
+        lines.add(Component.translatable(foundry ? "arrival.promisedend.pearl.foundry" : "arrival.promisedend.pearl"));
         return lines;
     }
 

@@ -62,6 +62,11 @@ public final class ModItems {
             net.minecraft.world.item.SpawnEggItem::new, p -> p.spawnEgg(ModEntities.PURPUR_SENTRY.get()));
     /** The Purpur Sentry's: the Ancient Purpur set's and the Amber Key's. */
     public static final DeferredItem<HintItem> ANCIENT_PURPUR_SCRAP = ITEMS.registerItem("ancient_purpur_scrap", p -> new HintItem(p, "ancient_purpur_scrap", 3));
+    /** The Hollow Sentinel's: its heart, one to each who fought it, and the template it guards. */
+    public static final DeferredItem<HintItem> ANCIENT_CORE = ITEMS.registerItem("ancient_core", p -> new HintItem(p, "ancient_core", 2),
+            p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));
+    public static final DeferredItem<com.panda.promisedend.item.ResoniteTemplateItem> RESONITE_UPGRADE_SMITHING_TEMPLATE = ITEMS.registerItem(
+            "resonite_upgrade_smithing_template", com.panda.promisedend.item.ResoniteTemplateItem::new, p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));
 
     // ---- the Lumen Mire ---------------------------------------------------------------------------
     public static final DeferredItem<HintItem> LUMEN = ITEMS.registerItem("lumen", p -> new HintItem(p, "lumen", 2));

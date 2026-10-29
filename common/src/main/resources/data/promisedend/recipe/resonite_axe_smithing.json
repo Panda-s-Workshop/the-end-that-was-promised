@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smithing_transform",
+  "template": "promisedend:resonite_upgrade_smithing_template",
+  "base": "minecraft:diamond_axe",
+  "addition": "promisedend:resonite_ingot",
+  "result": {
+    "id": "promisedend:resonite_axe"
+  }
+}

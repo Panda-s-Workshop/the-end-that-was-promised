@@ -42,6 +42,14 @@ public final class ModEntities {
     // spawn (the shrines and observatories place their own)
     public static final Supplier<EntityType<PurpurSentry>> PURPUR_SENTRY = ENTITIES.registerEntityType("purpur_sentry",
             PurpurSentry::new, MobCategory.MONSTER, b -> b.sized(1.0F, 2.0F).eyeHeight(1.75F).clientTrackingRange(8));
+    // the Shulker Foundry's guardian, at the rig's 1.5 scale: its cap's top 32 px up (3 blocks), its plates 16 px
+    // across (the halo's shards reach past them); fire can't touch it, and it is seen from across the arena and over
+    public static final Supplier<EntityType<com.panda.promisedend.entity.HollowSentinel>> HOLLOW_SENTINEL = ENTITIES.registerEntityType("hollow_sentinel",
+            com.panda.promisedend.entity.HollowSentinel::new, MobCategory.MONSTER, b -> b.sized(2.0F, 3.0F).eyeHeight(1.5F)
+                    .clientTrackingRange(10).fireImmune());
+    /** Its shot: small, and tracked every tick, so a blow aimed at it lands where it is seen. */
+    public static final Supplier<EntityType<com.panda.promisedend.entity.ResonantBullet>> RESONANT_BULLET = ENTITIES.registerEntityType("resonant_bullet",
+            com.panda.promisedend.entity.ResonantBullet::new, MobCategory.MISC, b -> b.sized(0.5F, 0.5F).clientTrackingRange(8).updateInterval(1));
     /** The dragon's dive mark: no body, never saved, seen from as far as the fight. */
     public static final Supplier<EntityType<DiveMark>> DIVE_MARK = ENTITIES.registerEntityType("dive_mark",
             DiveMark::new, MobCategory.MISC, b -> b.sized(0.5F, 0.1F).clientTrackingRange(10).updateInterval(10).noSave().noSummon().fireImmune());
@@ -59,6 +67,7 @@ public final class ModEntities {
         sink.accept(LUMEN_WISP.get(), LumenWisp.createAttributes());
         sink.accept(RIFT_STALKER.get(), RiftStalker.createAttributes());
         sink.accept(PURPUR_SENTRY.get(), PurpurSentry.createAttributes());
+        sink.accept(HOLLOW_SENTINEL.get(), com.panda.promisedend.entity.HollowSentinel.createAttributes());
     }
 
     /** A loader's way of registering a spawn placement (NeoForge: the event; Fabric: {@code SpawnPlacements.register}). */

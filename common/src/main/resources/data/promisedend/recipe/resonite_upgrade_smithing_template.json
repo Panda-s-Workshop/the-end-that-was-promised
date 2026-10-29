@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "#S#",
+    "#C#",
+    "###"
+  ],
+  "key": {
+    "#": "minecraft:diamond",
+    "C": "promisedend:ancient_purpur",
+    "S": "promisedend:resonite_upgrade_smithing_template"
+  },
+  "result": {
+    "id": "promisedend:resonite_upgrade_smithing_template",
+    "count": 2
+  }
+}

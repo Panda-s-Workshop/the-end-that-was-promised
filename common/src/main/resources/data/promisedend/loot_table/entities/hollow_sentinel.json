@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:entity",
+  "random_sequence": "promisedend:entities/hollow_sentinel",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:resonite_upgrade_smithing_template"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:ancient_purpur_scrap",
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 6,
+              "max": 10
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -43,10 +43,10 @@ public final class AncientWard {
     public static final List<String> SEALS = List.of("foundry", "maw", "citadel");
     public static final int ALL = (1 << SEALS.size()) - 1;
     /**
-     * The seals whose guardian is in the game, one bit each in {@link #SEALS}' order. A seal with no guardian to fight
-     * can't be broken, so it doesn't bind the Ward: until the first guardian comes, the way to the dragon is open.
+     * The seals whose guardian is in the game, one bit each in {@link #SEALS}' order: the Foundry's (the Hollow
+     * Sentinel). A seal with no guardian to fight can't be broken, so it doesn't bind the Ward.
      */
-    public static final int GUARDED = 0;
+    public static final int GUARDED = 1;
     /** Set (to true) for runs that need the Ward as it will stand, every guardian in: the GameTests, the screenshots. */
     public static final String ALL_GUARDIANS = "promisedend.allGuardians";
     /** How often a player in the End with the Ward down is told so by the advancement that opens the Codex's last act. */
@@ -101,18 +101,19 @@ public final class AncientWard {
         if ((stored.broken & bit) != 0) return false;
         stored.broken |= bit;
         stored.setDirty();
-        int count = Integer.bitCount(stored.broken);
+        // counted among the seals that bind it: while a guardian isn't in the game, its seal isn't one of them
+        int count = Integer.bitCount(stored.broken & guarded()), of = Integer.bitCount(guarded());
         // the Ward falls with the last seal that binds it, which is the third only once every guardian is in
         boolean falls = binds(stored.broken & ~bit, guarded()) && !binds(stored.broken, guarded());
         ServerLevel end = server.getLevel(Level.END);
         if (end != null) {
             for (ServerPlayer p : end.players()) {
-                p.sendSystemMessage(Component.translatable("ward.promisedend.seal_broken", Component.translatable("ward.promisedend.seal." + SEALS.get(index)), count, SEALS.size()));
+                p.sendSystemMessage(Component.translatable("ward.promisedend.seal_broken", Component.translatable("ward.promisedend.seal." + SEALS.get(index)), count, of));
                 if (falls) p.sendSystemMessage(Component.translatable("ward.promisedend.falls"));
                 end.playSound(null, p.blockPosition(), falls ? SoundEvents.END_PORTAL_SPAWN : SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.MASTER, 1.0F, 0.8F);
             }
         }
-        PromisedEnd.LOGGER.info("[promisedend] the {} seal broke ({} of {})", SEALS.get(index), count, SEALS.size());
+        PromisedEnd.LOGGER.info("[promisedend] the {} seal broke ({} of {} that bind the Ward)", SEALS.get(index), count, of);
         return true;
     }
 

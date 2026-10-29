@@ -7,6 +7,43 @@
       "entries": [
         {
           "type": "minecraft:item",
+          "name": "minecraft:filled_map",
+          "modifier": [
+            {
+              "type": "minecraft:exploration_map",
+              "destination": "#promisedend:on_foundry_charts",
+              "decoration": "minecraft:target_x",
+              "zoom": 3,
+              "search_radius": 100,
+              "skip_existing_chunks": false
+            },
+            {
+              "type": "minecraft:filtered",
+              "item_filter": {
+                "predicates": {
+                  "minecraft:map_id": {}
+                }
+              },
+              "on_fail": {
+                "type": "minecraft:discard"
+              }
+            },
+            {
+              "type": "minecraft:set_name",
+              "target": "item_name",
+              "name": {
+                "translate": "item.promisedend.star_chart.foundry"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
           "name": "promisedend:voidstone",
           "modifier": {
             "type": "minecraft:set_count",

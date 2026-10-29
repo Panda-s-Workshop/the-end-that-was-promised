@@ -145,6 +145,7 @@ public final class ServerCheck {
         if (!terrain) add.accept(biome(end, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, "small islands' fallback vines", ModBlocks.VOID_BERRY_VINE.get(), 130, 64));
         add.accept(wrath(server));
         add.accept(arrivals(server, end, terrain));
+        add.accept(foundry(end));
         add.accept(driftRoutes(end));
         return failures.isEmpty() ? null : String.join(" | ", failures);
     }
@@ -787,6 +788,60 @@ public final class ServerCheck {
         }
         item.discard();
         return failure;
+    }
+
+    /**
+     * The Shulker Foundry nearest a point 1500 out, as a held pearl finds it, generated here: its Hollow Sentinel is in
+     * place and dormant, holds its rest over 40 ticks, and a shot of its own flies at a pig beside it. The Sentinel and its
+     * bullet must load and tick without a client.
+     */
+    private static String foundry(net.minecraft.server.level.ServerLevel end) {
+        BlockPos from = new BlockPos(1500, 64, 0);
+        BlockPos found = end.findNearestMapStructure(com.panda.promisedend.registry.ModTags.ON_FOUNDRY_CHARTS, from, com.panda.promisedend.logic.PearlGuide.SEARCH, false);
+        if (found == null) return "no Shulker Foundry within " + com.panda.promisedend.logic.PearlGuide.SEARCH + " chunks of " + from;
+        for (int cx = (found.getX() >> 4) - 3; cx <= (found.getX() >> 4) + 3; cx++) {
+            for (int cz = (found.getZ() >> 4) - 3; cz <= (found.getZ() >> 4) + 3; cz++) end.getChunk(cx, cz);
+        }
+        var sentinels = end.getEntitiesOfClass(com.panda.promisedend.entity.HollowSentinel.class, new net.minecraft.world.phys.AABB(found).inflate(56, 256, 56));
+        PromisedEnd.LOGGER.info("[promisedend servercheck] Shulker Foundry {} from {} at {}: {} Sentinel(s){}", Math.round(Math.sqrt(found.distSqr(from))), from, found,
+                sentinels.size(), sentinels.isEmpty() ? "" : " at " + sentinels.getFirst().blockPosition() + ", " + sentinels.getFirst().state());
+        if (sentinels.size() != 1) return "the Foundry at " + found + " has " + sentinels.size() + " Sentinels";
+        var sentinel = sentinels.getFirst();
+        if (sentinel.state() != com.panda.promisedend.entity.HollowSentinel.State.DORMANT) return "the Foundry's Sentinel is " + sentinel.state();
+        net.minecraft.world.phys.Vec3 rest = sentinel.position();
+        for (int i = 0; i < 40; i++) sentinel.tick();
+        var pig = net.minecraft.world.entity.EntityTypes.PIG.create(end, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        if (pig == null) return "couldn't create a pig";
+        pig.snapTo(rest.x + 6, rest.y, rest.z, 0, 0);
+        end.addFreshEntity(pig);
+        var bullet = new com.panda.promisedend.entity.ResonantBullet(end, sentinel, pig, sentinel.bulletSpeed(), com.panda.promisedend.entity.ResonantBullet.DAMAGE);
+        end.addFreshEntity(bullet);
+        double before = bullet.distanceTo(pig);
+        for (int i = 0; i < 10; i++) bullet.tick();
+        double after = bullet.isRemoved() ? 0 : bullet.distanceTo(pig);
+        PromisedEnd.LOGGER.info("[promisedend servercheck] the Sentinel held {} from its rest over 40 ticks; its bullet closed {} to {} on a pig in 10 ticks",
+                String.format(java.util.Locale.ROOT, "%.2f", sentinel.position().distanceTo(rest)), String.format(java.util.Locale.ROOT, "%.1f", before),
+                bullet.isRemoved() ? "a hit" : String.format(java.util.Locale.ROOT, "%.1f", after));
+        String failure = null;
+        if (sentinel.position().distanceTo(rest) > 1) failure = "the dormant Sentinel moved " + sentinel.position().distanceTo(rest) + " from its rest";
+        else if (after >= before) failure = "the Sentinel's bullet didn't close on a pig: " + before + " to " + after;
+        bullet.discard();
+        pig.discard();
+        if (failure != null) return failure;
+        // the Waystation's chest rolled where a portal sets a player down: its Star Chart marks this Foundry
+        var table = end.getServer().reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(Registries.LOOT_TABLE, PromisedEnd.id("chests/waystation")));
+        var items = table.getRandomItems(new net.minecraft.world.level.storage.loot.LootParams.Builder(end)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.atCenterOf(from))
+                .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST));
+        var chart = items.stream().filter(i -> i.is(net.minecraft.world.item.Items.FILLED_MAP)).findFirst().orElse(null);
+        if (chart == null) return "no Star Chart in the Waystation's chest: " + items;
+        var marks = chart.getOrDefault(net.minecraft.core.component.DataComponents.MAP_DECORATIONS, net.minecraft.world.item.component.MapDecorations.EMPTY).decorations().values();
+        String name = chart.getHoverName().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t ? t.getKey() : chart.getHoverName().getString();
+        PromisedEnd.LOGGER.info("[promisedend servercheck] the Waystation's Star Chart: {}, map {}, marks {}", name, chart.get(net.minecraft.core.component.DataComponents.MAP_ID),
+                marks.stream().map(d -> d.type().getRegisteredName() + " at " + Math.round(d.x()) + ", " + Math.round(d.z())).toList());
+        if (!name.equals("item." + PromisedEnd.MODID + ".star_chart.foundry")) return "the Star Chart is named " + name;
+        if (marks.stream().noneMatch(d -> Math.hypot(d.x() - found.getX(), d.z() - found.getZ()) < 16)) return "the Star Chart marks no Foundry at " + found + ": " + marks;
+        return null;
     }
 
     /** A Crystal Warden made, added and ticked on the server: its GeckoLib side and AI must load without a client. */

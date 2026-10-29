@@ -37,6 +37,8 @@ public final class CodexBook {
     /** The advancement a player in the End earns while the Ward is down: it opens the last act. */
     public static final Identifier WARD_DOWN = PromisedEnd.id("rim/ward_down");
     public static final Identifier FORGE_ANCHOR = PromisedEnd.id("rim/forge_anchor");
+    /** The Hollow Sentinel's: awarded to everyone who fought it; it opens Act III. */
+    public static final Identifier DEFEAT_SENTINEL = PromisedEnd.id("outer/defeat_sentinel");
 
     public static final List<Act> ACTS = List.of(
             new Act("arrival", null, List.of(
@@ -46,8 +48,10 @@ public final class CodexBook {
                     new Goal(PromisedEnd.id("rim/saved_by_anchor"), "saved_by_anchor"),
                     new Goal(PromisedEnd.id("outer/ride_drift"), "ride_drift"))),
             new Act("outer", FORGE_ANCHOR, List.of(
+                    new Goal(PromisedEnd.id("outer/find_foundry"), "find_foundry"),
+                    new Goal(DEFEAT_SENTINEL, "defeat_sentinel"),
                     new Goal(PromisedEnd.id("outer/all_seven"), "all_seven"))),
-            new Act("void", PromisedEnd.id("outer/defeat_sentinel"), List.of()),
+            new Act("void", DEFEAT_SENTINEL, List.of()),
             new Act("edge", PromisedEnd.id("void/defeat_leviathan"), List.of()),
             new Act("heart", WARD_DOWN, List.of(
                     new Goal(PromisedEnd.id("rim/enter_rim"), "enter_rim"),

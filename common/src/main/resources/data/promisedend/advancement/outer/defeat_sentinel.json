@@ -1,0 +1,28 @@
+{
+  "parent": "promisedend:outer/find_foundry",
+  "criteria": {
+    "defeated": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:ancient_core"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.defeat_sentinel.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.defeat_sentinel.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "requirements": [
+    [
+      "defeated"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

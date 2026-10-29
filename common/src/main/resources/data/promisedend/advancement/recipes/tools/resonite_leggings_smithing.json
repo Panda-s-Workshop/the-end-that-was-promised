@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipes": "promisedend:resonite_leggings_smithing"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_resonite_upgrade_smithing_template": {
+      "conditions": {
+        "items": [
+          {
+            "items": "promisedend:resonite_upgrade_smithing_template"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_resonite_upgrade_smithing_template"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "promisedend:resonite_leggings_smithing"
+    ]
+  }
+}

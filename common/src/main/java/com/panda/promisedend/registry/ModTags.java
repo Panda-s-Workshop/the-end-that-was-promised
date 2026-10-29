@@ -9,6 +9,9 @@ import net.minecraft.world.level.block.Block;
 
 /** Tags the mod defines (the files are under data/promisedend/tags). */
 public final class ModTags {
+    /** What the Waystation's first Star Chart and a held pearl lead to: the Shulker Foundries. */
+    public static final TagKey<net.minecraft.world.level.levelgen.structure.Structure> ON_FOUNDRY_CHARTS =
+            TagKey.create(Registries.STRUCTURE, PromisedEnd.id("on_foundry_charts"));
     /** What repairs Voidstone tools in an anvil. */
     public static final TagKey<Item> VOIDSTONE_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("voidstone_tool_materials"));
     public static final TagKey<Item> RESONITE_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("resonite_tool_materials"));
