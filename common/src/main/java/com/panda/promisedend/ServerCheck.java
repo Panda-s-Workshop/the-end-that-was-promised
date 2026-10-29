@@ -876,12 +876,12 @@ public final class ServerCheck {
         var leviathan = leviathans.getFirst();
         if (leviathan.state() != com.panda.promisedend.entity.VoidLeviathan.State.DORMANT) return "the Maw's Leviathan is " + leviathan.state();
         BlockPos rest = leviathan.blockPosition();
-        // the pool over it is open to the sky, and the floor's lip stands round it
+        net.minecraft.world.phys.Vec3 at = leviathan.position();
+        for (int i = 0; i < 40; i++) leviathan.tick();
+        // the pool over it is open to the sky once it has ticked (its first tick clears the land that grew into it)
         for (int y = rest.getY() + 1; y <= rest.getY() + com.panda.promisedend.entity.VoidLeviathan.SURFACE + 8; y++) {
             if (!end.getBlockState(rest.atY(y)).isAir()) return "the pool over the Leviathan is shut at " + rest.atY(y) + ": " + end.getBlockState(rest.atY(y));
         }
-        net.minecraft.world.phys.Vec3 at = leviathan.position();
-        for (int i = 0; i < 40; i++) leviathan.tick();
         PromisedEnd.LOGGER.info("[promisedend servercheck] the Leviathan held {} from its rest over 40 ticks",
                 String.format(java.util.Locale.ROOT, "%.2f", leviathan.position().distanceTo(at)));
         if (leviathan.position().distanceTo(at) > 1) return "the sleeping Leviathan moved " + leviathan.position().distanceTo(at) + " from its rest";

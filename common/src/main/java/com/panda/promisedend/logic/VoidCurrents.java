@@ -104,7 +104,9 @@ public final class VoidCurrents {
         Vec3 v = e.getDeltaMovement();
         e.resetFallDistance();
         if (gliding) {
-            double[] d = VoidCurrent.glide(v.x, v.z, f[0], f[1]);
+            double bonus = VoidCurrent.GLIDE_BONUS + (com.panda.promisedend.item.Augments.gliding(e, com.panda.promisedend.item.Augments.LEVIATHAN_FIN)
+                    ? com.panda.promisedend.item.Augments.FIN_CURRENT : 0);
+            double[] d = VoidCurrent.glide(v.x, v.z, f[0], f[1], bonus);
             if (d[0] != 0 || d[1] != 0) e.move(MoverType.SELF, new Vec3(d[0], 0, d[1]));
             return false;
         }

@@ -15,6 +15,9 @@ public final class ModComponents {
     /** What a sealed Star Chart leads to: a structure tag, as {@code promisedend:on_foundry_charts}. */
     public static final Supplier<DataComponentType<Identifier>> STAR_CHART = COMPONENTS.registerComponentType("star_chart",
             b -> b.persistent(Identifier.CODEC).networkSynchronized(Identifier.STREAM_CODEC));
+    /** An elytra's augments (item.Augments), smithed on. */
+    public static final Supplier<DataComponentType<com.panda.promisedend.item.Augments>> AUGMENTS = COMPONENTS.registerComponentType("augments",
+            b -> b.persistent(com.panda.promisedend.item.Augments.CODEC).networkSynchronized(com.panda.promisedend.item.Augments.STREAM_CODEC));
 
     private ModComponents() {}
 }

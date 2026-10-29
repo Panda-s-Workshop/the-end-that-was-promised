@@ -17,7 +17,8 @@ import net.minecraft.world.entity.player.Player;
 /**
  * The Void-touched set bonus: a player wearing four pieces from {@code #promisedend:void_touched_set} (Voidsteel armour)
  * is held from the void's damage for {@link #HOLD_TICKS} once it first reaches them in a fall, with a cue as it takes
- * hold and as it lets go; a fall ends when they are back above the floor. An Updraft Vent lifts them half as much again
+ * hold, the seconds left on the action bar as it holds and a cue as it lets go; a fall ends when they are back above
+ * the floor. An Updraft Vent lifts them half as much again
  * ({@link #LIFT}), on their own client, which moves them. The fall's start lives on the server only.
  */
 public final class VoidTouched {
@@ -28,6 +29,8 @@ public final class VoidTouched {
     public static final int HOLD_TICKS = 200;
     /** An updraft's lift, and the speed it lifts to, for a player in the set. */
     public static final double LIFT = 1.5;
+    /** How often the hold's motes rise round the player, and its seconds left are shown. */
+    private static final int MOTES_EVERY = 4, TOLD_EVERY = 20;
     /** The game time each falling player first met the void's damage, this fall. */
     private static final Map<UUID, Long> FELL = new ConcurrentHashMap<>();
 
@@ -61,13 +64,19 @@ public final class VoidTouched {
         Long since = FELL.putIfAbsent(p.getUUID(), now);
         long held = since == null ? 0 : now - since;
         if (held == 0) {
-            p.sendOverlayMessage(Component.translatable("hint.promisedend.void_touched.held"));
             p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 1.0F, 0.6F);
         } else if (held == HOLD_TICKS) {
+            p.sendOverlayMessage(Component.translatable("hint.promisedend.void_touched.gone"));
             p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.0F, 0.8F);
         }
-        if (held < HOLD_TICKS && held % 5 == 0) {
-            p.level().sendParticles(ParticleTypes.REVERSE_PORTAL, p.getX(), p.getY() + 1, p.getZ(), 6, 0.4, 0.6, 0.4, 0.02);
+        if (held < HOLD_TICKS && held % TOLD_EVERY == 0) {
+            p.sendOverlayMessage(Component.translatable("hint.promisedend.void_touched.held", (HOLD_TICKS - held) / 20));
+        }
+        if (held < HOLD_TICKS && held % MOTES_EVERY == 0) {
+            // round and before the eyes, where a falling player sees them
+            p.level().sendParticles(ParticleTypes.REVERSE_PORTAL, p.getX(), p.getEyeY() - 0.4, p.getZ(), 10, 0.9, 0.7, 0.9, 0.02);
+            // and a few sparks, which show in the void's black as the violet motes barely do
+            p.level().sendParticles(ParticleTypes.END_ROD, p.getX(), p.getEyeY() - 0.2, p.getZ(), 2, 0.8, 0.6, 0.8, 0.01);
         }
         return held < HOLD_TICKS;
     }
@@ -75,6 +84,11 @@ public final class VoidTouched {
     /** Ends the fall once the player is back above the floor. Called for each server player every tick. */
     public static void tick(ServerPlayer player) {
         if (player.getY() >= player.level().getMinY()) FELL.remove(player.getUUID());
+    }
+
+    /** A player who left: their fall is over. */
+    public static void forget(ServerPlayer player) {
+        FELL.remove(player.getUUID());
     }
 
     /** How long the void's damage has been held off this fall, or -1 if it hasn't reached them: for the tests. */

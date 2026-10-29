@@ -20,7 +20,8 @@ public final class PromisedEnd {
 
     /** The classes whose static DeferredRegisters hold the mod's content. */
     private static final List<Class<?>> CONTENT = List.of(ModSounds.class, com.panda.promisedend.registry.ModComponents.class, ModEntities.class, ModBlocks.class, ModBlockEntities.class, ModItems.class, ModTabs.class,
-            ModWorldgen.class, ModParticles.class, com.panda.promisedend.registry.ModEffects.class);
+            ModWorldgen.class, ModParticles.class, com.panda.promisedend.registry.ModEffects.class,
+            com.panda.promisedend.registry.ModRecipes.class);
 
     private static boolean initialised;
 

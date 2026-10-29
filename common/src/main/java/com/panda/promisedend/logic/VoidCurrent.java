@@ -86,11 +86,16 @@ public final class VoidCurrent {
      * across, times how much of its heading lies along the current (nothing flying across or against it).
      */
     public static double[] glide(double vx, double vz, double fx, double fz) {
+        return glide(vx, vz, fx, fz, GLIDE_BONUS);
+    }
+
+    /** As {@link #glide(double, double, double, double)}, with {@code bonus} of the glider's speed (the Fin's more). */
+    public static double[] glide(double vx, double vz, double fx, double fz, double bonus) {
         double speed = Math.hypot(vx, vz);
         if (speed < 1e-6) return new double[] {0, 0};
         double along = (vx * fx + vz * fz) / speed;
         if (along <= 0) return new double[] {0, 0};
-        double push = speed * GLIDE_BONUS * along;
+        double push = speed * bonus * along;
         return new double[] {fx * push, fz * push};
     }
 

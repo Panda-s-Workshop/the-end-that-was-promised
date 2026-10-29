@@ -28,6 +28,8 @@ public final class ModTags {
     public static final TagKey<Item> REPAIRS_RESONITE_ARMOR = TagKey.create(Registries.ITEM, PromisedEnd.id("repairs_resonite_armor"));
     /** What repairs Voidsteel tools (the ingot). */
     public static final TagKey<Item> VOIDSTEEL_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("voidsteel_tool_materials"));
+    /** The gliders an augment can be smithed onto (the elytra). */
+    public static final TagKey<Item> AUGMENTABLE_ELYTRA = TagKey.create(Registries.ITEM, PromisedEnd.id("augmentable_elytra"));
     /** The armour the Void-touched bonus counts: four pieces, one a slot. */
     public static final TagKey<Item> VOID_TOUCHED_SET = TagKey.create(Registries.ITEM, PromisedEnd.id("void_touched_set"));
     /** What repairs Voidsteel armour (the ingot), apart from the tools' material. */

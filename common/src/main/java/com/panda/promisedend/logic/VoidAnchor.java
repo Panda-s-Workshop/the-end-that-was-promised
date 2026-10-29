@@ -206,6 +206,7 @@ public final class VoidAnchor {
         WARNED.remove(player.getUUID());
         CUED.remove(player.getUUID());
         ShrineBoons.forget(player);
+        com.panda.promisedend.item.VoidTouched.forget(player);
     }
 
     /** A Void Shrine's Rift Step: it catches the next fall as an anchor would, and is spent; an anchor is kept. */

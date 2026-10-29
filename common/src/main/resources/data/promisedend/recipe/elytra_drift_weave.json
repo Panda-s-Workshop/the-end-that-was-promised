@@ -1,0 +1,7 @@
+{
+  "type": "promisedend:elytra_augment",
+  "template": "promisedend:drift_weave",
+  "base": "#promisedend:augmentable_elytra",
+  "addition": "promisedend:dragon_scale",
+  "augment": "promisedend:drift_weave"
+}

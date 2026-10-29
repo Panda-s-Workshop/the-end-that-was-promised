@@ -1,0 +1,43 @@
+{
+  "parent": "promisedend:void/defeat_leviathan",
+  "criteria": {
+    "drift_weave": {
+      "trigger": "minecraft:recipe_crafted",
+      "conditions": {
+        "recipes": [
+          "promisedend:elytra_drift_weave"
+        ]
+      }
+    },
+    "leviathan_fin": {
+      "trigger": "minecraft:recipe_crafted",
+      "conditions": {
+        "recipes": [
+          "promisedend:elytra_leviathan_fin"
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:leviathan_fin"
+    },
+    "title": {
+      "translate": "advancements.promisedend.void.augment_elytra.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.void.augment_elytra.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "drift_weave",
+      "leviathan_fin"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

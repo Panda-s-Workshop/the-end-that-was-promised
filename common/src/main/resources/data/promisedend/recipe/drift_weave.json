@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SRS",
+    "RFR",
+    "SRS"
+  ],
+  "key": {
+    "S": "promisedend:drift_silk",
+    "R": "promisedend:chorus_resin",
+    "F": "minecraft:chorus_fruit"
+  },
+  "result": {
+    "id": "promisedend:drift_weave"
+  }
+}

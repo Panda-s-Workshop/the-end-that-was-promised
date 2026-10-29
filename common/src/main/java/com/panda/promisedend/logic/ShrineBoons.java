@@ -62,7 +62,8 @@ public final class ShrineBoons {
 
     public static void tick(ServerPlayer player) {
         if (player.isSpectator()) return;
-        if (player.hasEffect(ModEffects.GLIDING_GRACE.holder())) mendGlider(player);
+        if (player.hasEffect(ModEffects.GLIDING_GRACE.holder())
+                || com.panda.promisedend.item.Augments.of(player.getItemBySlot(EquipmentSlot.CHEST)).has(com.panda.promisedend.item.Augments.DRIFT_WEAVE)) mendGlider(player);
         else WEAR.remove(player.getUUID());
         // a ward taken while already lifted lets go at once
         if (player.hasEffect(MobEffects.LEVITATION) && player.hasEffect(ModEffects.SHULKER_WARD.holder())) player.removeEffect(MobEffects.LEVITATION);
@@ -77,8 +78,9 @@ public final class ShrineBoons {
     }
 
     /**
-     * Gliding Grace: every second point of wear the worn glider takes is given back, so it wears half as fast. It
-     * reads the wear itself, so Unbreaking still counts, and only the glider worn on the chest.
+     * Gliding Grace and Drift Weave: a share of the wear the worn glider takes is given back, half with Grace, 40 %
+     * with the Weave, 70 % with both, so it wears that much slower. It reads the wear itself, so Unbreaking still
+     * counts, and only the glider worn on the chest.
      */
     private static void mendGlider(ServerPlayer player) {
         ItemStack stack = player.getItemBySlot(EquipmentSlot.CHEST);
@@ -86,13 +88,22 @@ public final class ShrineBoons {
             WEAR.remove(player.getUUID());
             return;
         }
+        double kept = com.panda.promisedend.item.Augments.wearKept(stack) * (player.hasEffect(ModEffects.GLIDING_GRACE.holder()) ? 0.5 : 1.0);
         int now = stack.getDamageValue();
-        int[] wear = WEAR.computeIfAbsent(player.getUUID(), u -> new int[] {now, 0});
+        // the wear last seen, all the wear taken, and what was given back of it
+        int[] wear = WEAR.computeIfAbsent(player.getUUID(), u -> new int[] {now, 0, 0});
         int worn = now - wear[0];
-        if (worn > 0 && worn <= GLIDE_WEAR_MOST) {
-            int back = (wear[1] + worn) / 2 - wear[1] / 2;
+        if (worn < 0 || worn > GLIDE_WEAR_MOST) {
+            // another glider, or this one mended: its share starts again
+            wear[1] = 0;
+            wear[2] = 0;
+        } else if (worn > 0) {
             wear[1] += worn;
-            if (back > 0) stack.setDamageValue(now - back);
+            int back = (int) Math.floor(wear[1] * (1 - kept) + 1e-9) - wear[2];
+            if (back > 0) {
+                stack.setDamageValue(now - back);
+                wear[2] += back;
+            }
         }
         wear[0] = stack.getDamageValue();
     }

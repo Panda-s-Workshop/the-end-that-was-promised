@@ -119,21 +119,26 @@ public final class ModItems {
     // ---- Voidsteel gear: the Void's tier, smithed from Resonite; four armour pieces are Void-touched (item.VoidTouched)
     /** From the dragon's hoard once it has fallen before, and the Starfall's craters. */
     public static final DeferredItem<HintItem> STARMETAL = ITEMS.registerItem("starmetal", p -> new HintItem(p, "starmetal", 2));
-    public static final DeferredItem<Item> VOIDSTEEL_INGOT = ITEMS.registerSimpleItem("voidsteel_ingot");
+    public static final DeferredItem<Item> VOIDSTEEL_INGOT = ITEMS.registerSimpleItem("voidsteel_ingot", p -> p.fireResistant());
+    // ---- elytra augments, smithed on with a Dragon Scale (item.Augments, item.ElytraAugmentRecipe)
+    public static final DeferredItem<HintItem> DRIFT_WEAVE = ITEMS.registerItem("drift_weave", p -> new HintItem(p, "drift_weave", 2));
+    /** The Void Leviathan's, one a kill. */
+    public static final DeferredItem<HintItem> LEVIATHAN_FIN = ITEMS.registerItem("leviathan_fin", p -> new HintItem(p, "leviathan_fin", 2),
+            p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));
     /** The Void Leviathan's: smiths Resonite gear into Voidsteel. */
     public static final DeferredItem<com.panda.promisedend.item.VoidsteelTemplateItem> VOIDSTEEL_UPGRADE_SMITHING_TEMPLATE = ITEMS.registerItem(
             "voidsteel_upgrade_smithing_template", com.panda.promisedend.item.VoidsteelTemplateItem::new, p -> p.rarity(net.minecraft.world.item.Rarity.UNCOMMON));
     public static final ToolMaterial VOIDSTEEL = material(GearTiers.VOIDSTEEL, BlockTags.INCORRECT_FOR_NETHERITE_TOOL, ModTags.VOIDSTEEL_TOOL_MATERIALS);
     public static final DeferredItem<Item> VOIDSTEEL_SWORD = ITEMS.registerSimpleItem("voidsteel_sword",
-            p -> p.sword(VOIDSTEEL, GearTiers.SWORD_BASE, GearTiers.SWORD_SPEED));
+            p -> p.sword(VOIDSTEEL, GearTiers.SWORD_BASE, GearTiers.SWORD_SPEED).fireResistant());
     public static final DeferredItem<Item> VOIDSTEEL_SHOVEL = ITEMS.registerSimpleItem("voidsteel_shovel",
-            p -> p.shovel(VOIDSTEEL, GearTiers.SHOVEL_BASE, GearTiers.SHOVEL_SPEED));
+            p -> p.shovel(VOIDSTEEL, GearTiers.SHOVEL_BASE, GearTiers.SHOVEL_SPEED).fireResistant());
     public static final DeferredItem<Item> VOIDSTEEL_PICKAXE = ITEMS.registerSimpleItem("voidsteel_pickaxe",
-            p -> p.pickaxe(VOIDSTEEL, GearTiers.PICKAXE_BASE, GearTiers.PICKAXE_SPEED));
+            p -> p.pickaxe(VOIDSTEEL, GearTiers.PICKAXE_BASE, GearTiers.PICKAXE_SPEED).fireResistant());
     public static final DeferredItem<Item> VOIDSTEEL_AXE = ITEMS.registerSimpleItem("voidsteel_axe",
-            p -> p.axe(VOIDSTEEL, GearTiers.AXE_BASE, GearTiers.AXE_SPEED));
+            p -> p.axe(VOIDSTEEL, GearTiers.AXE_BASE, GearTiers.AXE_SPEED).fireResistant());
     public static final DeferredItem<Item> VOIDSTEEL_HOE = ITEMS.registerSimpleItem("voidsteel_hoe",
-            p -> p.hoe(VOIDSTEEL, GearTiers.HOE_BASE, GearTiers.HOE_SPEED));
+            p -> p.hoe(VOIDSTEEL, GearTiers.HOE_BASE, GearTiers.HOE_SPEED).fireResistant());
     /** The worn look: assets/promisedend/equipment/voidsteel.json. */
     public static final ResourceKey<EquipmentAsset> VOIDSTEEL_ASSET = ResourceKey.create(EquipmentAssets.ROOT_ID, PromisedEnd.id("voidsteel"));
     public static final ArmorMaterial VOIDSTEEL_ARMOUR = new ArmorMaterial(GearTiers.VOIDSTEEL_ARMOUR_DURABILITY,
@@ -165,7 +170,7 @@ public final class ModItems {
 
     /** A Voidsteel armour piece: its tooltip tells the Void-touched bonus and how many pieces are on. */
     private static DeferredItem<com.panda.promisedend.item.VoidsteelArmourItem> voidsteel(String name, ArmorType type) {
-        return ITEMS.registerItem(name, com.panda.promisedend.item.VoidsteelArmourItem::new, p -> p.humanoidArmor(VOIDSTEEL_ARMOUR, type));
+        return ITEMS.registerItem(name, com.panda.promisedend.item.VoidsteelArmourItem::new, p -> p.humanoidArmor(VOIDSTEEL_ARMOUR, type).fireResistant());
     }
 
     /** Defence per slot; the body slot (a horse's or a wolf's) as diamond's 11, never worn by our armour. */

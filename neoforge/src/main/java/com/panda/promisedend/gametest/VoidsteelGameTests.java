@@ -40,7 +40,8 @@ final class VoidsteelGameTests {
 
     /**
      * Voidsteel gear is built from GearTiers' numbers: each tool's durability, its sword's damage, its pickaxe's speed;
-     * each armour piece's defence, toughness and knockback resistance, the worn look, the Void-touched set tag; the
+     * each armour piece's defence, toughness and knockback resistance, enchantability, the worn look, the Void-touched
+     * set tag; every tool, piece and the ingot fire-resistant, as netherite; the
      * ingot repairs every piece and comes of 4 scrap, 2 Starmetal and 2 Echo Amber; the template smiths each Resonite
      * piece into its Voidsteel one with its enchantments, and not a diamond one; two templates from one.
      */
@@ -55,7 +56,9 @@ final class VoidsteelGameTests {
             if (!stack.isValidRepairItem(ingot)) bad.add("the ingot doesn't repair " + h.getId());
             var ench = stack.get(DataComponents.ENCHANTABLE);
             if (ench == null || ench.value() != tier.enchantability()) bad.add(h.getId() + " has enchantability " + ench);
+            if (!stack.has(DataComponents.DAMAGE_RESISTANT)) bad.add(h.getId() + " burns");
         }
+        if (!ingot.has(DataComponents.DAMAGE_RESISTANT)) bad.add("the ingot burns");
         var pick = new ItemStack(ModItems.VOIDSTEEL_PICKAXE.get());
         if (Math.abs(pick.getDestroySpeed(Blocks.STONE.defaultBlockState()) - tier.speed()) > 1e-4) bad.add("the pickaxe mines stone at " + pick.getDestroySpeed(Blocks.STONE.defaultBlockState()));
         if (!pick.isCorrectToolForDrops(Blocks.OBSIDIAN.defaultBlockState())) bad.add("the pickaxe doesn't mine obsidian");
@@ -82,6 +85,9 @@ final class VoidsteelGameTests {
             if (equippable == null || equippable.slot() != SLOTS[i] || equippable.assetId().filter(ModItems.VOIDSTEEL_ASSET::equals).isEmpty())
                 bad.add(h.getId() + " is worn as " + equippable);
             if (!stack.is(ModTags.VOID_TOUCHED_SET)) bad.add(h.getId() + " isn't in #promisedend:void_touched_set");
+            var enchantable = stack.get(DataComponents.ENCHANTABLE);
+            if (enchantable == null || enchantable.value() != armour.enchantability()) bad.add(h.getId() + " has enchantability " + enchantable);
+            if (!stack.has(DataComponents.DAMAGE_RESISTANT)) bad.add(h.getId() + " burns");
             if (!stack.isValidRepairItem(ingot)) bad.add("the ingot doesn't repair " + h.getId());
             int durability = net.minecraft.world.item.equipment.ArmorType.valueOf(types[i]).getDurability(GearTiers.VOIDSTEEL_ARMOUR_DURABILITY);
             if (stack.getMaxDamage() != durability) bad.add(h.getId() + " lasts " + stack.getMaxDamage() + ", not " + durability);

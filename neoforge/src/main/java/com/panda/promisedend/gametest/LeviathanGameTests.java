@@ -169,6 +169,9 @@ final class LeviathanGameTests {
                     p.snapTo(stand.x, stand.y, stand.z, 90, 0);
                     flying.snapTo(air.x, air.y, air.z, 90, 0);
                     lip.snapTo(edge.x, edge.y, edge.z, 90, 0);
+                    // the chunk map still has the players where they joined: told where they stand, it ticks the
+                    // chunks round them as a real player's, the one where it rears among them
+                    level.getChunkSource().move(p);
                     if (level.isPositionEntityTicking(v.blockPosition()) && level.isPositionEntityTicking(rearsAt)) {
                         began[0] = tick;
                         v.wake();
@@ -254,6 +257,13 @@ final class LeviathanGameTests {
             int templates = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
                     .filter(i -> i.getItem().is(ModItems.VOIDSTEEL_UPGRADE_SMITHING_TEMPLATE.get())).mapToInt(i -> i.getItem().getCount()).sum();
             if (templates != 1) bad.add(templates + " Voidsteel templates dropped, not 1");
+            int fins = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
+                    .filter(i -> i.getItem().is(ModItems.LEVIATHAN_FIN.get())).mapToInt(i -> i.getItem().getCount()).sum();
+            if (fins != 1) bad.add(fins + " Leviathan Fins dropped, not 1");
+            // one ingot's Starmetal each kill, with the Starfall on or off
+            int starmetal = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
+                    .filter(i -> i.getItem().is(ModItems.STARMETAL.get())).mapToInt(i -> i.getItem().getCount()).sum();
+            if (starmetal != 2) bad.add(starmetal + " Starmetal dropped, not 2");
             Vec3 lip = VoidLeviathan.lip(Vec3.atBottomCenterOf(v.home()), p.position(), v.surface());
             long there = level.getEntitiesOfClass(ItemEntity.class, new net.minecraft.world.phys.AABB(lip, lip).inflate(1.5, 3, 1.5)).size();
             if (there == 0) bad.add("nothing it dropped was carried to the lip at " + lip);

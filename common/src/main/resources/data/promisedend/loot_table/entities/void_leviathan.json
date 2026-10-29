@@ -44,6 +44,28 @@
           "name": "promisedend:voidsteel_upgrade_smithing_template"
         }
       ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:leviathan_fin"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:starmetal",
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": 2
+          }
+        }
+      ]
     }
   ]
 }

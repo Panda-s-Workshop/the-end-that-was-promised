@@ -174,6 +174,8 @@ public final class EndGameTests {
         FUNCTIONS.register("rift_maws_within_reach", () -> SentinelGameTests::riftMawsWithinReach);
         FUNCTIONS.register("voidsteel_gear", () -> VoidsteelGameTests::voidsteelGear);
         FUNCTIONS.register("set_bonus_void_touched", () -> VoidsteelGameTests::setBonusVoidTouched);
+        FUNCTIONS.register("augment_applies_in_smithing", () -> AugmentGameTests::appliesInSmithing);
+        FUNCTIONS.register("augment_drift_weave_reduces_wear", () -> AugmentGameTests::driftWeaveReducesWear);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -187,7 +189,7 @@ public final class EndGameTests {
             java.util.Map.entry("sentinel_opens_after_three_returns", 260), java.util.Map.entry("sentinel_wakes_for_survival", 100),
             java.util.Map.entry("sentinel_volleys_never_crack_itself", 260), java.util.Map.entry("sentinel_opens_onto_its_rest", 260),
             java.util.Map.entry("leviathan_breach_telegraphs", 320), java.util.Map.entry("leviathan_pairs_and_draws", 360),
-            java.util.Map.entry("set_bonus_void_touched", 400));
+            java.util.Map.entry("set_bonus_void_touched", 400), java.util.Map.entry("ward_bounces_pearls", 160));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -3816,11 +3818,21 @@ public final class EndGameTests {
         int r = com.panda.promisedend.EndConfig.wardRadius();
         var thrower = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
         wardAt(end, thrower, r + 20.0);
-        // the pearl's chunk, 21 inward, holds entities once the player's own chunks load round them (a test before
-        // this one may have loaded it, or not)
-        helper.runAfterDelay(5, () -> {
+        // the pearl's chunk, 21 inward: a test player's chunks stay where it joined, so it is forced, and the pearls
+        // thrown once it ticks entities (a forced chunk's entities load a few ticks late)
+        int cx = (r - 1) >> 4;
+        boolean forced = end.setChunkForced(cx, 0, true);
+        end.getChunkSource().move(thrower);
+        var at = new net.minecraft.core.BlockPos(r - 1, 82, 0);
+        int[] waited = {0};
+        helper.onEachTick(() -> {
+            if (waited[0] < 0) return;
+            if (!end.isPositionEntityTicking(at) && ++waited[0] < 80) return;
+            waited[0] = -1;
             // mended again: the seal tests beside this one ran in those ticks
             com.panda.promisedend.logic.AncientWard.reset(server);
+            if (!end.isPositionEntityTicking(at)) bad.add("the pearl's chunk wasn't ticking entities after 80 ticks");
+            if (!com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("the Ward isn't up with the seals mended (the thrower at " + thrower.position() + ")");
             for (boolean standing : new boolean[] {true, false}) {
                 if (!standing) for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
                 var pearl = new net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl(net.minecraft.world.entity.EntityTypes.ENDER_PEARL, end);
@@ -3835,6 +3847,7 @@ public final class EndGameTests {
             }
             com.panda.promisedend.logic.AncientWard.reset(server);
             server.getPlayerList().remove(thrower);
+            if (forced) end.setChunkForced(cx, 0, false);
             if (!bad.isEmpty()) helper.fail("pearls: " + bad);
             helper.succeed();
         });

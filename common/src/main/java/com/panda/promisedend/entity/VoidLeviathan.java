@@ -74,6 +74,8 @@ public class VoidLeviathan extends Monster implements GeoEntity {
      * the template sets it down asleep (MAW_DEPTH): its rest.
      */
     public static final int POOL = 14, SURFACE = 8;
+    /** How far the Maw's template reaches under its rest (gen_structures' THROAT less MAW_DEPTH): the pool is clear that deep. */
+    static final int THROAT_UNDER = 12;
     /** How far under its rest it swims between breaches, and how far under the floor's top it rears from. */
     public static final double DEEP = 4.0, PEAK = 1.5;
     /**
@@ -133,6 +135,11 @@ public class VoidLeviathan extends Monster implements GeoEntity {
     private final ServerBossEvent bar = new ServerBossEvent(UUID.randomUUID(), Component.translatable("entity.promisedend.void_leviathan"),
             BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.NOTCHED_10);
     private @Nullable BlockPos home;
+    /**
+     * Whether the End's land that grew into the pool is gone: the Maw is placed chunk by chunk, so an island a chunk
+     * beside it decorated later can reach into its throat. Cleared once, on its first tick.
+     */
+    private boolean poolCleared;
     /** Where this breach comes up: a point on the floor's plane over the pool. */
     private @Nullable Vec3 breach;
     private int timer;
@@ -187,6 +194,35 @@ public class VoidLeviathan extends Monster implements GeoEntity {
     /** Where it sleeps, in the pool's throat; it fights over the pool above this. */
     public @Nullable BlockPos home() {
         return home;
+    }
+
+    /**
+     * Clears the pool of any land in it, from under its rest to over the floor, inside its edge (the Maw's own teeth and
+     * vents stand past it); once its chunks are all loaded. Returns how many blocks went.
+     */
+    public int clearPool(ServerLevel level) {
+        if (home == null) home = blockPosition();
+        double edge = POOL - 0.5;
+        int r = (int) Math.ceil(edge), cleared = 0;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                if (!level.isLoaded(home.offset(dx, 0, dz))) return cleared;
+            }
+        }
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                if (dx * dx + dz * dz > edge * edge) continue;
+                for (int y = home.getY() - THROAT_UNDER; y <= home.getY() + SURFACE + 18; y++) {
+                    BlockPos b = new BlockPos(home.getX() + dx, y, home.getZ() + dz);
+                    if (level.getBlockState(b).isAir()) continue;
+                    level.setBlock(b, Blocks.AIR.defaultBlockState(), 2);
+                    cleared++;
+                }
+            }
+        }
+        poolCleared = true;
+        if (cleared > 0) com.panda.promisedend.PromisedEnd.LOGGER.info("The Rift Maw's pool at {} had {} blocks of land in it: cleared", home.toShortString(), cleared);
+        return cleared;
     }
 
     public void setHome(BlockPos home) {
@@ -291,6 +327,7 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         if (tickCount % 10 == 0) updateBar(level);
         Vec3 rest = Vec3.atBottomCenterOf(home);
         if (state() == State.DORMANT) {
+            if (!poolCleared) clearPool(level);
             glide(rest, 0.2);
             if (tickCount % 10 == 0 && !near(level, WAKE_RANGE).isEmpty()) wake();
             return;
@@ -586,6 +623,7 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         super.addAdditionalSaveData(output);
         output.storeNullable("home", BlockPos.CODEC, home);
         output.putBoolean("awake", state() != State.DORMANT);
+        output.putBoolean("pool_cleared", poolCleared);
         output.store("fought", UUIDUtil.CODEC.listOf(), List.copyOf(fought));
     }
 
@@ -593,6 +631,7 @@ public class VoidLeviathan extends Monster implements GeoEntity {
     protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
         this.home = input.read("home", BlockPos.CODEC).orElse(null);
+        this.poolCleared = input.getBooleanOr("pool_cleared", false);
         // mid-breach when saved, it comes back under the surface
         setState(input.getBooleanOr("awake", false) ? State.SUBMERGED : State.DORMANT, TELEGRAPH_TICKS);
         bar.setVisible(state() != State.DORMANT);

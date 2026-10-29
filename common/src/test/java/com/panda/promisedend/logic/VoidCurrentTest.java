@@ -9,6 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class VoidCurrentTest {
+    @org.junit.jupiter.api.Test
+    void theFinPushesHarder() {
+        // along the current at 1.0: the base 0.3, the Fin's 0.3 more; against it nothing either way
+        double[] base = VoidCurrent.glide(1, 0, 1, 0), fin = VoidCurrent.glide(1, 0, 1, 0, VoidCurrent.GLIDE_BONUS + com.panda.promisedend.item.Augments.FIN_CURRENT);
+        org.junit.jupiter.api.Assertions.assertEquals(0.3, base[0], 1e-9);
+        org.junit.jupiter.api.Assertions.assertEquals(0.6, fin[0], 1e-9);
+        org.junit.jupiter.api.Assertions.assertEquals(0.0, VoidCurrent.glide(-1, 0, 1, 0, 0.6)[0], 1e-9);
+    }
+
     private static final long[] SEEDS = {0L, 1L, -6022411586323069291L, 8523497328896690331L, 42L};
 
     @Test
