@@ -71,6 +71,18 @@ loom {
     }
 }
 
+// ./gradlew :neoforge:runGameTestServer -PendTests=architect_*,leviathan_pairs_and_draws runs only those GameTests (names,
+// * for any run of letters), so a change runs the tests that cover it, not all of them
+if (project.hasProperty("endTests")) {
+    loom {
+        runs {
+            gameTestServer {
+                property "promisedend.tests", project.property("endTests").toString()
+            }
+        }
+    }
+}
+
 // ./gradlew :neoforge:runServer -PendServerCheck generates the End at the Rim and logs PASS or FAIL
 if (project.hasProperty("endServerCheck")) {
     loom {

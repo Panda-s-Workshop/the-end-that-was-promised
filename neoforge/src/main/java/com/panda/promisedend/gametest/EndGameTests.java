@@ -256,9 +256,14 @@ public final class EndGameTests {
         Holder<TestEnvironmentDefinition<?>> env = event.registerEnvironment(PromisedEnd.id("default"));
         java.util.Map<String, Holder<TestEnvironmentDefinition<?>>> own = new java.util.HashMap<>();
         OWN_BATCH.values().forEach(batch -> own.put(batch, event.registerEnvironment(PromisedEnd.id(batch))));
+        // -Dpromisedend.tests=a,b_*: only the tests named (each a name, * for any run of letters)
+        String only = System.getProperty("promisedend.tests", "");
+        List<java.util.regex.Pattern> wanted = java.util.Arrays.stream(only.split(",")).map(String::trim).filter(n -> !n.isEmpty())
+                .map(n -> java.util.regex.Pattern.compile(n.replaceAll("[^a-z0-9_*]", "").replace("*", "[a-z0-9_]*"))).toList();
         for (var entry : FUNCTIONS.getEntries()) {
             ResourceKey<Consumer<GameTestHelper>> key = ResourceKey.create(Registries.TEST_FUNCTION, entry.getId());
             String path = entry.getId().getPath();
+            if (!wanted.isEmpty() && wanted.stream().noneMatch(w -> w.matcher(path).matches())) continue;
             int timeout = TIMEOUTS.getOrDefault(path, 100);
             var testEnv = OWN_BATCH.containsKey(path) ? own.get(OWN_BATCH.get(path))
                     : ALONE.contains(path) ? event.registerEnvironment(PromisedEnd.id("alone_" + path)) : env;
