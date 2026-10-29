@@ -38,6 +38,8 @@ if (project.hasProperty("endServerCheck")) {
                 property "promisedend.servercheck", "true"
                 // and -PendRimGap measures the first crossing into the Rim (ServerCheck.rimGap)
                 if (project.hasProperty("endRimGap")) property "promisedend.rimgap", "true"
+                // and -PendCheck=drift runs only that part (ServerCheck.ONLY)
+                if (project.hasProperty("endCheck")) property "promisedend.servercheck.only", project.property("endCheck").toString()
             }
         }
     }

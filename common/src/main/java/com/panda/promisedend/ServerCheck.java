@@ -20,6 +20,8 @@ import net.minecraft.world.level.Level;
  */
 public final class ServerCheck {
     public static final String PROPERTY = "promisedend.servercheck", RIM_GAP = "promisedend.rimgap";
+    /** Runs one part of the check alone (drift, citadel, maw, foundry, arrivals), so a fix reruns only its own. */
+    public static final String ONLY = "promisedend.servercheck.only";
     private static final int RADIUS = 64;
 
     private ServerCheck() {}
@@ -72,6 +74,18 @@ public final class ServerCheck {
     private static String check(MinecraftServer server) {
         var end = server.getLevel(Level.END);
         if (end == null) return "no End level";
+        String only = System.getProperty(ONLY, "");
+        if (!only.isEmpty()) {
+            PromisedEnd.LOGGER.info("[promisedend servercheck] world seed {}; only {}", end.getSeed(), only);
+            return switch (only) {
+                case "drift" -> driftRoutes(end);
+                case "citadel" -> citadel(end);
+                case "maw" -> maw(end);
+                case "foundry" -> foundry(end);
+                case "arrivals" -> arrivals(server, end, EndConfig.terrainEnabled());
+                default -> "no part of the check called " + only;
+            };
+        }
         BlockPos centre = new BlockPos(300, 64, 0);
         for (int cx = (centre.getX() - RADIUS) >> 4; cx <= (centre.getX() + RADIUS) >> 4; cx++) {
             for (int cz = (centre.getZ() - RADIUS) >> 4; cz <= (centre.getZ() + RADIUS) >> 4; cz++) end.getChunk(cx, cz);
@@ -562,6 +576,7 @@ public final class ServerCheck {
         long searchNanos = 0;
         var gen = end.getChunkSource().getGenerator();
         var noise = end.getChunkSource().randomState();
+        var biomes = gen.getBiomeSource().createUncachedResolver(noise);
         int floor = end.getMinY() + 1;
         // two places, 20x20 chunks each: 1100-1420 out on the east, and on the west
         for (int[] at : new int[][] {{1100 >> 4, -10}, {-(1420 >> 4), -10}}) for (int cx = at[0]; cx < at[0] + 20; cx++) {
@@ -570,7 +585,8 @@ public final class ServerCheck {
                 // the search alone, on the generator's heights, from the chunk's middle: every gap it finds must have its route
                 long t0 = System.nanoTime();
                 searched += com.panda.promisedend.logic.DriftGap.all((gx, gz) -> gen.getBaseHeight(gx, gz, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, end, noise),
-                        floor, cx * 16 + 8, cz * 16 + 8).size();
+                        floor, cx * 16 + 8, cz * 16 + 8).stream()
+                        .filter(g -> !com.panda.promisedend.worldgen.DriftRouteStructure.nearOther(end.registryAccess(), end.getSeed(), biomes, g)).count();
                 searchNanos += System.nanoTime() - t0;
                 var start = end.getChunk(cx, cz).getAllStarts().get(structure);
                 if (start == null || !start.isValid()) continue;
@@ -584,8 +600,11 @@ public final class ServerCheck {
         for (var gap : gaps) {
             var route = gap.route();
             // the chunks along it, so its islet and its far end are there
-            for (int k = 0; k <= gap.width() + 1; k += 8) end.getChunk(BlockPos.containing(gap.ex() + gap.dx() * k, gap.he(), gap.ez() + gap.dz() * k));
-            end.getChunk(BlockPos.containing(gap.fx(), gap.hf(), gap.fz()));
+            // and either side of its corridor, which its clearing waits for
+            int sx = gap.dz() != 0 ? com.panda.promisedend.logic.DriftGap.CORRIDOR : 0, sz = gap.dx() != 0 ? com.panda.promisedend.logic.DriftGap.CORRIDOR : 0;
+            for (int side = -1; side <= 1; side++) {
+                for (int k = 0; k <= gap.width() + 8; k += 8) end.getChunk(BlockPos.containing(gap.ex() + gap.dx() * Math.min(k, gap.width() + 1) + sx * side, gap.he(), gap.ez() + gap.dz() * Math.min(k, gap.width() + 1) + sz * side));
+            }
             var box = new net.minecraft.world.phys.AABB(Math.min(route.ax(), route.bx()) - 2, Math.min(route.ay(), route.by()) - 1, Math.min(route.az(), route.bz()) - 2,
                     Math.max(route.ax(), route.bx()) + 2, Math.max(route.ay(), route.by()) + 2, Math.max(route.az(), route.bz()) + 2);
             // its own islet: another route's may lie in the box, beside it at a shared corner
@@ -593,7 +612,11 @@ public final class ServerCheck {
             int islets = found.size();
             // as on its first ticks: it clears what worldgen next door grew into its way
             int cleared = 0;
-            for (var islet : found) cleared += Math.max(0, islet.clearWay());
+            for (var islet : found) {
+                int c = islet.clearWay();
+                if (c < 0) bad.add("the islet at " + islet.blockPosition() + " couldn't clear its way: its chunks weren't all loaded");
+                cleared += Math.max(0, c);
+            }
             clearedAll += cleared;
             BlockPos near = new BlockPos(gap.ex(), gap.he() - 1, gap.ez()), far = new BlockPos(gap.fx(), gap.hf() - 1, gap.fz());
             boolean ends = !end.getBlockState(near).isAir() && !end.getBlockState(far).isAir();
@@ -606,7 +629,13 @@ public final class ServerCheck {
                         var state = end.getBlockState(new BlockPos(gap.ex() + gap.dx() * j + lx * l, y, gap.ez() + gap.dz() * j + lz * l));
                         if (!state.getCollisionShape(end, near).isEmpty()) {
                             blocked++;
-                            if (what.size() < 4) what.add(state.getBlock().builtInRegistryHolder().getRegisteredName() + "@" + (gap.ex() + gap.dx() * j + lx * l) + "," + y + "," + (gap.ez() + gap.dz() * j + lz * l));
+                            if (what.size() < 4) {
+                                BlockPos in = new BlockPos(gap.ex() + gap.dx() * j + lx * l, y, gap.ez() + gap.dz() * j + lz * l);
+                                // a structure there keeps the islet's clearing out (DriftIslet.clearWay)
+                                var other = end.structureManager().getStructureWithPieceAt(in, h -> !h.is(com.panda.promisedend.worldgen.DriftRouteStructure.KEY));
+                                what.add(state.getBlock().builtInRegistryHolder().getRegisteredName() + "@" + in.getX() + "," + y + "," + in.getZ()
+                                        + (other.isValid() ? " in " + end.registryAccess().lookupOrThrow(Registries.STRUCTURE).getKey(other.getStructure()) : ""));
+                            }
                         }
                     }
                 }

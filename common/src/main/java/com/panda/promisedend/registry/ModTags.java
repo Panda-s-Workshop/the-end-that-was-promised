@@ -18,6 +18,9 @@ public final class ModTags {
     /** What the Leviathan's chart and, after its seal, a held pearl lead to: the Unfinished Citadels. */
     public static final TagKey<net.minecraft.world.level.levelgen.structure.Structure> ON_CITADEL_CHARTS =
             TagKey.create(Registries.STRUCTURE, PromisedEnd.id("on_citadel_charts"));
+    /** What a drift route keeps clear of: a route that might reach one isn't built (its islet won't cut into it). */
+    public static final TagKey<net.minecraft.world.level.levelgen.structure.Structure> KEEP_CLEAR_OF_DRIFT_ROUTES =
+            TagKey.create(Registries.STRUCTURE, PromisedEnd.id("keep_clear_of_drift_routes"));
     /** What a Void Shrine's altar takes as an offering; each is also in one {@link #favour} tag, its worth. */
     public static final TagKey<Item> OFFERINGS = TagKey.create(Registries.ITEM, PromisedEnd.id("offerings"));
     private static final java.util.List<TagKey<Item>> FAVOUR = java.util.stream.IntStream.rangeClosed(1, com.panda.promisedend.logic.Offerings.MOST)

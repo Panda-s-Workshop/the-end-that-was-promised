@@ -37,6 +37,14 @@ public final class DriftRouteStructure extends Structure {
     public static final MapCodec<DriftRouteStructure> CODEC = simpleCodec(DriftRouteStructure::new);
     /** No route this near the centre: the main island's own. */
     public static final int CENTRE_CLEAR = 200;
+    /**
+     * How far past its start chunk's corner each structure a route keeps clear of may reach: its template's width and a
+     * block, turned any way about that corner; an End City's towers and ships, and anything else, {@link #REACH_ELSE}.
+     */
+    private static final java.util.Map<String, Integer> REACH = java.util.Map.of(
+            "promisedend:rim_outpost", 22, "promisedend:shulker_foundry", 42, "promisedend:rift_maw", 64,
+            "promisedend:void_shrine", 18, "promisedend:fallen_observatory", 24, "promisedend:unfinished_citadel", 81);
+    private static final int REACH_ELSE = 96;
     /** This structure, which its own clearing passes and every other's keeps out of. */
     public static final net.minecraft.resources.ResourceKey<Structure> KEY = net.minecraft.resources.ResourceKey.create(
             net.minecraft.core.registries.Registries.STRUCTURE, com.panda.promisedend.PromisedEnd.id("drift_route"));
@@ -52,11 +60,45 @@ public final class DriftRouteStructure extends Structure {
         if ((long) x * x + (long) z * z < (long) CENTRE_CLEAR * CENTRE_CLEAR) return Optional.empty();
         ChunkGenerator generator = context.chunkGenerator();
         int floor = context.heightAccessor().getMinY() + 1;
+        // none that might run into another structure, whose blocks its islet won't clear
         var gaps = DriftGap.all((gx, gz) -> generator.getBaseHeight(gx, gz, Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState()),
-                floor, x, z);
+                floor, x, z).stream().filter(gap -> !nearOther(context.registryAccess(), context.seed(), context.biomeResolver(), gap)).toList();
         if (gaps.isEmpty()) return Optional.empty();
         DriftGap.Gap first = gaps.getFirst();
         return Optional.of(new GenerationStub(new BlockPos(first.ex(), first.he(), first.ez()), builder -> gaps.forEach(gap -> builder.addPiece(new Piece(gap)))));
+    }
+
+    /**
+     * Whether {@code gap}'s sweep comes within reach ({@link #REACH}) of a chunk where a structure it keeps clear of
+     * ({@code #keep_clear_of_drift_routes}) may start. Each such set's spread placement gives each of its cells one
+     * possible start, worked out from the seed alone, so every chunk that finds this gap comes to the same answer. A
+     * start counts when one of the structure's biomes lies at its chunk's middle or a corner, or where its piece's middle
+     * falls turned any way about the chunk's corner (a jigsaw checks its biome there): more than the structure's own
+     * check lets through, so fewer routes, never one into another structure.
+     */
+    public static boolean nearOther(net.minecraft.core.RegistryAccess access, long seed, net.minecraft.world.level.biome.BiomeResolver biomes, DriftGap.Gap gap) {
+        double[] s = gap.sweep();
+        for (var set : access.lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE_SET).listElements().toList()) {
+            if (!(set.value().placement() instanceof net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement spread)) continue;
+            var kept = set.value().structures().stream().map(e -> e.structure()).filter(h -> h.is(com.panda.promisedend.registry.ModTags.KEEP_CLEAR_OF_DRIFT_ROUTES)).toList();
+            if (kept.isEmpty()) continue;
+            int reach = kept.stream().mapToInt(h -> REACH.getOrDefault(h.getRegisteredName(), REACH_ELSE)).max().getAsInt();
+            int minX = (int) Math.floor(s[0]) - reach, maxX = (int) Math.ceil(s[1]) + reach;
+            int minZ = (int) Math.floor(s[2]) - reach, maxZ = (int) Math.ceil(s[3]) + reach;
+            int spacing = spread.spacing();
+            for (int gx = Math.floorDiv(minX >> 4, spacing); gx <= Math.floorDiv(maxX >> 4, spacing); gx++) {
+                for (int gz = Math.floorDiv(minZ >> 4, spacing); gz <= Math.floorDiv(maxZ >> 4, spacing); gz++) {
+                    ChunkPos start = spread.getPotentialStructureChunk(seed, gx * spacing, gz * spacing);
+                    if (start.getMaxBlockX() < minX || start.getMinBlockX() > maxX || start.getMaxBlockZ() < minZ || start.getMinBlockZ() > maxZ) continue;
+                    int half = reach / 2;
+                    for (int[] at : new int[][] {{8, 8}, {0, 0}, {15, 0}, {0, 15}, {15, 15}, {half, half}, {-half, half}, {half, -half}, {-half, -half}}) {
+                        var biome = biomes.getNoiseBiome((start.getMinBlockX() + at[0]) >> 2, 64 >> 2, (start.getMinBlockZ() + at[1]) >> 2);
+                        if (kept.stream().anyMatch(h -> h.value().biomes().contains(biome))) return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @Override

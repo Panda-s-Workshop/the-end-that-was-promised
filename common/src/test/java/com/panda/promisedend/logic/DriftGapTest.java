@@ -189,4 +189,16 @@ class DriftGapTest {
         assertFalse(DriftGap.clash(new DriftGap.Gap(14, 8, 14, 30, 0, 1, 60, 60), south));
         assertTrue(DriftGap.clash(new DriftGap.Gap(13, 8, 13, 30, 0, 1, 60, 60), south));
     }
+
+    @Test
+    void aSouthRouteJustWestOfAnEastOnesSweepStillWins() {
+        // the start is 3 short of the island's east edge and 2 short of its south one: the east route's sweep begins 4
+        // east of the start, so a search for the south ones only 3 round that sweep missed the south route out of the
+        // start itself, and both were built, their islets 2 apart (a Fabric server check, 2026-10-29)
+        IntBinaryOperator corner = (x, z) -> x >= -10 && x <= 11 && z >= -10 && z <= 10 || x >= 30 && x <= 60 && z >= -10 && z <= 10
+                || z >= 30 && z <= 60 && x >= -10 && x <= 11 ? 60 : FLOOR;
+        var built = DriftGap.all(corner, FLOOR, 8, 8);
+        assertEquals(1, built.size(), "built " + built);
+        assertEquals(1, built.getFirst().dz());
+    }
 }

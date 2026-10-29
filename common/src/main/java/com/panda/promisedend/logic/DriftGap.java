@@ -170,7 +170,9 @@ public final class DriftGap {
         }
         if (!alongX) return false;
         double[] sweep = gap.sweep();
-        for (int lx = middleFrom((int) Math.floor(sweep[0]) - 3); lx <= sweep[1] + 3; lx += 16) {
+        // a south route's line meets this one's sweep within APART of its own (its line, a half column, and its islet's
+        // half): 2 more west of the sweep and 1 more east
+        for (int lx = middleFrom((int) Math.floor(sweep[0]) - APART - 2); lx <= sweep[1] + APART + 1; lx += 16) {
             for (int mz = middleFrom(gap.ez() - reach); mz <= gap.ez() + reach; mz += 16) {
                 for (int s = -1; s <= 1; s += 2) {
                     Gap other = probe(h, floor, lx, mz, 0, s);
