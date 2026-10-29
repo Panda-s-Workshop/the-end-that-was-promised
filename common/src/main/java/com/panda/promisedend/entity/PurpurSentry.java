@@ -120,9 +120,13 @@ public class PurpurSentry extends Monster implements GeoEntity {
         builder.define(DATA_STATE, (byte) State.GUARD.ordinal());
     }
 
+    /** How far a placed Sentry strays from where it stood when it's not fighting. */
+    public static final int HOME_RADIUS = 3;
+
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(2, new Guarding<>(new ApproachGoal(this, 1.0, 3.0)));
+        this.goalSelector.addGoal(5, new Guarding<>(new net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal(this, 0.8)));
         this.goalSelector.addGoal(6, new Guarding<>(new WaterAvoidingRandomStrollGoal(this, 0.6)));
         this.goalSelector.addGoal(7, new Guarding<>(new LookAtPlayerGoal(this, Player.class, 8.0F)));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
@@ -204,6 +208,8 @@ public class PurpurSentry extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        // one a structure placed (or a Sentinel called) keeps near where it stood, and goes back after a fight
+        if (!hasHome() && isPersistenceRequired()) setHomeTo(blockPosition(), HOME_RADIUS);
         LivingEntity target = getTarget();
         boolean live = target != null && target.isAlive() && canAttack(target);
         switch (state()) {

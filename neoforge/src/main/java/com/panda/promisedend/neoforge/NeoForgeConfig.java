@@ -19,6 +19,7 @@ public final class NeoForgeConfig implements EndConfig.Source {
     private static final ModConfigSpec.IntValue MAX_WRATH;
     private static final ModConfigSpec.BooleanValue ARRIVAL;
     private static final ModConfigSpec.IntValue WARD_RADIUS;
+    private static final ModConfigSpec.IntValue SHRINE_COOLDOWN;
 
     static {
         B.push("terrain");
@@ -44,6 +45,10 @@ public final class NeoForgeConfig implements EndConfig.Source {
                 .define("by_coordinates", true);
         WARD_RADIUS = B.comment("The Ancients' Ward's radius round the End's centre, in blocks.")
                 .defineInRange("ward_radius", 640, 300, 800);
+        B.pop();
+        B.push("shrine");
+        SHRINE_COOLDOWN = B.comment("How long a player waits for another boon at the same Void Shrine, in ticks (24000: 20 minutes).")
+                .defineInRange("cooldown_ticks", 24000, 0, 1728000);
         B.pop();
     }
 
@@ -88,6 +93,11 @@ public final class NeoForgeConfig implements EndConfig.Source {
     @Override
     public int wardRadius() {
         return loaded() ? WARD_RADIUS.get() : EndConfig.DEFAULTS.wardRadius();
+    }
+
+    @Override
+    public int shrineCooldownTicks() {
+        return loaded() ? SHRINE_COOLDOWN.get() : EndConfig.DEFAULTS.shrineCooldownTicks();
     }
 
     @Override

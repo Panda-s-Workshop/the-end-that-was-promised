@@ -156,6 +156,11 @@ public final class EndGameTests {
         FUNCTIONS.register("foundries_within_reach", () -> SentinelGameTests::foundriesWithinReach);
         FUNCTIONS.register("sentinel_opens_onto_its_rest", () -> SentinelGameTests::opensOntoItsRest);
         FUNCTIONS.register("waystation_chart_never_blank", () -> SentinelGameTests::waystationChartNeverBlank);
+        FUNCTIONS.register("shrine_grants_buff", () -> ShrineGameTests::shrineGrantsBuff);
+        FUNCTIONS.register("boons_do_their_work", () -> ShrineGameTests::boonsDoTheirWork);
+        FUNCTIONS.register("gliding_grace_halves_wear", () -> ShrineGameTests::glidingGraceHalvesWear);
+        FUNCTIONS.register("void_sight_shows_vents", () -> ShrineGameTests::voidSightShowsVents);
+        FUNCTIONS.register("altar_keeps_and_refuses", () -> ShrineGameTests::altarKeepsAndRefuses);
     }
 
     /** Tests that need longer than the default 100 ticks (a dragon's dying takes 200). */
@@ -5247,7 +5252,9 @@ public final class EndGameTests {
     }
 
     /** Our structures. */
-    private static final List<String> STRUCTURES = List.of("rim_outpost", "shulker_foundry");
+    private static final List<String> STRUCTURES = List.of("rim_outpost", "shulker_foundry", "void_shrine");
+    /** Our structures with no chest of their own. */
+    private static final java.util.Set<String> CHESTLESS = java.util.Set.of("void_shrine");
 
     /** Every template loads, and each chest in it names a loot table that exists. */
     private static void structuresPlace(GameTestHelper helper) {
@@ -5261,7 +5268,7 @@ public final class EndGameTests {
             }
             var chests = template.get().filterBlocks(BlockPos.ZERO, new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),
                     net.minecraft.world.level.block.Blocks.CHEST);
-            if (chests.isEmpty()) bad.add(name + ": no chest");
+            if (chests.isEmpty() && !CHESTLESS.contains(name)) bad.add(name + ": no chest");
             for (var chest : chests) {
                 String table = chest.nbt() == null ? "" : chest.nbt().getStringOr("LootTable", "");
                 var key = ResourceKey.create(Registries.LOOT_TABLE, Identifier.parse(table.isEmpty() ? "minecraft:empty" : table));
@@ -5278,7 +5285,7 @@ public final class EndGameTests {
         var access = helper.getLevel().registryAccess();
         var sets = access.lookupOrThrow(Registries.STRUCTURE_SET);
         List<String> bad = new ArrayList<>();
-        java.util.Map<String, String> home = java.util.Map.of("rim_outpost", "shattered_rim", "shulker_foundry", "shulker_reefs");
+        java.util.Map<String, String> home = java.util.Map.of("rim_outpost", "shattered_rim", "shulker_foundry", "shulker_reefs", "void_shrine", "chorus_thicket");
         for (String name : STRUCTURES) {
             var set = sets.get(ResourceKey.create(Registries.STRUCTURE_SET, PromisedEnd.id(name)));
             if (set.isEmpty()) {

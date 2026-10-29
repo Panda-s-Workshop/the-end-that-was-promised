@@ -48,7 +48,11 @@ public final class EndNeoForge {
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.RegisterCommandsEvent e) -> com.panda.promisedend.EndCommand.register(e.getDispatcher()));
         // the client's handler is the client entry's
         modBus.addListener((net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent e) -> e.registrar("1")
-                .playToClient(com.panda.promisedend.network.TerrainPayload.TYPE, com.panda.promisedend.network.TerrainPayload.STREAM_CODEC));
+                .playToClient(com.panda.promisedend.network.TerrainPayload.TYPE, com.panda.promisedend.network.TerrainPayload.STREAM_CODEC)
+                .playToClient(com.panda.promisedend.network.ShrinePayloads.Offer.TYPE, com.panda.promisedend.network.ShrinePayloads.Offer.STREAM_CODEC)
+                .playToServer(com.panda.promisedend.network.ShrinePayloads.Choose.TYPE, com.panda.promisedend.network.ShrinePayloads.Choose.STREAM_CODEC, (payload, context) -> {
+                    if (context.player() instanceof net.minecraft.server.level.ServerPlayer p) com.panda.promisedend.block.ShrineAltarBlockEntity.chosen(p, payload);
+                }));
         NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedInEvent e) -> {
             if (e.getEntity() instanceof net.minecraft.server.level.ServerPlayer p) PromisedEnd.onPlayerJoin(p);
         });

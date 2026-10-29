@@ -246,6 +246,11 @@ public final class ModBlocks {
                     .noCollision().randomTicks().instabreak().sound(SoundType.CAVE_VINES).lightLevel(com.panda.promisedend.block.VoidBerryVineBlock::light)
                     .pushReaction(PushReaction.POPPED));
 
+    // ---- the Void Shrines: an altar that takes offerings for a boon; it can't be carried off (no drop)
+    public static final DeferredBlock<com.panda.promisedend.block.ShrineAltarBlock> SHRINE_ALTAR = withHint(BLOCKS.registerBlock("shrine_altar",
+            com.panda.promisedend.block.ShrineAltarBlock::new, p -> p.mapColor(MapColor.COLOR_PURPLE).noLootTable()
+                    .strength(50.0F, 1200.0F).lightLevel(s -> 7).sound(SoundType.AMETHYST).pushReaction(PushReaction.IMMOVEABLE)), 2);
+
     private ModBlocks() {}
 
     /** Every block item, in registration order: the creative tab lists them. */

@@ -15,5 +15,8 @@ public final class ModBlockEntities {
     public static final Supplier<BlockEntityType<UpdraftVentBlockEntity>> UPDRAFT_VENT = TYPES.register("updraft_vent",
             () -> new BlockEntityType<>(UpdraftVentBlockEntity::new, Set.of(ModBlocks.UPDRAFT_VENT.get())));
 
+    public static final Supplier<BlockEntityType<com.panda.promisedend.block.ShrineAltarBlockEntity>> SHRINE_ALTAR = TYPES.register("shrine_altar",
+            () -> new BlockEntityType<>(com.panda.promisedend.block.ShrineAltarBlockEntity::new, Set.of(ModBlocks.SHRINE_ALTAR.get())));
+
     private ModBlockEntities() {}
 }

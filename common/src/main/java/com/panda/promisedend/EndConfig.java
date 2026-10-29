@@ -34,6 +34,11 @@ public final class EndConfig {
         default int wardRadius() {
             return 640;
         }
+
+        /** How long a player waits for another boon at the same Void Shrine, in ticks (20 minutes). */
+        default int shrineCooldownTicks() {
+            return 24000;
+        }
     }
 
     public static final Source DEFAULTS = new Source() {
@@ -88,5 +93,9 @@ public final class EndConfig {
 
     public static int wardRadius() {
         return source.wardRadius();
+    }
+
+    public static int shrineCooldownTicks() {
+        return source.shrineCooldownTicks();
     }
 }

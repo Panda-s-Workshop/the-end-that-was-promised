@@ -20,12 +20,14 @@ public final class PromisedEnd {
 
     /** The classes whose static DeferredRegisters hold the mod's content. */
     private static final List<Class<?>> CONTENT = List.of(ModSounds.class, ModEntities.class, ModBlocks.class, ModBlockEntities.class, ModItems.class, ModTabs.class,
-            ModWorldgen.class, ModParticles.class);
+            ModWorldgen.class, ModParticles.class, com.panda.promisedend.registry.ModEffects.class);
 
     private static boolean initialised;
 
     /** Opens the Codex screen; each loader's client entry sets it (common code can't name client classes). */
     public static Runnable openCodex = () -> {};
+    /** Sends a payload to the server, if it knows it; each loader's client entry sets it. */
+    public static java.util.function.Consumer<net.minecraft.network.protocol.common.custom.CustomPacketPayload> toServer = payload -> {};
 
     private PromisedEnd() {}
 
@@ -75,6 +77,7 @@ public final class PromisedEnd {
         com.panda.promisedend.logic.CaveDark.tick(player);
         com.panda.promisedend.logic.AncientWard.tick(player);
         com.panda.promisedend.logic.PearlGuide.tick(player);
+        com.panda.promisedend.logic.ShrineBoons.tick(player);
     }
 
     public static Identifier id(String path) {

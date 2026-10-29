@@ -146,6 +146,7 @@ public final class ServerCheck {
         add.accept(wrath(server));
         add.accept(arrivals(server, end, terrain));
         add.accept(foundry(end));
+        add.accept(shrine(end));
         add.accept(driftRoutes(end));
         return failures.isEmpty() ? null : String.join(" | ", failures);
     }
@@ -841,6 +842,39 @@ public final class ServerCheck {
                 marks.stream().map(d -> d.type().getRegisteredName() + " at " + Math.round(d.x()) + ", " + Math.round(d.z())).toList());
         if (!name.equals("item." + PromisedEnd.MODID + ".star_chart.foundry")) return "the Star Chart is named " + name;
         if (marks.stream().noneMatch(d -> Math.hypot(d.x() - found.getX(), d.z() - found.getZ()) < 16)) return "the Star Chart marks no Foundry at " + found + ": " + marks;
+        return null;
+    }
+
+    /**
+     * The Void Shrine nearest a point 1500 out, generated here: its Shrine Altar stands with its block entity, and its
+     * two Purpur Sentries are in place.
+     */
+    private static String shrine(net.minecraft.server.level.ServerLevel end) {
+        BlockPos from = new BlockPos(1500, 64, 0);
+        var structures = end.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        var key = net.minecraft.resources.ResourceKey.create(Registries.STRUCTURE, PromisedEnd.id("void_shrine"));
+        var holder = structures.get(key);
+        if (holder.isEmpty()) return "no Void Shrine structure";
+        var found = end.getChunkSource().getGenerator().findNearestMapStructure(end, net.minecraft.core.HolderSet.direct(holder.get()), from, 60, false);
+        if (found == null) return "no Void Shrine within 60 chunks of " + from;
+        BlockPos at = found.getFirst();
+        for (int cx = (at.getX() >> 4) - 2; cx <= (at.getX() >> 4) + 2; cx++) {
+            for (int cz = (at.getZ() >> 4) - 2; cz <= (at.getZ() >> 4) + 2; cz++) end.getChunk(cx, cz);
+        }
+        BlockPos altar = null;
+        for (BlockPos q : BlockPos.betweenClosed(at.offset(-24, 40, -24), at.offset(24, 90, 24))) {
+            if (end.getBlockState(q).is(ModBlocks.SHRINE_ALTAR.get())) {
+                altar = q.immutable();
+                break;
+            }
+        }
+        if (altar == null) return "no Shrine Altar in the Void Shrine at " + at;
+        int sentries = end.getEntitiesOfClass(com.panda.promisedend.entity.PurpurSentry.class, new net.minecraft.world.phys.AABB(altar).inflate(8)).size();
+        boolean entity = end.getBlockEntity(altar) instanceof com.panda.promisedend.block.ShrineAltarBlockEntity;
+        PromisedEnd.LOGGER.info("[promisedend servercheck] Void Shrine {} from {} at {}: its altar at {} (block entity {}), {} Purpur Sentries, on {}",
+                Math.round(Math.sqrt(at.distSqr(from))), from, at, altar, entity, sentries, end.getBiome(altar).getRegisteredName());
+        if (!entity) return "the Shrine Altar at " + altar + " has no block entity";
+        if (sentries < 2) return "the Void Shrine at " + altar + " has " + sentries + " Purpur Sentries";
         return null;
     }
 

@@ -119,6 +119,10 @@ public final class EndFabric implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(PromisedEnd::onServerTick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> VoidAnchor.forget(handler.getPlayer()));
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(com.panda.promisedend.network.TerrainPayload.TYPE, com.panda.promisedend.network.TerrainPayload.STREAM_CODEC);
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(com.panda.promisedend.network.ShrinePayloads.Offer.TYPE, com.panda.promisedend.network.ShrinePayloads.Offer.STREAM_CODEC);
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(com.panda.promisedend.network.ShrinePayloads.Choose.TYPE, com.panda.promisedend.network.ShrinePayloads.Choose.STREAM_CODEC);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.ShrinePayloads.Choose.TYPE,
+                (payload, context) -> com.panda.promisedend.block.ShrineAltarBlockEntity.chosen(context.player(), payload));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> PromisedEnd.onPlayerJoin(handler.getPlayer()));
         net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> com.panda.promisedend.EndCommand.register(dispatcher));
     }

@@ -611,6 +611,36 @@
       }
     ]
   },
+  "block.shrine_altar.offer": {
+    "subtitle": "subtitles.promisedend.shrine_altar.offer",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.resonate",
+        "type": "event",
+        "pitch": 1.0
+      }
+    ]
+  },
+  "block.shrine_altar.ready": {
+    "subtitle": "subtitles.promisedend.shrine_altar.ready",
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.power_select",
+        "type": "event",
+        "pitch": 1.0
+      }
+    ]
+  },
+  "block.shrine_altar.grant": {
+    "subtitle": "subtitles.promisedend.shrine_altar.grant",
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.activate",
+        "type": "event",
+        "pitch": 1.0
+      }
+    ]
+  },
   "block.updraft_vent.wind": {
     "subtitle": "subtitles.promisedend.updraft_vent.wind",
     "sounds": [

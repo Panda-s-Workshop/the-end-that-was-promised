@@ -9,9 +9,16 @@ public final class EndFabricClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> DevExit.onClientStopping());
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, flag, lines) ->
+                com.panda.promisedend.client.ShrineScreen.offeringLine(stack, lines));
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(com.panda.promisedend.client.VoidCurrentView::tick);
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.TerrainPayload.TYPE,
                 (payload, context) -> com.panda.promisedend.logic.VoidCurrents.heardTerrain(payload.terrainEnabled()));
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.panda.promisedend.network.ShrinePayloads.Offer.TYPE,
+                (payload, context) -> com.panda.promisedend.client.ShrineScreen.open(payload));
+        com.panda.promisedend.PromisedEnd.toServer = payload -> {
+            if (net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(payload.type())) net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(payload);
+        };
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> com.panda.promisedend.logic.VoidCurrents.heardTerrain(null));
         com.panda.promisedend.client.ModRenderers.register(new com.panda.promisedend.client.ModRenderers.Sink() {
             @Override

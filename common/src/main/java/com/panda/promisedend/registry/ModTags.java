@@ -12,6 +12,10 @@ public final class ModTags {
     /** What the Waystation's first Star Chart and a held pearl lead to: the Shulker Foundries. */
     public static final TagKey<net.minecraft.world.level.levelgen.structure.Structure> ON_FOUNDRY_CHARTS =
             TagKey.create(Registries.STRUCTURE, PromisedEnd.id("on_foundry_charts"));
+    /** What a Void Shrine's altar takes as an offering; each is also in one {@link #favour} tag, its worth. */
+    public static final TagKey<Item> OFFERINGS = TagKey.create(Registries.ITEM, PromisedEnd.id("offerings"));
+    private static final java.util.List<TagKey<Item>> FAVOUR = java.util.stream.IntStream.rangeClosed(1, com.panda.promisedend.logic.Offerings.MOST)
+            .mapToObj(n -> TagKey.create(Registries.ITEM, PromisedEnd.id("offerings/favour_" + n))).toList();
     /** What repairs Voidstone tools in an anvil. */
     public static final TagKey<Item> VOIDSTONE_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("voidstone_tool_materials"));
     public static final TagKey<Item> RESONITE_TOOL_MATERIALS = TagKey.create(Registries.ITEM, PromisedEnd.id("resonite_tool_materials"));
@@ -64,4 +68,9 @@ public final class ModTags {
     public static final TagKey<EntityType<?>> CONSTRUCTS = TagKey.create(Registries.ENTITY_TYPE, PromisedEnd.id("constructs"));
 
     private ModTags() {}
+
+    /** The offerings worth {@code n} favour ({@code #promisedend:offerings/favour_<n>}, 1 to 5). */
+    public static TagKey<Item> favour(int n) {
+        return FAVOUR.get(n - 1);
+    }
 }

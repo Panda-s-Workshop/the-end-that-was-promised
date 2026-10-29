@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:jigsaw",
+  "biomes": "#promisedend:has_structure/void_shrine",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none",
+  "start_pool": "promisedend:void_shrine/start",
+  "size": 1,
+  "start_height": {
+    "absolute": 60
+  },
+  "max_distance_from_center": 80,
+  "use_expansion_hack": false
+}

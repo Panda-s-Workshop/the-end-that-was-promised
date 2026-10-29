@@ -67,7 +67,7 @@ public final class VoidAnchor {
         }
         if (falling && player.getY() < level.getMinY() && player.getDeltaMovement().y < 0) {
             // past the floor with an intact anchor: a chime, so the long fall reads as caught before it is
-            if (find(player, true) >= 0 && CUED.putIfAbsent(player.getUUID(), true) == null) {
+            if ((find(player, true) >= 0 || riftStep(player)) && CUED.putIfAbsent(player.getUUID(), true) == null) {
                 level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1.0F, 0.6F);
             }
             return;
@@ -205,12 +205,19 @@ public final class VoidAnchor {
         FOOTING.remove(player.getUUID());
         WARNED.remove(player.getUUID());
         CUED.remove(player.getUUID());
+        ShrineBoons.forget(player);
     }
 
-    /** Pulls the player back if they carry an intact anchor; returns whether they were. */
+    /** A Void Shrine's Rift Step: it catches the next fall as an anchor would, and is spent; an anchor is kept. */
+    private static boolean riftStep(ServerPlayer player) {
+        return com.panda.promisedend.registry.ModEffects.RIFT_STEP.isBound() && player.hasEffect(com.panda.promisedend.registry.ModEffects.RIFT_STEP.holder());
+    }
+
+    /** Pulls the player back if they have Rift Step or carry an intact anchor; returns whether they were. */
     public static boolean rescue(ServerPlayer player) {
-        int slot = find(player, true);
-        if (slot < 0) {
+        boolean step = riftStep(player);
+        int slot = step ? -1 : find(player, true);
+        if (!step && slot < 0) {
             if (find(player, false) >= 0 && WARNED.putIfAbsent(player.getUUID(), true) == null) {
                 player.sendSystemMessage(Component.translatable("message.promisedend.anchor_cracked"), true);
             }
@@ -242,11 +249,14 @@ public final class VoidAnchor {
         player.resetFallDistance();
         // the icon shows, but no swirl particles: in first person they pass the camera and cover the landing
         player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, SLOW_FALLING_TICKS, 0, false, false, true));
-        player.getInventory().setItem(slot, new ItemStack(ModItems.CRACKED_VOID_ANCHOR.get()));
+        if (step) player.removeEffect(com.panda.promisedend.registry.ModEffects.RIFT_STEP.holder());
+        else player.getInventory().setItem(slot, new ItemStack(ModItems.CRACKED_VOID_ANCHOR.get()));
         level.playSound(null, to.x, to.y, to.z, SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 1.0F, 0.7F);
-        // and the crack: a low item break under a crystal shattering
-        level.playSound(null, to.x, to.y, to.z, SoundEvents.ITEM_BREAK.value(), SoundSource.PLAYERS, 0.8F, 0.8F);
-        level.playSound(null, to.x, to.y, to.z, SoundEvents.AMETHYST_CLUSTER_BREAK, SoundSource.PLAYERS, 0.9F, 0.7F);
+        // and the crack: a low item break under a crystal shattering (a Rift Step has nothing to crack)
+        if (!step) {
+            level.playSound(null, to.x, to.y, to.z, SoundEvents.ITEM_BREAK.value(), SoundSource.PLAYERS, 0.8F, 0.8F);
+            level.playSound(null, to.x, to.y, to.z, SoundEvents.AMETHYST_CLUSTER_BREAK, SoundSource.PLAYERS, 0.9F, 0.7F);
+        }
         // where they left the void and where they landed, so the pull is seen as well as heard
         from.sendParticles(ParticleTypes.REVERSE_PORTAL, fromPos.x, fromPos.y + 1, fromPos.z, 60, 0.4, 0.8, 0.4, 0.05);
         // a ring of rising motes around the landing spot, far enough out to be seen in first person (a particle that
@@ -257,8 +267,8 @@ public final class VoidAnchor {
             level.sendParticles(ParticleTypes.REVERSE_PORTAL, true, true, to.x + Math.cos(a) * 1.6, to.y + 0.3, to.z + Math.sin(a) * 1.6, 4, 0.08, 0.5, 0.08, 0.02);
         }
         CUED.remove(player.getUUID());
-        player.sendSystemMessage(Component.translatable("message.promisedend.anchor_rescued"), true);
-        var advancement = server.getAdvancements().get(CodexBook.SAVED_BY_ANCHOR);
+        player.sendSystemMessage(Component.translatable(step ? "message.promisedend.rift_step_caught" : "message.promisedend.anchor_rescued"), true);
+        var advancement = step ? null : server.getAdvancements().get(CodexBook.SAVED_BY_ANCHOR);
         if (advancement != null) player.getAdvancements().award(advancement, "rescued");
         return true;
     }

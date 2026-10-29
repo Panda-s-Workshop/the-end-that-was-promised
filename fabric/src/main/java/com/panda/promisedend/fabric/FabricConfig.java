@@ -23,6 +23,7 @@ final class FabricConfig implements EndConfig.Source {
     private final int maxWrath;
     private final boolean arrivalByCoordinates;
     private final int wardRadius;
+    private final int shrineCooldownTicks;
 
     private FabricConfig(Properties p) {
         EndConfig.Source d = EndConfig.DEFAULTS;
@@ -34,6 +35,7 @@ final class FabricConfig implements EndConfig.Source {
         maxWrath = clamp(p.getProperty("dragon.max_wrath"), d.maxWrath(), 0, 5);
         arrivalByCoordinates = Boolean.parseBoolean(p.getProperty("arrival.by_coordinates", String.valueOf(d.arrivalByCoordinates())).trim());
         wardRadius = clamp(p.getProperty("arrival.ward_radius"), d.wardRadius(), 300, 800);
+        shrineCooldownTicks = clamp(p.getProperty("shrine.cooldown_ticks"), d.shrineCooldownTicks(), 0, 1728000);
     }
 
     static FabricConfig load() {
@@ -79,6 +81,7 @@ final class FabricConfig implements EndConfig.Source {
             {"dragon.max_wrath", String.valueOf(d.maxWrath()), "the highest Wrath a world reaches (0-5)"},
             {"arrival.by_coordinates", String.valueOf(d.arrivalByCoordinates()), "an End portal sets you down in the outer End in the portal's direction, at an Ancient Waystation with a way home, and the Ancients' Ward keeps everyone from the dragon until three guardians' seals break; false: vanilla's platform and the dragon at once (true/false)"},
             {"arrival.ward_radius", String.valueOf(d.wardRadius()), "the Ancients' Ward's radius round the End's centre, in blocks (300-800; past 800 it could reach the arrivals)"},
+            {"shrine.cooldown_ticks", String.valueOf(d.shrineCooldownTicks()), "how long a player waits for another boon at the same Void Shrine, in ticks (0-1728000; 24000 is 20 minutes)"},
         };
     }
 
@@ -94,6 +97,11 @@ final class FabricConfig implements EndConfig.Source {
     @Override
     public boolean arrivalByCoordinates() {
         return arrivalByCoordinates;
+    }
+
+    @Override
+    public int shrineCooldownTicks() {
+        return shrineCooldownTicks;
     }
 
     @Override

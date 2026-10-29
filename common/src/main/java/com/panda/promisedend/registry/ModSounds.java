@@ -71,5 +71,10 @@ public final class ModSounds {
         return SOUNDS.register(name, SoundEvent::createVariableRangeEvent);
     }
 
+    /** A Void Shrine's altar: an offering laid on it, the choice ready, a boon given. */
+    public static final Supplier<SoundEvent> SHRINE_OFFER = sound("block.shrine_altar.offer");
+    public static final Supplier<SoundEvent> SHRINE_READY = sound("block.shrine_altar.ready");
+    public static final Supplier<SoundEvent> SHRINE_GRANT = sound("block.shrine_altar.grant");
+
     private ModSounds() {}
 }
