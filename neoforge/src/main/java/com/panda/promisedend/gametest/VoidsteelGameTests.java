@@ -153,6 +153,16 @@ final class VoidsteelGameTests {
         wear(three, 3);
         List<String> bad = new ArrayList<>();
         if (VoidTouched.lift(full) != VoidTouched.LIFT || VoidTouched.lift(three) != 1.0) bad.add("the lift is " + VoidTouched.lift(full) + " and " + VoidTouched.lift(three));
+        // three pieces and an augmented elytra make the set, so a glider keeps the hold; a plain elytra doesn't
+        var glider = helper.makeMockServerPlayerInLevel();
+        wear(glider, 4);
+        var chest = net.minecraft.world.entity.EquipmentSlot.CHEST;
+        glider.setItemSlot(chest, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ELYTRA));
+        if (VoidTouched.wearsSet(glider)) bad.add("three pieces and a plain elytra make the set");
+        glider.setItemSlot(chest, com.panda.promisedend.item.Augments.apply(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ELYTRA),
+                com.panda.promisedend.item.Augments.LEVIATHAN_FIN));
+        if (!VoidTouched.wearsSet(glider)) bad.add("three pieces and an augmented elytra don't make the set");
+        glider.discard();
         var floor = helper.absolutePos(new net.minecraft.core.BlockPos(1, 2, 1));
         double below = level.getMinY() - 70;
         int[] firstHurt = {-1, -1, -1};

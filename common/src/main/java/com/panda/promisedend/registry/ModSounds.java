@@ -92,6 +92,8 @@ public final class ModSounds {
     public static final Supplier<SoundEvent> LATTICE_CRAWLER_DEATH = sound("entity.lattice_crawler.death");
     public static final Supplier<SoundEvent> LATTICE_CRAWLER_STEP = sound("entity.lattice_crawler.step");
     public static final Supplier<SoundEvent> LATTICE_CRAWLER_TEAR = sound("entity.lattice_crawler.tear");
+    public static final Supplier<SoundEvent> VOIDSTEEL_HOLD = sound("item.voidsteel.hold");
+    public static final Supplier<SoundEvent> VOIDSTEEL_RELEASE = sound("item.voidsteel.release");
     public static final Supplier<SoundEvent> LATTICE_GROAN = sound("block.lattice.groan");
     public static final Supplier<SoundEvent> LATTICE_TEAR = sound("block.lattice.tear");
     public static final Supplier<SoundEvent> LATTICE_REFORM = sound("block.lattice.reform");

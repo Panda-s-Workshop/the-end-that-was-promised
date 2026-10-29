@@ -44,13 +44,26 @@ final class StarfallGameTests {
         helper.setBlock(new BlockPos(8, 5, 6), Blocks.AIR);
         helper.setBlock(new BlockPos(6, 2, 6), Blocks.OBSIDIAN);
         helper.setBlock(new BlockPos(4, 5, 6), ModBlocks.VOID_GRASS.get());
+        // a survival player a block off the middle, falling, is thrown clear on their own client, the fall forgotten
+        var player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        var stood = helper.absoluteVec(new net.minecraft.world.phys.Vec3(7.5, 5, 6.5));
+        player.snapTo(stood.x, stood.y, stood.z, 0, 0);
+        player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        player.fallDistance = 4;
         Starfall.impact(level, at, 4);
+        var thrown = player.getDeltaMovement();
+        if (thrown.x < 0.5 || thrown.y < 0.3) bad.add("the player wasn't thrown clear, away and up: " + thrown);
+        if (!player.syncVelocity) bad.add("the throw isn't sent to the player's own client (syncVelocity)");
+        if (player.fallDistance != 0) bad.add("the thrown player's fall wasn't forgotten: " + player.fallDistance);
+        player.discard();
         if (!helper.getBlockState(new BlockPos(6, 2, 6)).is(Blocks.OBSIDIAN)) bad.add("the crater took the obsidian");
         if (!helper.getBlockState(middle).isAir() || !helper.getBlockState(middle.below()).isAir()) bad.add("the bowl's middle wasn't hollowed");
         if (!helper.getBlockState(new BlockPos(4, 5, 6)).isAir()) bad.add("the grass in the bowl stood");
-        // past the rim the ground stands, burnt to Voidstone or not
+        // past the rim the ground stands, burnt to Voidstone or not, or holding an ore of the crater's wall
         var past = helper.getBlockState(new BlockPos(11, 4, 6));
-        if (!past.is(Blocks.END_STONE) && !past.is(ModBlocks.VOIDSTONE_SET.base().get())) bad.add("the ground past the rim went: " + past);
+        if (!past.is(Blocks.END_STONE) && !past.is(ModBlocks.VOIDSTONE_SET.base().get()) && !past.is(ModBlocks.STARMETAL_ORE.get()))
+            bad.add("the ground past the rim went: " + past);
         if (!helper.getBlockState(new BlockPos(11, 3, 6)).is(Blocks.END_STONE)) bad.add("the end stone under the rim went");
         int ore = 0;
         for (int x = 0; x <= 11; x++) {

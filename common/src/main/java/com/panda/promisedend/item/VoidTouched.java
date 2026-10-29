@@ -7,7 +7,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -40,13 +39,22 @@ public final class VoidTouched {
         return piecesWorn(player) == PIECES;
     }
 
-    /** How many of the set's pieces the player has on. */
+    /**
+     * How many of the set's pieces the player has on. An augmented elytra counts as the chestplate, so a glider over
+     * the void keeps the hold and the set's lift adds to the Fin's.
+     */
     public static int piecesWorn(Player player) {
         int worn = 0;
         for (EquipmentSlot slot : ARMOUR) {
-            if (player.getItemBySlot(slot).is(ModTags.VOID_TOUCHED_SET)) worn++;
+            if (counts(player.getItemBySlot(slot), slot)) worn++;
         }
         return worn;
+    }
+
+    /** Whether {@code stack} worn in {@code slot} is a piece of the set. */
+    public static boolean counts(net.minecraft.world.item.ItemStack stack, EquipmentSlot slot) {
+        return stack.is(ModTags.VOID_TOUCHED_SET)
+                || slot == EquipmentSlot.CHEST && stack.is(ModTags.AUGMENTABLE_ELYTRA) && !Augments.of(stack).list().isEmpty();
     }
 
     /** What an updraft's lift is multiplied by for {@code e}: half as much again for a player in the set. */
@@ -64,10 +72,10 @@ public final class VoidTouched {
         Long since = FELL.putIfAbsent(p.getUUID(), now);
         long held = since == null ? 0 : now - since;
         if (held == 0) {
-            p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 1.0F, 0.6F);
+            p.level().playSound(null, p.getX(), p.getY(), p.getZ(), com.panda.promisedend.registry.ModSounds.VOIDSTEEL_HOLD.get(), SoundSource.PLAYERS, 1.0F, 1.0F);
         } else if (held == HOLD_TICKS) {
             p.sendOverlayMessage(Component.translatable("hint.promisedend.void_touched.gone"));
-            p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.0F, 0.8F);
+            p.level().playSound(null, p.getX(), p.getY(), p.getZ(), com.panda.promisedend.registry.ModSounds.VOIDSTEEL_RELEASE.get(), SoundSource.PLAYERS, 1.0F, 1.0F);
         }
         if (held < HOLD_TICKS && held % TOLD_EVERY == 0) {
             p.sendOverlayMessage(Component.translatable("hint.promisedend.void_touched.held", (HOLD_TICKS - held) / 20));

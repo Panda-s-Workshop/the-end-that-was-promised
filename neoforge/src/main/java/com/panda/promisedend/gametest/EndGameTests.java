@@ -4276,8 +4276,40 @@ public final class EndGameTests {
             com.panda.promisedend.logic.AncientWard.tick(before);
         }
         if (!before.getAdvancements().getOrStartProgress(down).isDone()) bad.add("rim/ward_down not earned in a second with the Ward down");
+        // the Ward as it ships, without the tests' every-guardian flag: the Foundry's seal leaves it standing and the
+        // pearl leading to the Maw, the Maw's brings it down, the pearl turns to the heart and the last act opens
+        var after = realPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
+        wardAt(end, after, r + 40.0);
+        String flag = System.getProperty(com.panda.promisedend.logic.AncientWard.ALL_GUARDIANS);
+        try {
+            System.clearProperty(com.panda.promisedend.logic.AncientWard.ALL_GUARDIANS);
+            com.panda.promisedend.logic.AncientWard.reset(server);
+            if (com.panda.promisedend.logic.AncientWard.guarded() != com.panda.promisedend.logic.AncientWard.GUARDED) bad.add("shipping: guarded " + com.panda.promisedend.logic.AncientWard.guarded());
+            if (com.panda.promisedend.logic.PearlGuide.seal(server) != 0) bad.add("shipping: a new world's pearl leads to seal " + com.panda.promisedend.logic.PearlGuide.seal(server) + ", not the Foundry's");
+            com.panda.promisedend.logic.AncientWard.breakSeal(server, 0);
+            if (!com.panda.promisedend.logic.AncientWard.binds(com.panda.promisedend.logic.AncientWard.broken(server), com.panda.promisedend.logic.AncientWard.guarded()))
+                bad.add("shipping: the Ward fell with only the Foundry's seal broken");
+            if (com.panda.promisedend.logic.PearlGuide.seal(server) != 1) bad.add("shipping: after the Foundry the pearl leads to seal " + com.panda.promisedend.logic.PearlGuide.seal(server) + ", not the Maw's");
+            for (int i = 0; i < 20; i++) {
+                after.tickCount++;
+                com.panda.promisedend.logic.AncientWard.tick(after);
+            }
+            if (after.getAdvancements().getOrStartProgress(down).isDone()) bad.add("shipping: rim/ward_down earned with one seal of two broken");
+            com.panda.promisedend.logic.AncientWard.breakSeal(server, 1);
+            if (com.panda.promisedend.logic.AncientWard.binds(com.panda.promisedend.logic.AncientWard.broken(server), com.panda.promisedend.logic.AncientWard.guarded()))
+                bad.add("shipping: the Ward stands with the Foundry's and the Maw's seals broken");
+            if (com.panda.promisedend.logic.PearlGuide.seal(server) != -1) bad.add("shipping: with the Ward down the pearl still leads to a seal");
+            for (int i = 0; i < 20; i++) {
+                after.tickCount++;
+                com.panda.promisedend.logic.AncientWard.tick(after);
+            }
+            if (!after.getAdvancements().getOrStartProgress(down).isDone()) bad.add("shipping: rim/ward_down not earned once the Maw's seal broke");
+        } finally {
+            if (flag != null) System.setProperty(com.panda.promisedend.logic.AncientWard.ALL_GUARDIANS, flag);
+        }
         com.panda.promisedend.logic.AncientWard.reset(server);
         server.getPlayerList().remove(before);
+        server.getPlayerList().remove(after);
         if (!bad.isEmpty()) helper.fail("ward by guardian: " + bad);
         helper.succeed();
     }

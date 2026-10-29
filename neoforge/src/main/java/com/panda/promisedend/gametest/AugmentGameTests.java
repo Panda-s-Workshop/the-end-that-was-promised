@@ -77,8 +77,9 @@ final class AugmentGameTests {
 
     /**
      * At a real smithing table, as a player uses it: the template slot takes Drift Weave, Echo Amber goes in the
-     * addition's, the woven elytra shows in the result, and taking it uses the three up and earns Act IV's "Second
-     * Wings" (`void/augment_elytra`); the Leviathan Fin the same on the woven one. No dragon is needed.
+     * addition's, the woven elytra shows in the result, and taking it uses the three up; the Leviathan Fin the same on
+     * the woven one, and only the Fin earns Act IV's "Second Wings" (`void/augment_elytra`: Drift Weave is Act II's
+     * materials). No dragon is needed.
      */
     static void smithingTableAwardsTheGoal(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -108,7 +109,8 @@ final class AugmentGameTests {
             menu.getSlot(net.minecraft.world.inventory.SmithingMenu.RESULT_SLOT).onTake(p, result);
             if (!menu.getSlot(net.minecraft.world.inventory.SmithingMenu.TEMPLATE_SLOT).getItem().isEmpty()) bad.add("taking it left the " + augment.getId());
             if (menu.getSlot(net.minecraft.world.inventory.SmithingMenu.ADDITIONAL_SLOT).getItem().getCount() != 1) bad.add("taking it didn't use one amber");
-            if (goal != null && !p.getAdvancements().getOrStartProgress(goal).isDone()) bad.add("taking it didn't earn Second Wings");
+            boolean earned = goal != null && p.getAdvancements().getOrStartProgress(goal).isDone();
+            if (earned != (augment == ModItems.LEVIATHAN_FIN)) bad.add("taking the " + augment.getId() + (earned ? " earned" : " didn't earn") + " Second Wings");
             menu.getSlot(net.minecraft.world.inventory.SmithingMenu.ADDITIONAL_SLOT).set(ItemStack.EMPTY);
         }
         if (Augments.of(elytra).list().size() != 2) bad.add("the table's elytra ends with " + Augments.of(elytra));

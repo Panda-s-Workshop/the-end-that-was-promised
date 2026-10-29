@@ -28,7 +28,7 @@ public final class StarfallSchedule {
 
     /** What the scheduler does on a tick with no fall on its way. */
     public enum Step {
-        /** Nothing: turned off, not yet due, or no player out in the outer End. */
+        /** Nothing: turned off, the Maw's seal not yet broken, not yet due, or no player out in the outer End. */
         IDLE,
         /** The first tick: set when the first fall is due. */
         PLAN,
@@ -39,12 +39,13 @@ public final class StarfallSchedule {
     }
 
     /**
-     * The step at {@code now}, given whether the Starfall is on, whether a player is out in the outer End, when the next
-     * fall is due (0 before the first plan), and the falls today against the day's cap. A fall that came due while no
-     * one was out comes as soon as someone is.
+     * The step at {@code now}, given whether the Starfall is on, whether its clock has started (the Maw's seal broken:
+     * stars fall from Act IV on), whether a player is out in the outer End, when the next fall is due (0 before the
+     * first plan), and the falls today against the day's cap. A fall that came due while no one was out comes as soon
+     * as someone is.
      */
-    public static Step step(boolean enabled, boolean outerPlayer, long nextAt, long now, int today, int cap) {
-        if (!enabled) return Step.IDLE;
+    public static Step step(boolean enabled, boolean started, boolean outerPlayer, long nextAt, long now, int today, int cap) {
+        if (!enabled || !started) return Step.IDLE;
         if (nextAt == 0) return Step.PLAN;
         if (now < nextAt || !outerPlayer) return Step.IDLE;
         return today >= cap ? Step.TOMORROW : Step.LOOK;

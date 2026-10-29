@@ -145,8 +145,8 @@ public class VoidLeviathan extends Monster implements GeoEntity {
     private int timer;
     private boolean second;
     private int restless;
-    /** Its breaches, and the players they struck, since it loaded (not saved): for the tests and the harness. */
-    private int breaches, struck;
+    /** Its breaches, the players they struck, and its draws, since it loaded (not saved): for the tests and the harness. */
+    private int breaches, struck, pulls;
     /** Whether this rear's draw has begun (its warning is said once a rear). */
     private boolean drawing;
     /** Everyone who struck it, for the advancement. */
@@ -247,6 +247,11 @@ public class VoidLeviathan extends Monster implements GeoEntity {
 
     public int struck() {
         return struck;
+    }
+
+    /** The ticks it drew at least one player in. */
+    public int pulls() {
+        return pulls;
     }
 
     /** Everyone who has struck it. */
@@ -426,7 +431,10 @@ public class VoidLeviathan extends Monster implements GeoEntity {
             any = true;
         }
         if (any && (!drawing || timer % (PULL_EVERY * 4) == 0)) playSound(ModSounds.VOID_LEVIATHAN_PULL.get(), 3.0F, 1.0F);
-        if (any) drawing = true;
+        if (any) {
+            drawing = true;
+            pulls++;
+        }
     }
 
     /**

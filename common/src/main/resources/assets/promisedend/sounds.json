@@ -579,6 +579,26 @@
       }
     ]
   },
+  "item.voidsteel.hold": {
+    "subtitle": "subtitles.promisedend.voidsteel.hold",
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.power_select",
+        "type": "event",
+        "pitch": 0.7
+      }
+    ]
+  },
+  "item.voidsteel.release": {
+    "subtitle": "subtitles.promisedend.voidsteel.release",
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.deactivate",
+        "type": "event",
+        "pitch": 0.8
+      }
+    ]
+  },
   "entity.resonant_bullet.return": {
     "subtitle": "subtitles.promisedend.resonant_bullet.return",
     "sounds": [

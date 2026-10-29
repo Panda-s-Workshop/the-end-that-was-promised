@@ -206,10 +206,12 @@ final class LeviathanGameTests {
                     lip.setOnGround(true);
                 }
                 if (v.state() == VoidLeviathan.State.SUBMERGED) {
-                    PromisedEnd.LOGGER.info("[leviathan_pairs_and_draws] reared, it shoved the player {} times (longest {}), the one in the air {}; the next breach in {}",
-                            shoves[0], String.format(java.util.Locale.ROOT, "%.3f", longest[0]), lifted[0], v.timer());
+                    PromisedEnd.LOGGER.info("[leviathan_pairs_and_draws] reared, it drew {} times, the player read {} shoves (longest {}), the one in the air {}; the next breach in {}",
+                            v.pulls(), shoves[0], String.format(java.util.Locale.ROOT, "%.3f", longest[0]), lifted[0], v.timer());
+                    // the count is the Leviathan's own: the player's side misses the first and the last (read only while EXPOSED)
                     int want = VoidLeviathan.EXPOSED_TICKS / VoidLeviathan.PULL_EVERY;
-                    if (Math.abs(shoves[0] - want) > 2) helper.fail(shoves[0] + " shoves in its four seconds, not " + want);
+                    if (Math.abs(v.pulls() - want) > 1) helper.fail(v.pulls() + " draws in its four seconds, not " + want);
+                    if (shoves[0] < want - 3) helper.fail("the player felt " + shoves[0] + " of its " + v.pulls() + " draws");
                     if (Math.abs(longest[0] - VoidLeviathan.PULL_SHOVE) > 0.05) helper.fail("a shove of " + longest[0] + ", not " + VoidLeviathan.PULL_SHOVE);
                     if (lifted[0] > 0) helper.fail("a player in the air was drawn " + lifted[0] + " times");
                     if (held[0] > 0) helper.fail("a player already at the lip was drawn " + held[0] + " times, toward the pool");

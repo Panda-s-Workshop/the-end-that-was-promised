@@ -1,14 +1,6 @@
 {
   "parent": "promisedend:void/defeat_leviathan",
   "criteria": {
-    "drift_weave": {
-      "trigger": "minecraft:recipe_crafted",
-      "conditions": {
-        "recipes": [
-          "promisedend:elytra_drift_weave"
-        ]
-      }
-    },
     "leviathan_fin": {
       "trigger": "minecraft:recipe_crafted",
       "conditions": {
@@ -35,7 +27,6 @@
   },
   "requirements": [
     [
-      "drift_weave",
       "leviathan_fin"
     ]
   ],

@@ -397,26 +397,47 @@ final class SentinelGameTests {
         int spacing = placement.spacing(), reach = com.panda.promisedend.logic.PearlGuide.SEARCH;
         long previous = EndBiomes.seed();
         List<String> bad = new ArrayList<>(), report = new ArrayList<>();
+        // the biome at the middle of each nearest one as it would generate (the start chunk's middle is not the
+        // structure's): how many of them stand in a biome the structure is meant for
+        var structure = set.value().structures().getFirst().structure();
+        java.util.Map<String, Integer> middles = new java.util.TreeMap<>();
+        int[] allowedMiddles = {0, 0};
         try {
             for (long seed = 1; seed <= 16; seed++) {
                 EndBiomes.setSeed(seed);
                 RandomState random = RandomState.create(access.lookupOrThrow(Registries.NOISE), seed, noise.generatorSettings().value());
                 BiomeResolver biomes = generator.getBiomeSource().createUncachedResolver(random);
                 int worst = 0;
+                Set<net.minecraft.world.level.ChunkPos> seen = new HashSet<>();
                 for (int k = 0; k < 8; k++) {
                     double a = Math.PI / 4 * k;
                     int px = (int) (1500 * Math.cos(a)) >> 4, pz = (int) (1500 * Math.sin(a)) >> 4;
                     int nearest = Integer.MAX_VALUE;
+                    net.minecraft.world.level.ChunkPos best = null;
                     for (int gx = Math.floorDiv(px - reach, spacing); gx <= Math.floorDiv(px + reach, spacing); gx++) {
                         for (int gz = Math.floorDiv(pz - reach, spacing); gz <= Math.floorDiv(pz + reach, spacing); gz++) {
                             var chunk = placement.getPotentialStructureChunk(seed, gx * spacing, gz * spacing);
                             int d = (int) Math.hypot(chunk.x() - px, chunk.z() - pz);
                             if (d > reach || d >= nearest) continue;
-                            if (allowed.contains(biomes.getNoiseBiome((chunk.getMinBlockX() + 8) >> 2, 62 >> 2, (chunk.getMinBlockZ() + 8) >> 2))) nearest = d;
+                            if (allowed.contains(biomes.getNoiseBiome((chunk.getMinBlockX() + 8) >> 2, 62 >> 2, (chunk.getMinBlockZ() + 8) >> 2))) {
+                                nearest = d;
+                                best = chunk;
+                            }
                         }
                     }
                     if (nearest == Integer.MAX_VALUE) bad.add("seed " + seed + ": none within reach of the point " + (px * 16) + ", " + (pz * 16));
                     else worst = Math.max(worst, nearest * 16);
+                    if (best != null && seen.add(best)) {
+                        var start = structure.value().generate(structure, net.minecraft.world.level.Level.END, access, generator, generator.getBiomeSource(),
+                                random.createClimateSampler(net.minecraft.world.level.levelgen.densityfunction.SamplerContext.EMPTY_UNCACHED), random, helper.getLevel().getServer().getStructureTemplateManager(), seed, best, 0, helper.getLevel(), allowed::contains);
+                        if (start.isValid()) {
+                            var middle = start.getBoundingBox().getCenter();
+                            var at = biomes.getNoiseBiome(middle.getX() >> 2, middle.getY() >> 2, middle.getZ() >> 2);
+                            middles.merge(at.unwrapKey().map(key -> key.identifier().getPath()).orElse("?"), 1, Integer::sum);
+                            allowedMiddles[1]++;
+                            if (allowed.contains(at)) allowedMiddles[0]++;
+                        }
+                    }
                 }
                 report.add(seed + ":" + worst);
             }
@@ -424,6 +445,9 @@ final class SentinelGameTests {
             EndBiomes.setSeed(previous);
         }
         PromisedEnd.LOGGER.info("[{}] the farthest nearest {} from a point 1500 out, per seed (blocks): {}", test, name, report);
+        PromisedEnd.LOGGER.info("[{}] the biome at the middle of the nearest ones: {} of {} in its own biomes; {}", test, allowedMiddles[0], allowedMiddles[1], middles);
+        if (allowedMiddles[1] == 0 || allowedMiddles[0] * 5 < allowedMiddles[1] * 4)
+            bad.add("only " + allowedMiddles[0] + " of " + allowedMiddles[1] + " stand in their own biomes at their middle: " + middles);
         if (!bad.isEmpty()) helper.fail(name + " out of a pearl's reach: " + bad);
         helper.succeed();
     }

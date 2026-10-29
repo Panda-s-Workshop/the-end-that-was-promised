@@ -59,6 +59,11 @@ public final class Starfall {
 
     private Starfall() {}
 
+    /** Whether the Starfall's clock has started: the Maw's seal broken, so stars fall from Act IV on. */
+    public static boolean started(MinecraftServer server) {
+        return (AncientWard.broken(server) & 1 << AncientWard.SEALS.indexOf("maw")) != 0;
+    }
+
     /** At the end of every server tick. */
     public static void tick(MinecraftServer server) {
         ServerLevel end = server.getLevel(Level.END);
@@ -81,7 +86,7 @@ public final class Starfall {
         for (ServerPlayer p : end.players()) if (!p.isSpectator() && StarfallSchedule.outer(p.getX(), p.getZ())) out.add(p);
         long day = now / StarfallSchedule.DAY;
         int today = StarfallSchedule.today(now, s.day, s.today);
-        switch (StarfallSchedule.step(EndConfig.starfallEnabled(), !out.isEmpty(), s.nextAt, now, today, EndConfig.starfallMaxPerDay())) {
+        switch (StarfallSchedule.step(EndConfig.starfallEnabled(), started(server), !out.isEmpty(), s.nextAt, now, today, EndConfig.starfallMaxPerDay())) {
             case IDLE -> {
                 return;
             }
@@ -271,12 +276,14 @@ public final class Starfall {
         core.setUnlimitedLifetime();
         core.setGlowingTag(true);
         level.addFreshEntity(core);
-        // what stood in it is thrown clear
-        for (Entity e : level.getEntities((Entity) null, new AABB(at).inflate(radius + 2), e -> !(e instanceof ItemEntity))) {
+        // what stood in it is thrown clear (a player's own client moves only with syncVelocity), its fall forgotten
+        for (Entity e : level.getEntities((Entity) null, new AABB(at).inflate(radius + 2), e -> !(e instanceof ItemEntity) && !e.isSpectator())) {
             Vec3 away = e.position().subtract(x, at.getY(), z);
             Vec3 push = away.horizontalDistanceSqr() < 1e-4 ? new Vec3(0, 1, 0) : away.normalize().add(0, 0.6, 0);
             e.setDeltaMovement(e.getDeltaMovement().add(push.scale(1.2)));
+            e.resetFallDistance();
             e.needsSync = true;
+            if (e instanceof ServerPlayer) e.syncVelocity = true;
         }
         PromisedEnd.LOGGER.info("A star fell at {}: a crater of {}, {} Starmetal Ore", at.toShortString(), radius, ores);
     }
