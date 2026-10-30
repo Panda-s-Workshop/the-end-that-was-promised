@@ -181,6 +181,7 @@ public final class EndGameTests {
         FUNCTIONS.register("augment_applies_in_smithing", () -> AugmentGameTests::appliesInSmithing);
         FUNCTIONS.register("augment_drift_weave_reduces_wear", () -> AugmentGameTests::driftWeaveReducesWear);
         FUNCTIONS.register("augment_smithing_table_awards_the_goal", () -> AugmentGameTests::smithingTableAwardsTheGoal);
+        FUNCTIONS.register("augment_fin_and_set_stack_lift", () -> AugmentGameTests::finAndSetStackLift);
         FUNCTIONS.register("starfall_crater_respects_tag", () -> StarfallGameTests::craterRespectsTag);
         FUNCTIONS.register("crawler_only_tears_lattice", () -> LatticeGameTests::crawlerOnlyTearsLattice);
         FUNCTIONS.register("phantom_lattice_reforms", () -> LatticeGameTests::phantomLatticeReforms);

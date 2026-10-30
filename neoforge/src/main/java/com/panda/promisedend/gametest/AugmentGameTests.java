@@ -82,6 +82,37 @@ final class AugmentGameTests {
     }
 
     /**
+     * What an updraft's lift is multiplied by (the set's share plus the Fin's): a plain glider 1, the full Voidsteel set
+     * 1.5, three pieces and a Fin elytra (which counts as the chestplate) 2 while gliding and 1.5 standing.
+     */
+    static void finAndSetStackLift(GameTestHelper helper) {
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        List<String> bad = new ArrayList<>();
+        java.util.function.Function<String, Double> lift = what -> {
+            double m = com.panda.promisedend.item.VoidTouched.lift(p) + Augments.lift(p);
+            PromisedEnd.LOGGER.info("[augment_fin_and_set_stack_lift] {}: {}", what, m);
+            return m;
+        };
+        p.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.ELYTRA));
+        p.startFallFlying();
+        if (lift.apply("plain elytra, gliding") != 1.0) bad.add("a plain glider's lift isn't 1");
+        p.setItemSlot(EquipmentSlot.HEAD, new ItemStack(ModItems.VOIDSTEEL_HELMET.get()));
+        p.setItemSlot(EquipmentSlot.CHEST, new ItemStack(ModItems.VOIDSTEEL_CHESTPLATE.get()));
+        p.setItemSlot(EquipmentSlot.LEGS, new ItemStack(ModItems.VOIDSTEEL_LEGGINGS.get()));
+        p.setItemSlot(EquipmentSlot.FEET, new ItemStack(ModItems.VOIDSTEEL_BOOTS.get()));
+        p.stopFallFlying();
+        if (lift.apply("full set") != 1.5) bad.add("the full set's lift isn't 1.5");
+        p.setItemSlot(EquipmentSlot.CHEST, Augments.apply(new ItemStack(Items.ELYTRA), Augments.LEVIATHAN_FIN));
+        if (lift.apply("three pieces and a Fin elytra, standing") != 1.5) bad.add("the set with a Fin elytra, standing, isn't 1.5");
+        p.startFallFlying();
+        if (!p.isFallFlying()) bad.add("the player didn't start gliding");
+        if (lift.apply("three pieces and a Fin elytra, gliding") != 2.0) bad.add("the set and the Fin, gliding, don't stack to 2");
+        helper.getLevel().getServer().getPlayerList().remove(p);
+        if (!bad.isEmpty()) helper.fail("fin and set lift: " + bad);
+        else helper.succeed();
+    }
+
+    /**
      * At a real smithing table, as a player uses it: the template slot takes Drift Weave, Echo Amber goes in the
      * addition's, the woven elytra shows in the result, and taking it uses the three up; the Leviathan Fin the same on
      * the woven one, and only the Fin earns Act IV's "Second Wings" (`void/augment_elytra`: Drift Weave is Act II's
