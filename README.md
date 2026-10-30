@@ -3,10 +3,10 @@
 [![Build](https://github.com/Panda-s-Workshop/the-end-that-was-promised/actions/workflows/build.yml/badge.svg)](https://github.com/Panda-s-Workshop/the-end-that-was-promised/actions/workflows/build.yml)
 
 A Minecraft 26.3 mod for NeoForge (26.3.0.97) and Fabric (Fabric API 0.165.0), Java 25, with GeckoLib 5.5.7 on both.
-**In development.** The store page link will go here at release.
+**[Website](https://panda-s-workshop.github.io/the-end-that-was-promised/)**. The store page link will go here at release.
 
 Step through the portal into a living End, not a boss room. The **Ancients** built the End Cities and left the
-dimension half finished. Cross a living outer End of eight new biomes, wake their constructs, break the three seals
+dimension half finished. Cross a living outer End of thirteen new biomes, wake their constructs, break the three seals
 their guardians keep, and end it with the dragon.
 
 ## Build and run
