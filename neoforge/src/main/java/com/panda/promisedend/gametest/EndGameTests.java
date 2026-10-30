@@ -4917,7 +4917,9 @@ public final class EndGameTests {
 
     /**
      * In an anvil one Dragon Scale repairs half an elytra's durability and two repair the rest; phantom membrane still
-     * repairs a quarter (vanilla), and a scale repairs nothing outside its tag (a damaged diamond sword).
+     * repairs a quarter (vanilla), and a scale repairs nothing outside its tag (a damaged diamond sword). A scale's repair
+     * keeps the elytra's prior-work cost (3 stays 3) where the membrane's raises it (to 7), and a second elytra merged in
+     * the same anvil after a scale's repair raises it as vanilla's does.
      */
     private static void dragonScaleRepairsElytra(GameTestHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
@@ -4942,6 +4944,20 @@ public final class EndGameTests {
         ItemStack sword = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
         sword.setDamageValue(400);
         if (!anvil.apply(sword, new ItemStack(scale, 1)).isEmpty()) bad.add("a scale repairs a diamond sword");
+        var worked = elytra.copy();
+        worked.set(net.minecraft.core.component.DataComponents.REPAIR_COST, 3);
+        int kept = anvil.apply(worked.copy(), new ItemStack(scale, 1)).getOrDefault(net.minecraft.core.component.DataComponents.REPAIR_COST, -1);
+        if (kept != 3) bad.add("a scale's repair left the prior-work cost " + kept + ", wanted 3");
+        int raised = anvil.apply(worked.copy(), new ItemStack(net.minecraft.world.item.Items.PHANTOM_MEMBRANE, 1)).getOrDefault(net.minecraft.core.component.DataComponents.REPAIR_COST, -1);
+        if (raised != 7) bad.add("the membrane's repair left the prior-work cost " + raised + ", wanted 7");
+        var menu = new net.minecraft.world.inventory.AnvilMenu(0, player.getInventory());
+        menu.getSlot(0).set(worked.copy());
+        menu.getSlot(1).set(new ItemStack(scale, 1));
+        menu.createResult();
+        menu.getSlot(1).set(elytra.copy());
+        menu.createResult();
+        int merged = menu.getSlot(2).getItem().getOrDefault(net.minecraft.core.component.DataComponents.REPAIR_COST, -1);
+        if (merged != 7) bad.add("an elytra merged after a scale's repair left the prior-work cost " + merged + ", wanted 7");
         if (!bad.isEmpty()) helper.fail("scale repair: " + bad);
         helper.succeed();
     }
