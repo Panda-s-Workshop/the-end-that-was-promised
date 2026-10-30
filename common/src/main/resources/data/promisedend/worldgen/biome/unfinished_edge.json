@@ -20,7 +20,8 @@
       },
       "modifier": "overlay"
     },
-    "minecraft:visual/fog_color": "#0e1220",
+    "minecraft:visual/fog_color": "#121019",
+    "minecraft:visual/ambient_light_color": "#46404e",
     "minecraft:visual/ambient_particles": {
       "argument": [
         {
