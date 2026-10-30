@@ -542,9 +542,12 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         var defeated = level.getServer().getAdvancements().get(DEFEATED);
         for (ServerPlayer p : rewarded) {
             if (defeated != null) p.getAdvancements().award(defeated, "defeated");
-            // and the way on: a chart to the nearest Unfinished Citadel, where the third seal is kept
+            // and the way on: a chart to the nearest Unfinished Citadel, where the third seal is kept; and a Leviathan
+            // Fin each, the augment (it can't be copied, so a group's every glider gets one)
             net.minecraft.world.item.ItemStack chart = com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_citadel_charts"));
-            if (!p.getInventory().add(chart)) p.spawnAtLocation(level, chart);
+            for (net.minecraft.world.item.ItemStack reward : List.of(chart, new net.minecraft.world.item.ItemStack(ModItems.LEVIATHAN_FIN.get()))) {
+                if (!p.getInventory().add(reward)) p.spawnAtLocation(level, reward);
+            }
         }
     }
 

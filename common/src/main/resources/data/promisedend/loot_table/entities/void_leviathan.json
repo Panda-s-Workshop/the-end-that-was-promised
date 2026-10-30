@@ -50,15 +50,6 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "promisedend:leviathan_fin"
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
           "name": "promisedend:leviathan_scale",
           "modifier": {
             "type": "minecraft:set_count",

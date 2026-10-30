@@ -296,9 +296,9 @@ final class LeviathanGameTests {
     }
 
     /**
-     * Its death breaks the Maw's seal (and with every guardian in, the Ward still stands on the third), gives the
-     * player beside it the advancement and a Star Chart to the Unfinished Citadel, and drops 6 to 10 Voidsteel Scrap
-     * and 2 Leviathan Scales.
+     * Its death breaks the Maw's seal (and with every guardian in, the Ward still stands on the third), gives each of
+     * the two players beside it the advancement, a Star Chart to the Unfinished Citadel and a Leviathan Fin, and drops
+     * 6 to 10 Voidsteel Scrap, one Voidsteel template, 2 Leviathan Scales and no Fin.
      */
     static void deathBreaksSeal(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -306,8 +306,9 @@ final class LeviathanGameTests {
         AncientWard.reset(server);
         Runnable release = hold(helper, 20);
         VoidLeviathan v = spawn(helper, false);
-        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL), second = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
         p.snapTo(v.getX() + 4, v.getY(), v.getZ(), 0, 0);
+        second.snapTo(v.getX() - 4, v.getY(), v.getZ(), 0, 0);
         v.wake();
         v.hurtServer(level, level.damageSources().genericKill(), Float.MAX_VALUE);
         List<String> bad = new ArrayList<>();
@@ -319,6 +320,10 @@ final class LeviathanGameTests {
         for (var stack : p.getInventory().getNonEquipmentItems()) chart |= stack.is(ModItems.STAR_CHART.get())
                 && PromisedEnd.id("on_citadel_charts").equals(stack.get(com.panda.promisedend.registry.ModComponents.STAR_CHART.get()));
         if (!chart) bad.add("no Star Chart to the Citadel given");
+        for (ServerPlayer who : List.of(p, second)) {
+            int fin = who.getInventory().countItem(ModItems.LEVIATHAN_FIN.get());
+            if (fin != 1) bad.add((who == p ? "the first" : "the second") + " fighter was given " + fin + " Fins, not 1");
+        }
         helper.runAfterDelay(2, () -> {
             // anywhere about the pool: it was carried to the lip
             int scrap = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
@@ -330,7 +335,7 @@ final class LeviathanGameTests {
             if (templates != 1) bad.add(templates + " Voidsteel templates dropped, not 1");
             int fins = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
                     .filter(i -> i.getItem().is(ModItems.LEVIATHAN_FIN.get())).mapToInt(i -> i.getItem().getCount()).sum();
-            if (fins != 1) bad.add(fins + " Leviathan Fins dropped, not 1");
+            if (fins != 0) bad.add(fins + " Leviathan Fins dropped, not 0 (each fighter is given one)");
             // one ingot's Starmetal each kill, with the Starfall on or off
             int starmetal = level.getEntitiesOfClass(ItemEntity.class, v.getBoundingBox().inflate(VoidLeviathan.POOL + 6)).stream()
                     .filter(i -> i.getItem().is(ModItems.STARMETAL.get())).mapToInt(i -> i.getItem().getCount()).sum();
@@ -343,6 +348,7 @@ final class LeviathanGameTests {
             if (there == 0) bad.add("nothing it dropped was carried to the lip at " + lip);
             AncientWard.reset(server);
             server.getPlayerList().remove(p);
+            server.getPlayerList().remove(second);
             release.run();
             if (!bad.isEmpty()) helper.fail("leviathan death: " + bad);
             helper.succeed();
