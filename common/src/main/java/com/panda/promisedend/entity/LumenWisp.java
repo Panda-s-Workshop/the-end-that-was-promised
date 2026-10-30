@@ -119,11 +119,15 @@ public class LumenWisp extends PathfinderMob implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        Constructs.meet(this, "lumen_wisp");
         if (home == null) home = blockPosition();
         if (following != null && this.tickCount % TRAIL_EVERY == 0) {
             // a light it hangs where one already burns only burns longer: count the new ones
             boolean fresh = level.getBlockState(blockPosition()).isAir();
-            if (WispLightBlock.place(level, blockPosition(), TRAIL_TICKS) && fresh) lit++;
+            if (WispLightBlock.place(level, blockPosition(), TRAIL_TICKS) && fresh) {
+                lit++;
+                Constructs.award(following, com.panda.promisedend.logic.CodexBook.WISP_LIGHT, "lit");
+            }
         }
     }
 

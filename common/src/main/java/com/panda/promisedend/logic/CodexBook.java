@@ -13,7 +13,8 @@ import net.minecraft.resources.Identifier;
  * goals come with the Void's gear and the Edge.
  *
  * <p>The book also holds the Ancient Tablets' pages: {@link #PAGES} of them, read in order, one a tablet, each an
- * advancement of its own (hidden until read), so the screen shows the read ones the same way.
+ * advancement of its own (hidden until read), so the screen shows the read ones the same way. And it has a page for
+ * each of the Ancients' constructs, written in when it is first met: its name and its one rule.
  */
 public final class CodexBook {
     public record Goal(Identifier advancement, String key) {
@@ -103,6 +104,30 @@ public final class CodexBook {
             new Act("heart", WARD_DOWN, List.of(
                     new Goal(PromisedEnd.id("rim/enter_rim"), "enter_rim"),
                     new Goal(KILL_DRAGON, "kill_dragon"))));
+
+    /**
+     * A construct's page: written in when it is first met (its advancement, hidden until then, entity.Constructs#meet),
+     * its name the entity's and its one rule a line.
+     */
+    public record Construct(String key, Identifier met) {
+        public String name() {
+            return "entity.promisedend." + key;
+        }
+
+        public String rule() {
+            return "codex.promisedend.construct." + key;
+        }
+    }
+
+    /** In the order a player meets them: the dragon's, the outer lands', the Edge's. */
+    public static final List<Construct> CONSTRUCTS = java.util.stream.Stream.of("crystal_warden", "purpur_sentry", "rift_stalker",
+            "chorus_weaver", "lumen_wisp", "lattice_crawler").map(k -> new Construct(k, PromisedEnd.id("outer/met/" + k))).toList();
+
+    /** Each construct's rule, learned by doing it: a stare holds a Stalker, a blow round a raised shield lands, a Weaver wakes, a Wisp lights the way. */
+    public static final Identifier FREEZE_STALKER = PromisedEnd.id("outer/freeze_stalker");
+    public static final Identifier FLANK_SENTRY = PromisedEnd.id("outer/flank_sentry");
+    public static final Identifier WAKE_WEAVER = PromisedEnd.id("outer/wake_weaver");
+    public static final Identifier WISP_LIGHT = PromisedEnd.id("outer/wisp_light");
 
     /** The advancement the Void Anchor awards when it pulls its owner back. */
     public static final Identifier SAVED_BY_ANCHOR = PromisedEnd.id("rim/saved_by_anchor");

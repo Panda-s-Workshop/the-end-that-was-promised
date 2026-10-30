@@ -168,11 +168,12 @@ public class RiftStalker extends Monster implements GeoEntity {
         return view.dot(to.scale(1 / d)) > 1.0 - STARE_TOLERANCE / d && player.hasLineOfSight(this);
     }
 
-    private boolean stared(ServerLevel level) {
+    /** A player whose stare holds it now, or null. */
+    private @Nullable Player starer(ServerLevel level) {
         for (Player p : level.players()) {
-            if (staredAtBy(p)) return true;
+            if (staredAtBy(p)) return p;
         }
-        return false;
+        return null;
     }
 
     @Override
@@ -193,8 +194,10 @@ public class RiftStalker extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        Constructs.meet(this, "rift_stalker");
         if (shaken > 0) shaken--;
-        boolean stared = shaken <= 0 && stared(level);
+        Player starer = shaken <= 0 ? starer(level) : null;
+        boolean stared = starer != null;
         if (stared) this.unseen = 0;
         if (stared || state() == State.FROZEN && ++unseen < FREEZE_HOLD) {
             if (state() != State.FROZEN) {
@@ -202,6 +205,7 @@ public class RiftStalker extends Monster implements GeoEntity {
                 if (state() != State.HUNT) this.blinkIn = BLINK_EVERY;
                 setState(State.FROZEN);
                 playSound(ModSounds.RIFT_STALKER_FREEZE.get(), 1.0F, 1.0F);
+                Constructs.award(starer, com.panda.promisedend.logic.CodexBook.FREEZE_STALKER, "froze");
             }
             getNavigation().stop();
             setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));

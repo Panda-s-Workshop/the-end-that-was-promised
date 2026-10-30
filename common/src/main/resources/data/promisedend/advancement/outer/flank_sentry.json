@@ -1,0 +1,29 @@
+{
+  "parent": "promisedend:outer/enter_outer",
+  "criteria": {
+    "flanked": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:ancient_purpur_scrap"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.flank_sentry.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.flank_sentry.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "flanked"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

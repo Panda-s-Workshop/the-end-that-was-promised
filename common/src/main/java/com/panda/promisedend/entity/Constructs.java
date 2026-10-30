@@ -54,6 +54,29 @@ public final class Constructs {
         return level.getEntitiesOfClass(kind, new net.minecraft.world.phys.AABB(pos).inflate(32)).size() < cap;
     }
 
+    /** A player this near who can see a construct has met it. */
+    public static final int MEET_RANGE = 16;
+
+    /**
+     * Each second, every player within {@link #MEET_RANGE} who can see {@code construct} has met it: its page in the
+     * Codex ({@code outer/met/<key>}). Call from the construct's server tick.
+     */
+    public static void meet(LivingEntity construct, String key) {
+        if (construct.tickCount % 20 != 0 || !(construct.level() instanceof ServerLevel level)) return;
+        var met = level.getServer().getAdvancements().get(com.panda.promisedend.PromisedEnd.id("outer/met/" + key));
+        if (met == null) return;
+        for (var p : level.players()) {
+            if (!p.isSpectator() && p.distanceToSqr(construct) <= MEET_RANGE * MEET_RANGE && p.hasLineOfSight(construct)) p.getAdvancements().award(met, "met");
+        }
+    }
+
+    /** Awards {@code who}, if a player, the advancement {@code id}'s {@code criterion}: a construct's rule learned. */
+    public static void award(@org.jspecify.annotations.Nullable Entity who, net.minecraft.resources.Identifier id, String criterion) {
+        if (!(who instanceof net.minecraft.server.level.ServerPlayer p)) return;
+        var holder = p.level().getServer().getAdvancements().get(id);
+        if (holder != null) p.getAdvancements().award(holder, criterion);
+    }
+
     /**
      * Breaks {@code construct} into shards of its materials, an end-rod glint among them, and removes it at once (its
      * loot and xp have dropped by then). Call from {@code tickDeath}.

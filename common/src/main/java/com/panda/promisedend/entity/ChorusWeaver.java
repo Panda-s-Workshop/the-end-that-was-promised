@@ -194,6 +194,8 @@ public class ChorusWeaver extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        // met once it wakes: a plant isn't a construct to whoever walks past
+        if (!disguised()) Constructs.meet(this, "chorus_weaver");
         LivingEntity target = getTarget();
         switch (state()) {
             case DISGUISED -> {
@@ -205,6 +207,7 @@ public class ChorusWeaver extends Monster implements GeoEntity {
                 if (near != null) {
                     setTarget(near);
                     reveal();
+                    Constructs.award(near, com.panda.promisedend.logic.CodexBook.WAKE_WEAVER, "woke");
                 }
             }
             case REVEAL -> {

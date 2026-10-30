@@ -1,0 +1,29 @@
+{
+  "parent": "promisedend:outer/visit_voidscar_wastes",
+  "criteria": {
+    "froze": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:rift_dust"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.freeze_stalker.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.freeze_stalker.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "froze"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

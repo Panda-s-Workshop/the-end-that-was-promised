@@ -188,6 +188,7 @@ public class LatticeCrawler extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        Constructs.meet(this, "lattice_crawler");
         LivingEntity target = getTarget();
         switch (state()) {
             case HUNT -> {

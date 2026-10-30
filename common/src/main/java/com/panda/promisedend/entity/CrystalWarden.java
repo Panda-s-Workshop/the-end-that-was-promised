@@ -272,6 +272,7 @@ public class CrystalWarden extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        Constructs.meet(this, "crystal_warden");
         if (home == null) home = blockPosition();
         // the call ends with the dragon: its wardens break with it
         if (dragonId != null && dragonGone(level)) {

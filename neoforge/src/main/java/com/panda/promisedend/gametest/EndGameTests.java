@@ -141,6 +141,7 @@ public final class EndGameTests {
         FUNCTIONS.register("updraft_landing_safe", () -> EndGameTests::updraftLandingSafe);
         FUNCTIONS.register("current_carries_entity", () -> EndGameTests::currentCarriesEntity);
         FUNCTIONS.register("chorus_weaver_lashes", () -> EndGameTests::chorusWeaverLashes);
+        FUNCTIONS.register("chorus_weaver_meets_its_waker", () -> EndGameTests::chorusWeaverMeetsItsWaker);
         FUNCTIONS.register("lumen_wisp_lights_the_way", () -> EndGameTests::lumenWispLightsTheWay);
         FUNCTIONS.register("rift_stalker_blinks_and_freezes", () -> EndGameTests::riftStalkerBlinksAndFreezes);
         FUNCTIONS.register("purpur_sentry_shields_and_lunges", () -> EndGameTests::purpurSentryShieldsAndLunges);
@@ -203,7 +204,7 @@ public final class EndGameTests {
             java.util.Map.entry("dragon_drops_scales", 240), java.util.Map.entry("void_water_slows", 160),
             java.util.Map.entry("dragon_phase3_triggers", 460), java.util.Map.entry("updraft_lifts_entity", 360),
             java.util.Map.entry("echo_amber_flares", 180), java.util.Map.entry("cave_dark_held_off", 200), java.util.Map.entry("drift_islet_blocked_turns", 160), java.util.Map.entry("drift_islet_headroom_turns", 160), java.util.Map.entry("current_carries_entity", 560),
-            java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("lumen_wisp_lights_the_way", 460),
+            java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("chorus_weaver_meets_its_waker", 140), java.util.Map.entry("lumen_wisp_lights_the_way", 460),
             java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("constructs_edges_walls_and_swarms", 200), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260),
             java.util.Map.entry("sentinel_opens_after_three_returns", 260), java.util.Map.entry("sentinel_wakes_for_survival", 100),
             java.util.Map.entry("sentinel_volleys_never_crack_itself", 260), java.util.Map.entry("sentinel_opens_onto_its_rest", 260),
@@ -5398,6 +5399,17 @@ public final class EndGameTests {
             if (page == null || page.value().display().isEmpty()) bad.add("page " + n + " missing or without a display");
             else if (!page.value().display().get().hidden()) bad.add("page " + n + " isn't hidden");
         }
+        // the constructs' pages: each met advancement hidden and quiet; each rule's there with a display
+        for (var c : com.panda.promisedend.logic.CodexBook.CONSTRUCTS) {
+            var met = advancements.get(c.met());
+            if (met == null || met.value().display().isEmpty()) bad.add(c.key() + "'s page missing or without a display");
+            else if (!met.value().display().get().hidden() || met.value().display().get().showToast()) bad.add(c.key() + "'s page isn't hidden and quiet");
+        }
+        for (var rule : List.of(com.panda.promisedend.logic.CodexBook.FREEZE_STALKER, com.panda.promisedend.logic.CodexBook.FLANK_SENTRY,
+                com.panda.promisedend.logic.CodexBook.WAKE_WEAVER, com.panda.promisedend.logic.CodexBook.WISP_LIGHT)) {
+            var holder = advancements.get(rule);
+            if (holder == null || holder.value().display().isEmpty()) bad.add("the rule " + rule + " missing or without a display");
+        }
         if (!bad.isEmpty()) helper.fail("Codex goals: " + bad);
         helper.succeed();
     }
@@ -6536,6 +6548,48 @@ public final class EndGameTests {
      * wakes at once; set on a pig 5.5 off, it throws its vine: when the vine lands the pig has Slowness IV for 2 s and
      * is pulled towards the weaver. With the pig gone, it roots again as a plant after its 200 ticks alone.
      */
+    /**
+     * A survival player 3 off a hidden Chorus Weaver wakes it and is awarded its rule; within the next second, awake, it is
+     * met (its Codex page). A player never met one before.
+     */
+    private static void chorusWeaverMeetsItsWaker(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 1, 1));
+        var weaver = helper.spawn(com.panda.promisedend.registry.ModEntities.CHORUS_WEAVER.get(), new BlockPos(1, 1, 1));
+        var player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        player.snapTo(weaver.getX() + 3, weaver.getY(), weaver.getZ(), 90, 0);
+        var met = com.panda.promisedend.logic.CodexBook.CONSTRUCTS.stream().filter(c -> c.key().equals("chorus_weaver")).findFirst().orElseThrow().met();
+        if (has(player, met) || has(player, com.panda.promisedend.logic.CodexBook.WAKE_WEAVER)) helper.fail("a new player had the weaver's page or rule");
+        int[] began = {-1}, woke = {-1};
+        for (int t = 1; t <= 120; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                if (began[0] < 0) {
+                    if (level.isPositionEntityTicking(at)) began[0] = tick;
+                    else if (tick == 60) helper.fail("the arena's chunk wasn't entity-ticking by tick 60");
+                    return;
+                }
+                int in = tick - began[0];
+                if (woke[0] < 0 && !weaver.disguised()) {
+                    woke[0] = in;
+                    if (!has(player, com.panda.promisedend.logic.CodexBook.WAKE_WEAVER)) helper.fail("the player who woke the weaver wasn't awarded its rule");
+                }
+                if (woke[0] < 0 && in == 20) helper.fail("a survival player 3 off didn't wake the weaver in 20 ticks");
+                if (woke[0] >= 0 && in - woke[0] > 21) {
+                    if (has(player, met)) helper.succeed();
+                    else helper.fail("awake and in sight 3 off for a second, the weaver wasn't met");
+                }
+            });
+        }
+    }
+
+    /** Whether {@code player} has the advancement {@code id}. */
+    private static boolean has(net.minecraft.server.level.ServerPlayer player, net.minecraft.resources.Identifier id) {
+        var holder = player.level().getServer().getAdvancements().get(id);
+        return holder != null && player.getAdvancements().getOrStartProgress(holder).isDone();
+    }
+
     private static void chorusWeaverLashes(GameTestHelper helper) {
         var level = helper.getLevel();
         BlockPos at = helper.absolutePos(new BlockPos(1, 1, 1));
@@ -6664,6 +6718,11 @@ public final class EndGameTests {
                     PromisedEnd.LOGGER.info("[purpur_sentry_shields_and_lunges] shield up: a blow from in front stopped, one from behind took {}",
                             String.format("%.2f", health[0] - sentry.getHealth()));
                     if (sentry.getHealth() >= health[0]) helper.fail("a blow from behind didn't land on the shielded sentry");
+                    var flanker = helper.makeMockServerPlayerInLevel();
+                    flanker.snapTo(sentry.getX(), sentry.getY(), sentry.getZ() - 3, 0, 0);
+                    sentry.hurtServer(level, level.damageSources().playerAttack(flanker), 6.0F);
+                    if (!has(flanker, com.panda.promisedend.logic.CodexBook.FLANK_SENTRY)) helper.fail("a player's blow from behind the shield didn't earn its rule");
+                    flanker.discard();
                 }
                 if (up == 10) {
                     // round to its side (east of it)
@@ -6765,6 +6824,7 @@ public final class EndGameTests {
                 var state = stalker.state();
                 if (in == 3) {
                     if (state != com.panda.promisedend.entity.RiftStalker.State.FROZEN) helper.fail("a player looking straight at the stalker didn't freeze it: " + state);
+                    if (!has(player, com.panda.promisedend.logic.CodexBook.FREEZE_STALKER)) helper.fail("the player whose stare froze the stalker wasn't awarded its rule");
                     held[0] = stalker.position();
                     frozenBlinkIn[0] = stalker.blinkIn();
                 }
@@ -6890,6 +6950,7 @@ public final class EndGameTests {
                         }
                     }
                     if (light[0] == null) helper.fail("the wisp counts a light it left, but there is none in the arena");
+                    if (!has(player, com.panda.promisedend.logic.CodexBook.WISP_LIGHT)) helper.fail("the player the wisp lit for wasn't awarded its rule");
                 }
                 if (near[0] < 0 && wisp.distanceTo(player) < 4.0) {
                     near[0] = in;

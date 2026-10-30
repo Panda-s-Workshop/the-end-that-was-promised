@@ -1,0 +1,29 @@
+{
+  "parent": "promisedend:rim/root",
+  "criteria": {
+    "met": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:crystal_fragment"
+    },
+    "title": {
+      "translate": "advancements.promisedend.outer.met.crystal_warden.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.outer.met.crystal_warden.description"
+    },
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "hidden": true
+  },
+  "requirements": [
+    [
+      "met"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

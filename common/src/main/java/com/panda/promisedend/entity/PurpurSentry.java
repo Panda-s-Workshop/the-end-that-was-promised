@@ -166,7 +166,11 @@ public class PurpurSentry extends Monster implements GeoEntity {
             ring(level, from);
             return false;
         }
-        return super.hurtServer(level, source, amount);
+        boolean shielded = state() == State.SHIELD && from != null;
+        boolean hurt = super.hurtServer(level, source, amount);
+        // round its raised shield: the blow that teaches its rule
+        if (hurt && shielded) Constructs.award(source.getEntity(), com.panda.promisedend.logic.CodexBook.FLANK_SENTRY, "flanked");
+        return hurt;
     }
 
     /** A shot coming at its raised shield from in front, not dropping over it, glances back the way it came. */
@@ -208,6 +212,7 @@ public class PurpurSentry extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        Constructs.meet(this, "purpur_sentry");
         // one a structure placed (or a Sentinel called) keeps near where it stood, and goes back after a fight
         if (!hasHome() && isPersistenceRequired()) setHomeTo(blockPosition(), HOME_RADIUS);
         LivingEntity target = getTarget();
