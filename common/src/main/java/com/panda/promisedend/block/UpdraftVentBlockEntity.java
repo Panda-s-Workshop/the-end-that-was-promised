@@ -99,13 +99,21 @@ public class UpdraftVentBlockEntity extends BlockEntity {
                 && !(e instanceof BlockAttachedEntity) && !e.is(ModTags.UPDRAFT_IGNORES);
     }
 
+    /**
+     * What the column's lift is multiplied by for {@code e}: the set's share and the Fin's, of its wearer, or of the
+     * player driving it, so a wearer's mount rises as they would.
+     */
+    public static double liftFor(Entity e) {
+        Entity who = e.getControllingPassenger() instanceof Player p ? p : e;
+        return com.panda.promisedend.item.VoidTouched.lift(who) + com.panda.promisedend.item.Augments.lift(who);
+    }
+
     /** Sets the entity's speed up for the next tick; true if it changed. */
     private static boolean sinkOrLift(Entity e, boolean sink, boolean gliding) {
         Vec3 v = e.getDeltaMovement();
         boolean slowFalling = e instanceof LivingEntity living && living.hasEffect(MobEffects.SLOW_FALLING);
         double taken = Updraft.taken(e.getGravity(), v.y <= 0, slowFalling, e.isInWater() || e.isInLava(), gliding, e.getXRot());
-        double vy = sink ? Updraft.SINK : Updraft.lift(v.y, gliding, taken,
-                com.panda.promisedend.item.VoidTouched.lift(e) + com.panda.promisedend.item.Augments.lift(e));
+        double vy = sink ? Updraft.SINK : Updraft.lift(v.y, gliding, taken, liftFor(e));
         e.resetFallDistance();
         if (vy == v.y) return false;
         e.setDeltaMovement(v.x, vy, v.z);

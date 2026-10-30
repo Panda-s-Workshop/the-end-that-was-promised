@@ -107,6 +107,21 @@ final class AugmentGameTests {
         p.startFallFlying();
         if (!p.isFallFlying()) bad.add("the player didn't start gliding");
         if (lift.apply("three pieces and a Fin elytra, gliding") != 2.0) bad.add("the set and the Fin, gliding, don't stack to 2");
+        p.stopFallFlying();
+        // a mount the wearer drives rises as they would; one nobody rides doesn't
+        var horse = net.minecraft.world.entity.EntityTypes.HORSE.create(helper.getLevel(), net.minecraft.world.entity.EntitySpawnReason.MOB_SUMMONED);
+        horse.snapTo(p.getX(), p.getY(), p.getZ(), 0, 0);
+        horse.setTamed(true);
+        horse.setItemSlot(EquipmentSlot.SADDLE, new ItemStack(Items.SADDLE));
+        helper.getLevel().addFreshEntity(horse);
+        double alone = com.panda.promisedend.block.UpdraftVentBlockEntity.liftFor(horse);
+        p.startRiding(horse, true, false);
+        double ridden = com.panda.promisedend.block.UpdraftVentBlockEntity.liftFor(horse);
+        PromisedEnd.LOGGER.info("[augment_fin_and_set_stack_lift] horse alone {}, ridden by the wearer {} (driver {})", alone, ridden, horse.getControllingPassenger());
+        if (alone != 1.0) bad.add("a horse alone lifts " + alone);
+        if (ridden != 1.5) bad.add("a horse the wearer rides lifts " + ridden + ", not 1.5");
+        p.stopRiding();
+        horse.discard();
         helper.getLevel().getServer().getPlayerList().remove(p);
         if (!bad.isEmpty()) helper.fail("fin and set lift: " + bad);
         else helper.succeed();
