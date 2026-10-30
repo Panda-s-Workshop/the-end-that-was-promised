@@ -66,6 +66,13 @@ public final class DragonWrath {
     /** With the Wrath it was scaled by after it ({@code promisedend.fought_at_3}): the hoard it leaves (saved with it). */
     public static final String FOUGHT_AT_TAG = "promisedend.fought_at_";
     public static final Identifier HEALTH_MODIFIER = PromisedEnd.id("wrath");
+    /**
+     * Where the Ancients' Ward keeps the dragon for last, it is the journey's finale, fought in Voidsteel after all three
+     * guardians: its health is this many times what Wrath gives it (450 at Wrath 0, vanilla's at Wrath 5; 1012.5 at
+     * Wrath 5, under vanilla's most of 1024). Without the Ward it may be the first fight, and stays vanilla's.
+     */
+    public static final float FINALE = 2.25F;
+    public static final Identifier FINALE_MODIFIER = PromisedEnd.id("finale");
     /** How far from the portal's centre the hoard chest is set: just off the podium's rim. */
     private static final int HOARD_DISTANCE = EndPodiumFeature.PODIUM_RADIUS + EndPodiumFeature.RIM_RADIUS + 1;
     /** How far a hoard with no fight to put it by looks down from where the dragon vanished for ground. */
@@ -94,6 +101,16 @@ public final class DragonWrath {
 
     public static float maxHealth(int wrath) {
         return BASE_HEALTH * (1 + HEALTH_PER_WRATH * clamp(wrath));
+    }
+
+    /** Its health at {@code wrath}, as the finale ({@link #FINALE}) or not. */
+    public static float maxHealth(int wrath, boolean finale) {
+        return maxHealth(wrath) * (finale ? FINALE : 1.0F);
+    }
+
+    /** Whether the dragon is fought last: the Ward stands between it and the outer End, with a seal still to break. */
+    public static boolean finale(MinecraftServer server) {
+        return EndConfig.arrivalByCoordinates() && AncientWard.guarded(server) != 0;
     }
 
     public static int scales(int wrath) {
@@ -144,7 +161,7 @@ public final class DragonWrath {
         glimmer();
         for (ServerLevel level : server.getAllLevels()) {
             for (EnderDragon dragon : level.getEntities(EntityTypes.ENDER_DRAGON, d -> !d.isRemoved())) {
-                if (!dragon.entityTags().contains(SCALED_TAG) && dragon.isAlive()) scale(dragon, effective(server));
+                if (!dragon.entityTags().contains(SCALED_TAG) && dragon.isAlive()) scale(dragon, effective(server), finale(server));
                 if (dragon.isDeadOrDying() && !DYING.containsKey(dragon)) DYING.put(dragon, foughtAt(dragon, server));
             }
         }
@@ -182,17 +199,19 @@ public final class DragonWrath {
     }
 
     /**
-     * Scales a dragon's health by Wrath once, keeping its share of health (a fresh dragon stays at full), and names it
-     * for its Wrath ("Ender Dragon · Wrath 2"), which its boss bar shows; a dragon already named keeps its name.
+     * Scales a dragon's health by Wrath once, and by {@link #FINALE} when it is fought last, keeping its share of health
+     * (a fresh dragon stays at full), and names it for its Wrath ("Ender Dragon · Wrath 2"), which its boss bar shows; a
+     * dragon already named keeps its name.
      */
-    public static void scale(EnderDragon dragon, int wrath) {
+    public static void scale(EnderDragon dragon, int wrath, boolean finale) {
         dragon.addTag(SCALED_TAG);
         dragon.addTag(FOUGHT_AT_TAG + clamp(wrath));
         AttributeInstance max = dragon.getAttribute(Attributes.MAX_HEALTH);
-        if (max == null || wrath <= 0) return;
-        if (!dragon.hasCustomName()) dragon.setCustomName(Component.translatable("entity.promisedend.ender_dragon.wrath", dragon.getType().getDescription(), clamp(wrath)));
+        if (max == null || wrath <= 0 && !finale) return;
+        if (wrath > 0 && !dragon.hasCustomName()) dragon.setCustomName(Component.translatable("entity.promisedend.ender_dragon.wrath", dragon.getType().getDescription(), clamp(wrath)));
         float share = dragon.getHealth() / dragon.getMaxHealth();
-        max.addOrReplacePermanentModifier(new AttributeModifier(HEALTH_MODIFIER, HEALTH_PER_WRATH * clamp(wrath), AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+        if (wrath > 0) max.addOrReplacePermanentModifier(new AttributeModifier(HEALTH_MODIFIER, HEALTH_PER_WRATH * clamp(wrath), AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+        if (finale) max.addOrReplacePermanentModifier(new AttributeModifier(FINALE_MODIFIER, FINALE - 1.0F, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
         dragon.setHealth(share * dragon.getMaxHealth());
     }
 

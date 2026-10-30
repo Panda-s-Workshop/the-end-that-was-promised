@@ -417,6 +417,8 @@ public class HollowSentinel extends Monster implements GeoEntity {
             }
             return false;
         }
+        // a blow needs a fighter behind it: a bed's blast or a dispenser's arrow, with no one, does nothing
+        if (source.getEntity() == null) return false;
         boolean hurt = super.hurtServer(level, source, amount * OPEN_DAMAGE);
         if (hurt && source.getEntity() instanceof ServerPlayer p) fought.add(p.getUUID());
         if (hurt && isAlive()) checkPhase(level);

@@ -31,6 +31,7 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -91,14 +92,15 @@ public class VoidLeviathan extends Monster implements GeoEntity {
     public static final int PAIR_GAP = LeviathanFight.PAIR_GAP;
     public static final double RING = 4.5;
     public static final float BREACH_DAMAGE = 14.0F;
-    /** The share of a blow it takes while it isn't exposed, or from a fighter past {@link #STRIKE_FROM}. */
+    /** The share of a blow it takes while it isn't exposed. */
     public static final float OUTSIDE = 0.2F;
     /**
-     * How far from the pool's middle a fighter's blow or shot lands in full: its lip, about as far as its breach reaches
-     * ({@link #BREACH_OUT} and {@link #RING}). From farther, as from a bow at the Maw's edge, it barely feels it, so a
-     * fighter has to stand where it can strike back.
+     * A breach's ring reaches a player this far below and above the floor's plane it comes up through: the same band
+     * bounds where a fighter can hurt it from ({@link #inReach}).
      */
-    public static final double STRIKE_FROM = 18.0;
+    public static final double RING_BELOW = 4.0, RING_ABOVE = 6.0;
+    /** The farthest a breach reaches from the pool's middle: its point's farthest out and its ring. */
+    public static final double REACH = BREACH_OUT + RING;
     /** Below these shares of its health it breaches twice in a row, and draws players in while it rears. */
     public static final float TWICE = LeviathanFight.TWICE, DRAGS = 0.2F;
     /**
@@ -329,7 +331,16 @@ public class VoidLeviathan extends Monster implements GeoEntity {
 
     /** Whether a player at {@code at} stands in the ring of a breach at {@code point}. */
     public static boolean inRing(Vec3 point, Vec3 at) {
-        return Math.hypot(at.x - point.x, at.z - point.z) <= RING && at.y >= point.y - 4 && at.y <= point.y + 6;
+        return Math.hypot(at.x - point.x, at.z - point.z) <= RING && at.y >= point.y - RING_BELOW && at.y <= point.y + RING_ABOVE;
+    }
+
+    /**
+     * Whether a fighter at {@code at} could be struck by a breach of a pool whose middle is at {@code middle} and whose
+     * floor's plane is at {@code surface}: within {@link #REACH} of the middle and in the ring's band over the floor.
+     * Only a fighter it can reach can hurt it: one on a vent over the lip, past the lip or out of the arena can't.
+     */
+    public static boolean inReach(Vec3 middle, double surface, Vec3 at) {
+        return Math.hypot(at.x - middle.x, at.z - middle.z) <= REACH && at.y >= surface - RING_BELOW && at.y <= surface + RING_ABOVE;
     }
 
     /** The shove its draw gives a player at {@code at} toward it at {@code from}: flat, {@link #PULL_SHOVE} long. */
@@ -530,15 +541,22 @@ public class VoidLeviathan extends Monster implements GeoEntity {
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) return super.hurtServer(level, source, amount);
         boolean exposed = state() == State.EXPOSED;
-        if (source.getEntity() instanceof ServerPlayer p && !p.isCreative()) {
+        Entity attacker = source.getEntity();
+        if (attacker instanceof ServerPlayer p && !p.isCreative()) {
             fought.add(p.getUUID());
             if (state() == State.DORMANT) wake();
         }
-        boolean near = !(source.getEntity() instanceof Player p) || home == null
-                || Math.hypot(p.getX() - (home.getX() + 0.5), p.getZ() - (home.getZ() + 0.5)) <= STRIKE_FROM;
-        boolean full = exposed && near;
-        if (!full && source.getEntity() instanceof Player) playSound(ModSounds.VOID_LEVIATHAN_HURT_DEEP.get(), 1.5F, 1.0F);
-        return super.hurtServer(level, source, full ? amount : amount * OUTSIDE);
+        // only a fighter its breach could reach hurts it (a bow from past the lip or a vent's top, a bed's blast with no
+        // one behind it, don't)
+        if (attacker == null || home != null && !inReach(Vec3.atBottomCenterOf(home), surface(), attacker.position())) {
+            if (attacker instanceof ServerPlayer p) {
+                playSound(ModSounds.VOID_LEVIATHAN_HURT_DEEP.get(), 1.5F, 1.4F);
+                p.sendOverlayMessage(Component.translatable("hint.promisedend.void_leviathan.out_of_reach"));
+            }
+            return false;
+        }
+        if (!exposed && attacker instanceof Player) playSound(ModSounds.VOID_LEVIATHAN_HURT_DEEP.get(), 1.5F, 1.0F);
+        return super.hurtServer(level, source, exposed ? amount : amount * OUTSIDE);
     }
 
     // ---- its end: the seal, the advancement -------------------------------------------------------------------------

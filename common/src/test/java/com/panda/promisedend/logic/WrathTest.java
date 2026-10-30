@@ -17,6 +17,17 @@ class WrathTest {
     }
 
     @Test
+    void theFinaleDragonIsTougher() {
+        // fought last, in Voidsteel after the three guardians: twice vanilla's blows and more, Wrath's ratio kept, and
+        // under vanilla's most health (an attribute's cap of 1024)
+        assertEquals(450.0F, DragonWrath.maxHealth(0, true), 1e-3, "the finale's first fight");
+        assertTrue(DragonWrath.maxHealth(0, true) >= 2 * DragonWrath.maxHealth(0), "at least twice vanilla's");
+        assertEquals(2.25F, DragonWrath.maxHealth(5, true) / DragonWrath.maxHealth(0, true), 1e-6);
+        assertTrue(DragonWrath.maxHealth(5, true) <= 1024.0F, "Wrath 5 under the cap: " + DragonWrath.maxHealth(5, true));
+        assertEquals(DragonWrath.maxHealth(3), DragonWrath.maxHealth(3, false), "without the Ward, vanilla's");
+    }
+
+    @Test
     void scalesByWrath() {
         assertEquals(3, DragonWrath.scales(0));
         assertEquals(4, DragonWrath.scales(1));

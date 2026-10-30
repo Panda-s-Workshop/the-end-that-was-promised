@@ -53,6 +53,22 @@ class SourceHygieneTest {
         assertTrue(missing.isEmpty(), "lang keys used in code but missing from en_us.json: " + missing);
     }
 
+    /** The keys built from a seal's name (logic/AncientWard.SEALS): each seal's arrival line and name. */
+    @Test
+    void everySealHasItsLines() throws IOException {
+        String lang = Files.readString(LANG);
+        Matcher list = Pattern.compile("SEALS = List\\.of\\(([^)]*)\\)").matcher(Files.readString(SRC.resolve("com/panda/promisedend/logic/AncientWard.java")));
+        assertTrue(list.find(), "AncientWard.SEALS not found");
+        Set<String> missing = new TreeSet<>();
+        for (String quoted : list.group(1).split(",")) {
+            String seal = quoted.strip().replace("\"", "");
+            for (String prefix : List.of("arrival.promisedend.pearl.", "ward.promisedend.seal.")) {
+                if (!lang.contains("\"" + prefix + seal + "\"")) missing.add(prefix + seal);
+            }
+        }
+        assertTrue(missing.isEmpty(), "seal lines missing from en_us.json: " + missing);
+    }
+
     @Test
     void everyGeneratedJsonParsesAndHasNoTabs() throws IOException {
         Path res = Path.of("src", "main", "resources");

@@ -53,7 +53,7 @@ final class LeviathanGameTests {
         float[] wounded = {0};
         helper.runAtTickTime(2, () -> {
             v.wake();
-            v.hurtServer(level, level.damageSources().magic(), 20.0F);
+            v.setHealth(v.getHealth() - 20.0F);
             wounded[0] = v.getHealth();
             if (wounded[0] >= v.getMaxHealth()) bad.add("the blow didn't land");
         });
@@ -82,6 +82,7 @@ final class LeviathanGameTests {
         helper.runAtTickTime(2, () -> {
             v.wake();
             v.rear(v.position().add(0, VoidLeviathan.SURFACE, 0));
+            onTheLip(p, v);
             v.hurtServer(level, level.damageSources().playerAttack(p), 20.0F);
             VoidLeviathan b = EndGameTests.reloaded(level, v, ModEntities.VOID_LEVIATHAN.get());
             PromisedEnd.LOGGER.info("[leviathan_saved_mid_fight] before: {} health {}; after: {} health {} bar {}", v.state(), v.getHealth(),
@@ -109,8 +110,7 @@ final class LeviathanGameTests {
         ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
         List<String> bad = new ArrayList<>();
         if (v.state() != VoidLeviathan.State.DORMANT) bad.add("placed " + v.state() + ", not dormant");
-        // the striker on the pool's lip, near enough for a blow to land in full
-        p.setPos(v.getX() + 6, v.getY() + VoidLeviathan.SURFACE, v.getZ());
+        onTheLip(p, v);
         // each blow a second after the last, past its time unhurtable (in which a blow lands only past the last one)
         float[] took = new float[3];
         for (int i = 0; i < 3; i++) {
@@ -134,9 +134,15 @@ final class LeviathanGameTests {
         });
     }
 
+    /** A fighter on the pool's lip, where its breach can reach them and their blows land: 6 out on the floor's plane. */
+    private static void onTheLip(ServerPlayer p, VoidLeviathan v) {
+        p.setPos(v.home().getX() + 6.5, v.surface(), v.home().getZ() + 0.5);
+    }
+
     /**
-     * Reared, a blow from a fighter on the pool's lip lands in full, and the same blow from one past
-     * {@link VoidLeviathan#STRIKE_FROM}, as a bow at the Maw's edge, at {@link VoidLeviathan#OUTSIDE}.
+     * Reared, a blow lands in full only from a fighter its breach could reach: from 17 out on the floor (inside its
+     * {@link VoidLeviathan#REACH} of 17.25) in full; from 18 out on the floor, from 16 out on a vent's top 8 up, and
+     * from past its arena, nothing.
      */
     static void farBlowsLandLight(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -144,22 +150,23 @@ final class LeviathanGameTests {
         ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
         List<String> bad = new ArrayList<>();
         BlockPos home = v.home();
-        double[] from = {VoidLeviathan.STRIKE_FROM - 2, VoidLeviathan.STRIKE_FROM + 6};
-        float[] took = new float[2];
-        for (int i = 0; i < 2; i++) {
+        double[][] from = {{17, 0}, {18, 0}, {16, 8}, {VoidLeviathan.ARENA + 4, 0}};
+        float[] took = new float[from.length];
+        for (int i = 0; i < from.length; i++) {
             int blow = i;
-            helper.runAtTickTime(1 + 25 * i, () -> {
-                p.setPos(home.getX() + 0.5 + from[blow], home.getY() + VoidLeviathan.SURFACE, home.getZ() + 0.5);
+            helper.runAtTickTime(1 + 21 * i, () -> {
+                p.setPos(home.getX() + 0.5 + from[blow][0], v.surface() + from[blow][1], home.getZ() + 0.5);
                 v.rear(v.position().add(0, VoidLeviathan.SURFACE, 0));
                 float before = v.getHealth();
                 v.hurtServer(level, level.damageSources().playerAttack(p), 20.0F);
                 took[blow] = before - v.getHealth();
             });
         }
-        helper.runAtTickTime(60, () -> {
-            PromisedEnd.LOGGER.info("[leviathan_far_blows_land_light] reared, a blow of 20 took {} from {} out, {} from {} out", took[0], from[0], took[1], from[1]);
-            if (Math.abs(took[0] - 18.72F) > 0.05F) bad.add("from the lip, a blow of 20 took " + took[0] + ", not 18.72");
-            if (Math.abs(took[1] - 3.04F) > 0.05F) bad.add("from afar, a blow of 20 took " + took[1] + ", not 3.04");
+        helper.runAtTickTime(21 * from.length + 4, () -> {
+            PromisedEnd.LOGGER.info("[leviathan_far_blows_land_light] reared, a blow of 20 took {} from 17 out, {} from 18 out, {} from a vent 16 out 8 up, {} past its arena",
+                    took[0], took[1], took[2], took[3]);
+            if (Math.abs(took[0] - 18.72F) > 0.05F) bad.add("from 17 out, a blow of 20 took " + took[0] + ", not 18.72");
+            for (int i = 1; i < from.length; i++) if (took[i] != 0) bad.add("from " + from[i][0] + " out, " + from[i][1] + " up, a blow of 20 took " + took[i] + ", not 0");
             level.getServer().getPlayerList().remove(p);
             if (!bad.isEmpty()) helper.fail("leviathan: " + bad);
             helper.succeed();

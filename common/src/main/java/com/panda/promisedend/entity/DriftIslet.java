@@ -57,8 +57,12 @@ public class DriftIslet extends Entity {
     private int turns;
     /** On a client, the tick it last heard the server's state. */
     private int heard;
-    /** Whether its way has been cleared, once, after worldgen was done with the chunks along it. */
+    /** Whether its way has been cleared: every chunk along it done, each once ({@link #clearWay}). */
     private boolean clear;
+    /** The chunks along its way already done (cleared, or left as a player's). */
+    private final java.util.Set<Long> done = new java.util.HashSet<>();
+    /** A chunk a player has spent this long near (its inhabited time) may hold their build: its way isn't cleared. */
+    public static final long UNTOUCHED_TICKS = 200;
     /**
      * The players on it since it left its mooring, each with how many ticks running it has missed them: those still
      * aboard at the other have crossed. A player is dropped only after a second unseen (a client's place reaches the
@@ -282,26 +286,21 @@ public class DriftIslet extends Entity {
     }
 
     /**
-     * Clears its way, once: what worldgen grew into the room it sweeps, its own block and the two over it a rider stands
-     * in, slice by slice along its route, and mends its two moorings (a feature in a chunk next door can reach in after
-     * the route's own pass, into its way or over a post). Takes only what the lands grow
-     * ({@code #promisedend:drift_clearable}), never a block entity: a player may have built across the gap before the
-     * far end loaded, and their bridge stays (the islet turns back at it, as at any block in its way). Leaves other
-     * structures alone (an End City's ship). Waits until every chunk along the way and at its moorings is loaded.
-     * Returns the blocks cleared, or -1 when it has to wait.
+     * Clears its way: what worldgen grew into the room it sweeps, its own block and the two over it a rider stands in,
+     * slice by slice along its route, and mends its two moorings (a feature in a chunk next door can reach in after the
+     * route's own pass, into its way or over a post). Each chunk along it is done once, the first time it is loaded, and
+     * only if no player has yet spent {@link #UNTOUCHED_TICKS} near it: one a player has been near may hold their build
+     * (a bridge across the gap, made before the far end loaded), so it is left as it is, and the islet turns back at a
+     * block there as at any block in its way. Even in an untouched chunk it takes only what the lands grow
+     * ({@code #promisedend:drift_clearable}), never a block entity, and leaves other structures alone (an End City's
+     * ship). Returns the blocks cleared, or -1 while a chunk on its way is still to load.
      */
     public int clearWay() {
+        if (!(level() instanceof ServerLevel server)) return -1;
         double length = route.length();
-        for (double t = 0; t <= 1.0001; t += 8 / Math.max(8, length)) {
-            double[] p = route.at(Math.min(1, t));
-            if (!level().hasChunkAt(BlockPos.containing(p[0], p[1], p[2]))) return -1;
-        }
         var gap = com.panda.promisedend.logic.DriftGap.Gap.of(route);
-        for (int[] end : new int[][] {{gap.ex(), gap.ez()}, {gap.fx(), gap.fz()}}) {
-            for (int l = -com.panda.promisedend.logic.DriftGap.CORRIDOR; l <= com.panda.promisedend.logic.DriftGap.CORRIDOR; l += 2 * com.panda.promisedend.logic.DriftGap.CORRIDOR) {
-                if (!level().hasChunkAt(new BlockPos(end[0] + (gap.dz() != 0 ? l : 0), 0, end[1] + (gap.dx() != 0 ? l : 0)))) return -1;
-            }
-        }
+        java.util.Set<Long> now = new java.util.HashSet<>(), fresh = new java.util.HashSet<>();
+        boolean waiting = false;
         int cleared = 0;
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
         java.util.Map<Long, Boolean> claimed = new java.util.HashMap<>();
@@ -310,8 +309,17 @@ public class DriftIslet extends Entity {
             AABB slice = new AABB(p[0] - 1.5, p[1], p[2] - 1.5, p[0] + 1.5, p[1] + 3, p[2] + 1.5).deflate(0.01);
             for (int x = (int) Math.floor(slice.minX); x <= (int) Math.floor(slice.maxX); x++) {
                 for (int z = (int) Math.floor(slice.minZ); z <= (int) Math.floor(slice.maxZ); z++) {
+                    long chunk = net.minecraft.world.level.ChunkPos.pack(x >> 4, z >> 4);
+                    if (done.contains(chunk)) continue;
+                    var loaded = server.getChunkSource().getChunkNow(x >> 4, z >> 4);
+                    if (loaded == null) {
+                        waiting = true;
+                        continue;
+                    }
+                    if (now.add(chunk) && loaded.getInhabitedTime() < UNTOUCHED_TICKS) fresh.add(chunk);
+                    if (!fresh.contains(chunk)) continue;
                     int cx = x, cz = z, cy = (int) Math.floor(p[1]);
-                    boolean other = level() instanceof ServerLevel server && claimed.computeIfAbsent(BlockPos.asLong(x, 0, z),
+                    boolean other = claimed.computeIfAbsent(BlockPos.asLong(x, 0, z),
                             k -> server.structureManager().getStructureWithPieceAt(new BlockPos(cx, cy, cz),
                                     h -> !h.is(com.panda.promisedend.worldgen.DriftRouteStructure.KEY)).isValid());
                     if (other) continue;
@@ -325,9 +333,22 @@ public class DriftIslet extends Entity {
                 }
             }
         }
-        com.panda.promisedend.worldgen.DriftRouteStructure.Piece.moor(level(), gap, p -> true);
-        clear = true;
-        return cleared;
+        // the moorings, in the chunks done now that no player has been near
+        for (int[] end : new int[][] {{gap.ex(), gap.ez()}, {gap.fx(), gap.fz()}}) {
+            for (int l = -com.panda.promisedend.logic.DriftGap.CORRIDOR; l <= com.panda.promisedend.logic.DriftGap.CORRIDOR; l++) {
+                int x = end[0] + (gap.dz() != 0 ? l : 0), z = end[1] + (gap.dx() != 0 ? l : 0);
+                long chunk = net.minecraft.world.level.ChunkPos.pack(x >> 4, z >> 4);
+                if (done.contains(chunk) || now.contains(chunk)) continue;
+                var loaded = server.getChunkSource().getChunkNow(x >> 4, z >> 4);
+                if (loaded == null) waiting = true;
+                else if (now.add(chunk) && loaded.getInhabitedTime() < UNTOUCHED_TICKS) fresh.add(chunk);
+            }
+        }
+        com.panda.promisedend.worldgen.DriftRouteStructure.Piece.moor(level(), gap,
+                p -> fresh.contains(net.minecraft.world.level.ChunkPos.pack(p.getX() >> 4, p.getZ() >> 4)));
+        done.addAll(now);
+        if (!waiting) clear = true;
+        return waiting ? -1 : cleared;
     }
 
     /**
@@ -381,6 +402,9 @@ public class DriftIslet extends Entity {
                 input.getDoubleOr("to_x", 0), input.getDoubleOr("to_y", 0), input.getDoubleOr("to_z", 0));
         setRoute(r, new DriftRoute.State(input.getDoubleOr("along", 0), input.getByteOr("dir", (byte) 1) < 0 ? -1 : 1, input.getIntOr("wait", DriftRoute.WAIT)));
         this.clear = input.getBooleanOr("cleared", false);
+        done.clear();
+        int[] chunks = input.getIntArray("cleared_chunks").orElse(new int[0]);
+        for (int i = 0; i + 1 < chunks.length; i += 2) done.add(net.minecraft.world.level.ChunkPos.pack(chunks[i], chunks[i + 1]));
     }
 
     @Override
@@ -396,5 +420,14 @@ public class DriftIslet extends Entity {
         output.putByte("dir", (byte) state.dir);
         output.putInt("wait", state.wait);
         output.putBoolean("cleared", clear);
+        if (!clear && !done.isEmpty()) {
+            int[] chunks = new int[done.size() * 2];
+            int i = 0;
+            for (long c : done) {
+                chunks[i++] = net.minecraft.world.level.ChunkPos.getX(c);
+                chunks[i++] = net.minecraft.world.level.ChunkPos.getZ(c);
+            }
+            output.putIntArray("cleared_chunks", chunks);
+        }
     }
 }

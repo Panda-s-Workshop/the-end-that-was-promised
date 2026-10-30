@@ -4205,25 +4205,48 @@ public final class EndGameTests {
     }
 
     /**
-     * A Drift Islet's first pass takes from its way what the lands grow, and spares a player's build: End Stone in its
-     * way goes; a Stone block and a chest (built across the gap before the pass) stay.
+     * A Drift Islet's first pass takes from its way what the lands grow, and spares a player's build. In chunks no
+     * player has been near, End Stone in its way goes, a Stone block and a chest stay. Then a second islet, its chunks
+     * a player has spent a minute near: an End Stone bridge in its way (the player's, built before its far end loaded)
+     * stays, and its way still counts as done.
      */
     private static void driftIsletSparesBuilds(GameTestHelper helper) {
+        var level = helper.getLevel();
         BlockPos grown = new BlockPos(6, 4, 5), built = new BlockPos(5, 3, 5), chest = new BlockPos(7, 3, 6);
+        // the chunks the lane crosses: their inhabited time, set and put back (it is the chunk's local difficulty)
+        List<net.minecraft.world.level.chunk.LevelChunk> chunks = new ArrayList<>();
+        for (int x = 0; x <= 12; x += 4) {
+            var c = level.getChunkAt(helper.absolutePos(new BlockPos(x, 3, 5)));
+            if (!chunks.contains(c)) chunks.add(c);
+        }
+        long[] was = chunks.stream().mapToLong(net.minecraft.world.level.chunk.LevelChunk::getInhabitedTime).toArray();
+        List<String> bad = new ArrayList<>();
+        chunks.forEach(c -> c.setInhabitedTime(0));
         helper.setBlock(grown, net.minecraft.world.level.block.Blocks.END_STONE);
         helper.setBlock(built, net.minecraft.world.level.block.Blocks.STONE);
         helper.setBlock(chest, net.minecraft.world.level.block.Blocks.CHEST);
         var islet = islet(helper);
         int cleared = islet.clearWay();
-        var level = helper.getLevel();
-        PromisedEnd.LOGGER.info("[drift_islet_spares_builds] cleared {}; the end stone {}, the stone {}, the chest {}", cleared,
+        PromisedEnd.LOGGER.info("[drift_islet_spares_builds] untouched: cleared {}; the end stone {}, the stone {}, the chest {}", cleared,
                 level.getBlockState(helper.absolutePos(grown)), level.getBlockState(helper.absolutePos(built)), level.getBlockState(helper.absolutePos(chest)));
-        List<String> bad = new ArrayList<>();
         if (cleared < 0) bad.add("the arena's chunks aren't loaded");
         if (!level.getBlockState(helper.absolutePos(grown)).isAir()) bad.add("the End Stone in its way stayed");
         if (!level.getBlockState(helper.absolutePos(built)).is(net.minecraft.world.level.block.Blocks.STONE)) bad.add("the player's Stone was cleared");
         if (!level.getBlockState(helper.absolutePos(chest)).is(net.minecraft.world.level.block.Blocks.CHEST)) bad.add("the player's chest was cleared");
         islet.discard();
+        // a player has been near a minute: their End Stone bridge along the lane stays
+        chunks.forEach(c -> c.setInhabitedTime(1200));
+        helper.setBlock(built, net.minecraft.world.level.block.Blocks.AIR);
+        for (int x = 4; x <= 8; x++) helper.setBlock(new BlockPos(x, 3, 5), net.minecraft.world.level.block.Blocks.END_STONE);
+        var second = islet(helper);
+        int touched = second.clearWay();
+        int kept = 0;
+        for (int x = 4; x <= 8; x++) if (level.getBlockState(helper.absolutePos(new BlockPos(x, 3, 5))).is(net.minecraft.world.level.block.Blocks.END_STONE)) kept++;
+        PromisedEnd.LOGGER.info("[drift_islet_spares_builds] a player near: cleared {}, the bridge's 5 blocks kept {}, its way done {}", touched, kept, second.cleared());
+        if (touched != 0 || kept != 5) bad.add("with a player near, cleared " + touched + " and kept " + kept + " of the bridge's 5");
+        if (!second.cleared()) bad.add("with a player near, its way isn't counted done");
+        second.discard();
+        for (int i = 0; i < chunks.size(); i++) chunks.get(i).setInhabitedTime(was[i]);
         if (!bad.isEmpty()) helper.fail("drift islet clear: " + bad);
         helper.succeed();
     }
@@ -4966,8 +4989,9 @@ public final class EndGameTests {
         });
         helper.runAtTickTime(216, () -> {
             try {
-                float want = com.panda.promisedend.logic.DragonWrath.maxHealth(2);
-                if (want != 300.0F) bad.add("Wrath 2 is " + want + " health, wanted 300");
+                boolean finale = com.panda.promisedend.logic.DragonWrath.finale(server);
+                float want = com.panda.promisedend.logic.DragonWrath.maxHealth(2, finale);
+                if (want != (finale ? 675.0F : 300.0F)) bad.add("Wrath 2 is " + want + " health, wanted " + (finale ? 675 : 300));
                 if (next[0].getMaxHealth() != want) bad.add("the next dragon's max health is " + next[0].getMaxHealth() + ", wanted " + want);
                 if (next[0].getHealth() != next[0].getMaxHealth()) bad.add("the next dragon starts at " + next[0].getHealth() + " of " + next[0].getMaxHealth());
                 if (!next[0].entityTags().contains(com.panda.promisedend.logic.DragonWrath.FOUGHT_AT_TAG + 2)) bad.add("the next dragon doesn't keep the Wrath it is fought at: " + next[0].entityTags());
