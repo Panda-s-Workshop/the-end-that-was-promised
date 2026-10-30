@@ -227,6 +227,19 @@ final class LatticeGameTests {
         if (joined.stream().anyMatch(open)) bad.add("its tick didn't close it");
         if (pig.getY() < middle.getY() + 1 - 0.01) bad.add("the closing gate left the pig in it, at y " + pig.getY());
         PromisedEnd.LOGGER.info("[amber_gate_needs_key] {} opened by the key, {} keys left; the pig at y {} (the block's top {})", opened, key.getCount(), pig.getY(), middle.getY() + 1);
+        // shut again with its Architect unbound and alive, an empty hand opens it; once it has fallen, it needs a key
+        var architect = helper.spawn(com.panda.promisedend.registry.ModEntities.THE_ARCHITECT.get(), new BlockPos(5, 2, 6));
+        architect.setNoAi(true);
+        architect.setBound(true);
+        level.getBlockState(used).useWithoutItem(level, player, hit);
+        if (open.test(used)) bad.add("an empty hand opened it with its Architect still bound");
+        architect.unbind();
+        level.getBlockState(used).useWithoutItem(level, player, hit);
+        if (!open.test(used)) bad.add("an empty hand didn't open it with its Architect awake");
+        for (BlockPos p : joined) level.getBlockState(p).tick(level, p, level.getRandom());
+        architect.discard();
+        level.getBlockState(used).useWithoutItem(level, player, hit);
+        if (open.test(used)) bad.add("an empty hand opened it with no Architect left");
         player.discard();
         if (!bad.isEmpty()) helper.fail("amber gate: " + bad);
         else helper.succeed();

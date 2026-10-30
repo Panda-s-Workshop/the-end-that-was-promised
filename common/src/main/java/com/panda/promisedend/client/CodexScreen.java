@@ -76,12 +76,11 @@ public class CodexScreen extends Screen {
     }
 
     /**
-     * Whether the act is in the game at all: it has goals, and its opening exists. An act whose guardian isn't yet has
-     * blank pages, not a seal.
+     * Whether the act has pages: it has goals. Its opening's advancement isn't asked after, since a client is sent one
+     * only once its parent is done, and an act read as unwritten until then looks unfinished.
      */
     public boolean written(CodexBook.Act act) {
-        if (act.goals().isEmpty()) return false;
-        return act.opensWith() == null || minecraft.player == null || minecraft.player.connection.getAdvancements().get(act.opensWith()) != null;
+        return !act.goals().isEmpty();
     }
 
     public int doneCount(CodexBook.Act act) {

@@ -37,7 +37,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * spent, and the whole gate (every gate block joined to that one, {@link #MOST} at most) opens for {@link #OPEN_TICKS}:
  * clear amber light you walk through. Then it closes, pushing up and out anything left standing in it. Opened, it also
  * unbinds the Architect inside, for good ({@link TheArchitect#unbind}): until then it can't be woken, however a player
- * came in. A gate opened already takes no second key.
+ * came in. A gate opened already takes no second key. Once its Architect is unbound, the shut gate opens again to an
+ * empty hand while it lives: a fight lost or run past the ten minutes needs no second key.
  */
 public class AmberGateBlock extends Block {
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -82,8 +83,20 @@ public class AmberGateBlock extends Block {
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (!state.getValue(OPEN) && !level.isClientSide()) player.sendOverlayMessage(Component.translatable("message.promisedend.amber_gate.locked"));
+        if (!state.getValue(OPEN) && level instanceof ServerLevel server) {
+            if (awake(server, pos)) {
+                open(server, pos);
+                player.sendOverlayMessage(Component.translatable("message.promisedend.amber_gate.gives_way"));
+            } else {
+                player.sendOverlayMessage(Component.translatable("message.promisedend.amber_gate.locked"));
+            }
+        }
         return InteractionResult.SUCCESS;
+    }
+
+    /** Whether an Architect the gate at {@code pos} unbound still lives within its reach. */
+    public static boolean awake(ServerLevel level, BlockPos pos) {
+        return !level.getEntitiesOfClass(TheArchitect.class, new AABB(pos).inflate(UNBINDS), a -> a.isAlive() && !a.bound()).isEmpty();
     }
 
     /** Every gate block joined to {@code pos}, face to face, {@link #MOST} at most. */

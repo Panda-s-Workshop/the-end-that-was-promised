@@ -5444,7 +5444,8 @@ public final class EndGameTests {
         var advancements = helper.getLevel().getServer().getAdvancements();
         List<String> bad = new ArrayList<>();
         for (var act : com.panda.promisedend.logic.CodexBook.ACTS) {
-            if (act.goals().isEmpty()) continue; // an act whose guardian isn't in the game yet
+            // every act is in the game: one with no goals reads as unwritten, unfinished
+            if (act.goals().isEmpty()) bad.add(act.key() + " has no goals");
             if (act.opensWith() != null && advancements.get(act.opensWith()) == null) bad.add(act.key() + " opens with a missing " + act.opensWith());
             for (var goal : act.goals()) {
                 var holder = advancements.get(goal.advancement());
@@ -5469,6 +5470,12 @@ public final class EndGameTests {
             var holder = advancements.get(rule);
             if (holder == null || holder.value().display().isEmpty()) bad.add("the rule " + rule + " missing or without a display");
         }
+        // a lost Codex is made again: a book and a chorus fruit
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(2, 1, List.of(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOOK),
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CHORUS_FRUIT)));
+        var made = helper.getLevel().getServer().getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, helper.getLevel())
+                .map(r -> r.value().assemble(input)).orElse(net.minecraft.world.item.ItemStack.EMPTY);
+        if (!made.is(com.panda.promisedend.registry.ModItems.PROMISE_CODEX.get())) bad.add("a book and a chorus fruit make " + made + ", not a Promise Codex");
         if (!bad.isEmpty()) helper.fail("Codex goals: " + bad);
         helper.succeed();
     }

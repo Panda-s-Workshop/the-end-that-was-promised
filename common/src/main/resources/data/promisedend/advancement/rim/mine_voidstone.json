@@ -6,7 +6,10 @@
       "conditions": {
         "items": [
           {
-            "items": "promisedend:voidstone"
+            "items": [
+              "promisedend:voidstone",
+              "promisedend:polished_voidstone"
+            ]
           }
         ]
       }
