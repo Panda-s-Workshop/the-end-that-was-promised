@@ -183,6 +183,7 @@ public final class EndGameTests {
         FUNCTIONS.register("crawler_only_tears_lattice", () -> LatticeGameTests::crawlerOnlyTearsLattice);
         FUNCTIONS.register("phantom_lattice_reforms", () -> LatticeGameTests::phantomLatticeReforms);
         FUNCTIONS.register("amber_gate_needs_key", () -> LatticeGameTests::amberGateNeedsKey);
+        FUNCTIONS.register("amber_key_recipe", () -> LatticeGameTests::amberKeyRecipe);
         FUNCTIONS.register("unfinished_citadel_places", () -> LatticeGameTests::unfinishedCitadelPlaces);
         FUNCTIONS.register("reach_edge_with_terrain_off", () -> LatticeGameTests::reachEdgeWithTerrainOff);
         FUNCTIONS.register("architect_only_edits_lattice", () -> ArchitectGameTests::onlyEditsLattice);

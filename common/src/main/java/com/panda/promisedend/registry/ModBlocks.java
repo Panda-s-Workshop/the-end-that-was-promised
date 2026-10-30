@@ -229,7 +229,7 @@ public final class ModBlocks {
     private static final UnaryOperator<BlockBehaviour.Properties> ANCIENT_PURPUR_CUT =
             p -> p.mapColor(MapColor.COLOR_MAGENTA).strength(1.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops();
     public static final StoneSet ANCIENT_PURPUR_SET = stoneSet("ancient_purpur",
-            withHint(BLOCKS.registerSimpleBlock("ancient_purpur", ANCIENT_PURPUR_GROWN), 2), ANCIENT_PURPUR_GROWN);
+            withHint(BLOCKS.registerSimpleBlock("ancient_purpur", ANCIENT_PURPUR_GROWN), 3), ANCIENT_PURPUR_GROWN);
     public static final StoneSet ANCIENT_PURPUR_BRICK_SET = stoneSet("ancient_purpur_brick", "ancient_purpur_bricks", ANCIENT_PURPUR_CUT);
     public static final DeferredBlock<RotatedPillarBlock> ANCIENT_PURPUR_PILLAR = withItem(BLOCKS.registerBlock("ancient_purpur_pillar",
             RotatedPillarBlock::new, ANCIENT_PURPUR_CUT));

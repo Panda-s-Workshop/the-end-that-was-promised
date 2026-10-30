@@ -161,6 +161,33 @@ final class LatticeGameTests {
      * shut and solid; an Amber Key opens all twelve joined blocks (not the lone one), is spent, and leaves them walked
      * through; a second key on the open gate isn't spent. Closing, each block pushes up a pig standing in it.
      */
+    /**
+     * The Amber Key is crafted of two Echo Amber, two Leviathan Scales, two Ancient Purpur Scrap, an Ancient Core and two
+     * of the reef's Ancient Purpur (ASA / PCP / BSB): one key; with stone where the purpur goes, nothing.
+     */
+    static void amberKeyRecipe(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var items = new java.util.HashMap<Character, net.minecraft.world.item.Item>(java.util.Map.of(
+                'A', com.panda.promisedend.registry.ModItems.ECHO_AMBER.get(), 'S', com.panda.promisedend.registry.ModItems.LEVIATHAN_SCALE.get(),
+                'P', com.panda.promisedend.registry.ModItems.ANCIENT_PURPUR_SCRAP.get(), 'C', com.panda.promisedend.registry.ModItems.ANCIENT_CORE.get(),
+                'B', ModBlocks.ANCIENT_PURPUR_SET.base().get().asItem()));
+        java.util.function.Supplier<net.minecraft.world.item.ItemStack> craft = () -> {
+            var grid = new java.util.ArrayList<net.minecraft.world.item.ItemStack>();
+            for (char c : "ASAPCPBSB".toCharArray()) grid.add(new net.minecraft.world.item.ItemStack(items.get(c)));
+            var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, grid);
+            return level.getServer().getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level)
+                    .map(r -> r.value().assemble(input)).orElse(net.minecraft.world.item.ItemStack.EMPTY);
+        };
+        java.util.List<String> bad = new java.util.ArrayList<>();
+        var key = craft.get();
+        if (!key.is(com.panda.promisedend.registry.ModItems.AMBER_KEY.get()) || key.getCount() != 1) bad.add("the full grid makes " + key);
+        items.put('B', net.minecraft.world.item.Items.STONE);
+        var none = craft.get();
+        if (!none.isEmpty()) bad.add("stone in the purpur's place makes " + none);
+        if (!bad.isEmpty()) helper.fail("the Amber Key's recipe: " + bad);
+        helper.succeed();
+    }
+
     static void amberGateNeedsKey(GameTestHelper helper) {
         var level = helper.getLevel();
         var gate = ModBlocks.AMBER_GATE.get();

@@ -4,13 +4,14 @@
   "pattern": [
     "ASA",
     "PCP",
-    " S "
+    "BSB"
   ],
   "key": {
     "A": "promisedend:echo_amber",
     "S": "promisedend:leviathan_scale",
     "P": "promisedend:ancient_purpur_scrap",
-    "C": "promisedend:ancient_core"
+    "C": "promisedend:ancient_core",
+    "B": "promisedend:ancient_purpur"
   },
   "result": {
     "id": "promisedend:amber_key"
