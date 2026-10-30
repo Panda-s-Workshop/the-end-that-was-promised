@@ -307,7 +307,8 @@ final class LeviathanGameTests {
     /**
      * Its death breaks the Maw's seal (and with every guardian in, the Ward still stands on the third), gives each of
      * the two players beside it the advancement, a Star Chart to the Unfinished Citadel and a Leviathan Fin, and drops
-     * 6 to 10 Voidsteel Scrap, one Voidsteel template, 2 Leviathan Scales and no Fin.
+     * 6 to 10 Voidsteel Scrap, one Voidsteel template, 2 Leviathan Scales and no Fin. Killed with the Starfall off, each
+     * is also given a Starfall Core (Act IV's goal and the Star Compass need one).
      */
     static void deathBreaksSeal(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -319,7 +320,21 @@ final class LeviathanGameTests {
         p.snapTo(v.getX() + 4, v.getY(), v.getZ(), 0, 0);
         second.snapTo(v.getX() - 4, v.getY(), v.getZ(), 0, 0);
         v.wake();
-        v.hurtServer(level, level.damageSources().genericKill(), Float.MAX_VALUE);
+        var previous = com.panda.promisedend.EndConfig.current();
+        try {
+            com.panda.promisedend.EndConfig.use(new com.panda.promisedend.EndConfig.Source() {
+                @Override public boolean terrainEnabled() { return previous.terrainEnabled(); }
+                @Override public int edgeDistance() { return previous.edgeDistance(); }
+                @Override public int anchorTriggerDepth() { return previous.anchorTriggerDepth(); }
+                @Override public boolean dragonPhase3() { return previous.dragonPhase3(); }
+                @Override public boolean dragonWrath() { return previous.dragonWrath(); }
+                @Override public int maxWrath() { return previous.maxWrath(); }
+                @Override public boolean starfallEnabled() { return false; }
+            });
+            v.hurtServer(level, level.damageSources().genericKill(), Float.MAX_VALUE);
+        } finally {
+            com.panda.promisedend.EndConfig.use(previous);
+        }
         List<String> bad = new ArrayList<>();
         if ((AncientWard.broken(server) & 2) == 0) bad.add("the Maw's seal didn't break");
         if ((AncientWard.broken(server) & 1) != 0) bad.add("the Foundry's seal broke with it");
@@ -332,6 +347,8 @@ final class LeviathanGameTests {
         for (ServerPlayer who : List.of(p, second)) {
             int fin = who.getInventory().countItem(ModItems.LEVIATHAN_FIN.get());
             if (fin != 1) bad.add((who == p ? "the first" : "the second") + " fighter was given " + fin + " Fins, not 1");
+            int core = who.getInventory().countItem(ModItems.STARFALL_CORE.get());
+            if (core != 1) bad.add((who == p ? "the first" : "the second") + " fighter was given " + core + " Starfall Cores with the Starfall off, not 1");
         }
         helper.runAfterDelay(2, () -> {
             // anywhere about the pool: it was carried to the lip

@@ -548,9 +548,12 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         for (ServerPlayer p : rewarded) {
             if (defeated != null) p.getAdvancements().award(defeated, "defeated");
             // and the way on: a chart to the nearest Unfinished Citadel, where the third seal is kept; and a Leviathan
-            // Fin each, the augment (it can't be copied, so a group's every glider gets one)
+            // Fin each, the augment (it can't be copied, so a group's every glider gets one); with no stars falling, a
+            // Starfall Core each too, so the Codex's goal and the Star Compass can still be had
             net.minecraft.world.item.ItemStack chart = com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_citadel_charts"));
-            for (net.minecraft.world.item.ItemStack reward : List.of(chart, new net.minecraft.world.item.ItemStack(ModItems.LEVIATHAN_FIN.get()))) {
+            List<net.minecraft.world.item.ItemStack> rewards = new java.util.ArrayList<>(List.of(chart, new net.minecraft.world.item.ItemStack(ModItems.LEVIATHAN_FIN.get())));
+            if (!com.panda.promisedend.EndConfig.starfallEnabled()) rewards.add(new net.minecraft.world.item.ItemStack(ModItems.STARFALL_CORE.get()));
+            for (net.minecraft.world.item.ItemStack reward : rewards) {
                 if (!p.getInventory().add(reward)) p.spawnAtLocation(level, reward);
             }
         }
