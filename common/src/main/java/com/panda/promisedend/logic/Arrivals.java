@@ -45,22 +45,41 @@ public final class Arrivals {
 
     private Arrivals() {}
 
+    /** A death this near the End's middle, the main island and the Rim before it, is a death at the heart. */
+    public static final int HEART_REACH = 450;
+
     /**
      * Where an entity entering an End portal at {@code portal} in {@code from} goes, or null to leave it to vanilla. A
-     * player who has arrived before, coming back once the Ward has fallen, is set down at the heart: its fight is there,
-     * and a death in it shouldn't cost the whole way in again.
+     * player whose last death was at the heart once the Ward had fallen (in the dragon's fight) comes back there, once
+     * for that death: a death in the finale shouldn't cost the whole way in again. Every other trip comes to a
+     * Waystation.
      */
     public static @Nullable TeleportTransition destination(ServerLevel from, @Nullable Entity entity, BlockPos portal) {
         ServerLevel end = from.getServer().getLevel(Level.END);
         if (end == null || from.dimension() == Level.END || !EndConfig.arrivalByCoordinates()) return null;
-        if (entity instanceof ServerPlayer player && Stored.of(from.getServer()).greeted.contains(player.getUUID())
-                && AncientWard.fallen(from.getServer())) return heart(end);
+        if (entity instanceof ServerPlayer player && diedAtHeart(player)) return heart(end);
         BlockPos centre = waystation(end, Arrival.target(portal.getX() + 0.5, portal.getZ() + 0.5));
         Vec3 at = stand(centre);
         mend(end, at);
         float yaw = Arrival.facingCentre(at.x, at.z);
         return new TeleportTransition(end, at, Vec3.ZERO, yaw, 0.0F, Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
                 TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET).then(Arrivals::greet));
+    }
+
+    /**
+     * Whether {@code player}'s last death was at the heart, with the Ward fallen, and not yet come back from; it is
+     * marked come back from.
+     */
+    private static boolean diedAtHeart(ServerPlayer player) {
+        var death = player.getLastDeathLocation().orElse(null);
+        MinecraftServer server = player.level().getServer();
+        if (death == null || death.dimension() != Level.END || !AncientWard.fallen(server)) return false;
+        if (Math.hypot(death.pos().getX(), death.pos().getZ()) > HEART_REACH) return false;
+        Stored stored = Stored.of(server);
+        if (death.equals(stored.backFrom.get(player.getUUID()))) return false;
+        stored.backFrom.put(player.getUUID(), death);
+        stored.setDirty();
+        return true;
     }
 
     /**
@@ -300,17 +319,22 @@ public final class Arrivals {
     private static final class Stored extends SavedData {
         static final Codec<Stored> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Station.CODEC.listOf().optionalFieldOf("waystations", List.of()).forGetter(s -> s.waystations),
-                UUIDUtil.CODEC.listOf().optionalFieldOf("greeted", List.of()).forGetter(s -> List.copyOf(s.greeted))).apply(i, Stored::new));
+                UUIDUtil.CODEC.listOf().optionalFieldOf("greeted", List.of()).forGetter(s -> List.copyOf(s.greeted)),
+                Codec.unboundedMap(UUIDUtil.STRING_CODEC, net.minecraft.core.GlobalPos.CODEC).optionalFieldOf("back_from", java.util.Map.of())
+                        .forGetter(s -> s.backFrom)).apply(i, Stored::new));
         static final SavedDataType<Stored> TYPE = new SavedDataType<>(PromisedEnd.id("arrivals"), Stored::new, CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
         final List<Station> waystations = new ArrayList<>();
         final java.util.Set<UUID> greeted = new java.util.HashSet<>();
+        /** Each player's death at the heart they were last brought back to it for. */
+        final java.util.Map<UUID, net.minecraft.core.GlobalPos> backFrom = new java.util.HashMap<>();
 
         Stored() {}
 
-        Stored(List<Station> waystations, List<UUID> greeted) {
+        Stored(List<Station> waystations, List<UUID> greeted, java.util.Map<UUID, net.minecraft.core.GlobalPos> backFrom) {
             this.waystations.addAll(waystations);
             this.greeted.addAll(greeted);
+            this.backFrom.putAll(backFrom);
         }
 
         static Stored of(MinecraftServer server) {

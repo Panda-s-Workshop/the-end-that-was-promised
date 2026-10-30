@@ -25,6 +25,7 @@ public class ConstructRenderer<T extends LivingEntity & GeoEntity> extends GeoEn
     private static final DataTicket<Integer> GLOW_STAGE = DataTicket.create("promisedend_glow_stage", Integer.class);
     private final int minLight;
     private final boolean staged;
+    private int tint = 0xFFFFFFFF;
 
     public ConstructRenderer(EntityRendererProvider.Context context, String id, float scale, float shadow) {
         this(context, id, scale, shadow, 0);
@@ -54,6 +55,20 @@ public class ConstructRenderer<T extends LivingEntity & GeoEntity> extends GeoEn
     public void extractRenderState(T entity, LivingEntityRenderState state, float partialTick) {
         super.extractRenderState(entity, state, partialTick);
         if (staged) ((GeoRenderState) (Object) state).addGeckolibData(GLOW_STAGE, glowStage(entity.getHealth(), entity.getMaxHealth()));
+    }
+
+    /**
+     * Draws it tinted {@code argb}: block light, the floor it is lit to, is warm, and turned a pale grey-violet shell
+     * tan; a cool tint gives that warmth back.
+     */
+    public ConstructRenderer<T> withTint(int argb) {
+        this.tint = argb;
+        return this;
+    }
+
+    @Override
+    public int getRenderColor(T animatable, Void relatedObject, float partialTick) {
+        return tint == 0xFFFFFFFF ? super.getRenderColor(animatable, relatedObject, partialTick) : tint;
     }
 
     @Override

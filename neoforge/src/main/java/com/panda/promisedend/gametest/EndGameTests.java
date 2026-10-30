@@ -4206,8 +4206,10 @@ public final class EndGameTests {
     }
 
     /**
-     * Once the Ward has fallen, a player who has arrived before comes back at the heart: vanilla's platform by the main
-     * island, on obsidian, told so. One arriving the first time still comes to a Waystation. The seals are mended after.
+     * Once the Ward has fallen, a player whose last death was at the heart comes back there, once for that death:
+     * vanilla's platform by the main island, on obsidian. Every other trip comes to a Waystation: a first one, one after
+     * a death far out, and the next after coming back from the heart. The dragon is the finale with the Ward standing
+     * and with it fallen. The seals are mended after.
      */
     private static void arrivalAtTheHeart(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -4223,16 +4225,27 @@ public final class EndGameTests {
         int guarded = com.panda.promisedend.logic.AncientWard.guarded(server);
         for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) if ((guarded & 1 << i) != 0) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
         if (!com.panda.promisedend.logic.AncientWard.fallen(server)) bad.add("every seal broken, the Ward hasn't fallen");
+        if (!com.panda.promisedend.logic.DragonWrath.finale(server)) bad.add("the Ward fallen, the dragon isn't the finale");
         var first = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
         if (first == null || Math.hypot(first.position().x, first.position().z) < com.panda.promisedend.logic.Arrival.NEAREST - com.panda.promisedend.logic.Arrival.SEARCH)
             bad.add("a first arrival wasn't set down at a Waystation: " + (first == null ? null : first.position()));
         if (first != null) first.postTeleportTransition().onTransition(player);
-        var again = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
         var spawn = net.minecraft.world.phys.Vec3.atBottomCenterOf(net.minecraft.server.level.ServerLevel.END_SPAWN_POINT.below());
-        PromisedEnd.LOGGER.info("[arrival_at_the_heart_once_the_ward_falls] first at {}, again at {}", first == null ? null : first.position(), again == null ? null : again.position());
-        if (again == null || !again.position().equals(spawn)) bad.add("coming back, set down at " + (again == null ? null : again.position()) + ", not the heart's " + spawn);
+        // a death far out: back to a Waystation
+        player.setLastDeathLocation(java.util.Optional.of(net.minecraft.core.GlobalPos.of(net.minecraft.world.level.Level.END, new BlockPos(1800, 60, 0))));
+        var far = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        if (far == null || far.position().equals(spawn)) bad.add("after a death far out, set down at the heart");
+        // a death in the dragon's fight: back at the heart, once
+        player.setLastDeathLocation(java.util.Optional.of(net.minecraft.core.GlobalPos.of(net.minecraft.world.level.Level.END, new BlockPos(20, 60, -12))));
+        var again = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        var after = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        PromisedEnd.LOGGER.info("[arrival_at_the_heart_once_the_ward_falls] first at {}, after a death far out {}, after one at the heart {}, the trip after {}",
+                first == null ? null : first.position(), far == null ? null : far.position(), again == null ? null : again.position(), after == null ? null : after.position());
+        if (again == null || !again.position().equals(spawn)) bad.add("after a death at the heart, set down at " + (again == null ? null : again.position()) + ", not the heart's " + spawn);
         else if (!end.getBlockState(BlockPos.containing(spawn).below()).is(net.minecraft.world.level.block.Blocks.OBSIDIAN)) bad.add("no platform under the heart's arrival");
+        if (after == null || after.position().equals(spawn)) bad.add("the trip after coming back from the heart set down at the heart again");
         com.panda.promisedend.logic.AncientWard.reset(server);
+        if (com.panda.promisedend.logic.AncientWard.stands(server) && !com.panda.promisedend.logic.DragonWrath.finale(server)) bad.add("the Ward standing, the dragon isn't the finale");
         com.panda.promisedend.logic.Arrivals.forget(server, player.getUUID());
         player.discard();
         if (!bad.isEmpty()) helper.fail("arrival at the heart: " + bad);
@@ -5614,6 +5627,15 @@ public final class EndGameTests {
         if (none != 0) bad.add("no End biome gives seals " + none);
         if (com.panda.promisedend.logic.AncientWard.binds(0, none)) bad.add("the Ward binds with no seal placeable");
         if (own != com.panda.promisedend.logic.AncientWard.ALL) bad.add("a real End gives seals " + own + ", not all three");
+        // a world border: inside the Citadels' 7,400 the third seal doesn't bind (the Foundry and the Maw stand anywhere
+        // with the terrain on)
+        int wide = com.panda.promisedend.logic.AncientWard.withinReach(30_000_000, server.registryAccess());
+        int five = com.panda.promisedend.logic.AncientWard.withinReach(5_000, server.registryAccess());
+        int near = com.panda.promisedend.logic.AncientWard.withinReach(1_000, server.registryAccess());
+        PromisedEnd.LOGGER.info("[ward_binds_only_placeable_seals] a border reaching 30M {}, 5,000 {}, 1,000 {}", wide, five, near);
+        if (wide != com.panda.promisedend.logic.AncientWard.ALL) bad.add("no border gives seals " + wide);
+        if (five != 0b011) bad.add("a border 5,000 out gives seals " + five + ", not the Foundry's and the Maw's");
+        if (near != 0b011) bad.add("a border 1,000 out gives seals " + near + ", not the Foundry's and the Maw's");
         if (!bad.isEmpty()) helper.fail("placeable seals: " + bad);
         else helper.succeed();
     }

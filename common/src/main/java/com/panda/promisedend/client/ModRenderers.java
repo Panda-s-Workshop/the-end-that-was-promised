@@ -19,7 +19,8 @@ public final class ModRenderers {
         sink.register(ModEntities.LUMEN_WISP.get(), c -> new ConstructRenderer<>(c, "lumen_wisp", com.panda.promisedend.entity.LumenWisp.MODEL_SCALE, 0.2F));
         // the stalker's voidstone and the sentry's purpur hold a little of their rift's and crystal's light, so End light
         // doesn't draw them as silhouettes (the stalker read as an enderman, the sentry as grey)
-        sink.register(ModEntities.RIFT_STALKER.get(), c -> new ConstructRenderer<>(c, "rift_stalker", com.panda.promisedend.entity.RiftStalker.MODEL_SCALE, 0.5F, 9));
+        // its pale shell lit to block light 9, whose warmth turned it tan: tinted cool, to a grey-mauve
+        sink.register(ModEntities.RIFT_STALKER.get(), c -> new ConstructRenderer<>(c, "rift_stalker", com.panda.promisedend.entity.RiftStalker.MODEL_SCALE, 0.5F, 9).withTint(0xFFE6F2FF));
         sink.register(ModEntities.PURPUR_SENTRY.get(), c -> new ConstructRenderer<>(c, "purpur_sentry", com.panda.promisedend.entity.PurpurSentry.MODEL_SCALE, 0.7F, 7));
         sink.register(ModEntities.HOLLOW_SENTINEL.get(), c -> new ConstructRenderer<>(c, "hollow_sentinel", com.panda.promisedend.entity.HollowSentinel.MODEL_SCALE, 1.2F, 7, true));
         sink.register(ModEntities.VOID_LEVIATHAN.get(), c -> new ConstructRenderer<>(c, "void_leviathan", com.panda.promisedend.entity.VoidLeviathan.MODEL_SCALE, 0.0F, 7, true));

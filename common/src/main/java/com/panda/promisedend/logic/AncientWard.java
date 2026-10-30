@@ -67,6 +67,10 @@ public final class AncientWard {
     /** The seals whose guardian's place can generate in this server's End, and the server it was worked out for. */
     private static int placeable = ALL;
     private static @org.jspecify.annotations.Nullable MinecraftServer placeableFor;
+    /** The End's world border's reach {@link #placeable} was worked out for (a border moved by a command redoes it). */
+    private static double placeableReach = -1;
+    /** A place's ring must reach this far inside the border's reach for one to fit there whole. */
+    public static final int BORDER_ROOM = 128;
 
     private AncientWard() {}
 
@@ -82,9 +86,11 @@ public final class AncientWard {
 
     /** The seals whose guardian is in the game and whose place can generate in {@code server}'s End. */
     public static int guarded(MinecraftServer server) {
-        if (placeableFor != server) {
+        double reach = borderReach(server);
+        if (placeableFor != server || reach != placeableReach) {
             placeable = placeable(server);
             placeableFor = server;
+            placeableReach = reach;
         }
         return guarded();
     }
@@ -95,7 +101,38 @@ public final class AncientWard {
      */
     static int placeable(MinecraftServer server) {
         ServerLevel end = server.getLevel(Level.END);
-        return end == null ? ALL : placeable(end.getChunkSource().getGenerator().getBiomeSource().possibleBiomes(), server.registryAccess());
+        return end == null ? ALL : placeable(end.getChunkSource().getGenerator().getBiomeSource().possibleBiomes(), server.registryAccess())
+                & withinReach(borderReach(server), server.registryAccess());
+    }
+
+    /** How far from the End's middle its world border lets a place stand: to its farthest corner. */
+    static double borderReach(MinecraftServer server) {
+        ServerLevel end = server.getLevel(Level.END);
+        if (end == null) return Double.MAX_VALUE;
+        var b = end.getWorldBorder();
+        return Math.hypot(Math.max(Math.abs(b.getMinX()), Math.abs(b.getMaxX())), Math.max(Math.abs(b.getMinZ()), Math.abs(b.getMaxZ())));
+    }
+
+    /**
+     * The seals whose place's ring (its structure set's {@code min_distance}, or its fallback's) starts inside
+     * {@code reach} of the End's middle, with room for one: a pack's world border inside the Citadels' 7,400 would hold
+     * the third seal, and the dragon, for good (public for GameTests).
+     */
+    public static int withinReach(double reach, net.minecraft.core.RegistryAccess access) {
+        var sets = access.lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE_SET);
+        int mask = 0;
+        for (int i = 0; i < PLACES.size(); i++) {
+            int nearest = Integer.MAX_VALUE;
+            for (String id : List.of(PLACES.get(i), PLACES.get(i) + "_fallback")) {
+                var set = sets.getValue(PromisedEnd.id(id));
+                if (set == null) continue;
+                nearest = Math.min(nearest, set.placement() instanceof com.panda.promisedend.worldgen.RingSpreadPlacement ring ? ring.minDistance() : 0);
+            }
+            if (nearest == Integer.MAX_VALUE || nearest + BORDER_ROOM <= reach) mask |= 1 << i;
+            else PromisedEnd.LOGGER.warn("[promisedend] the End's world border ({} out) is inside where a {} can stand ({} out): its seal won't bind the Ancients' Ward",
+                    Math.round(reach), PLACES.get(i), nearest);
+        }
+        return mask;
     }
 
     /** The seals whose guardian's place lists one of {@code possible} (public for GameTests). */
