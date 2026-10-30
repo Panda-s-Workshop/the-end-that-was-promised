@@ -37,7 +37,7 @@ public final class EndFabricClient implements ClientModInitializer {
                 net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry.getInstance().register(type, provider::create);
             }
         });
-        com.panda.promisedend.PromisedEnd.openCodex = () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen());
+        com.panda.promisedend.PromisedEnd.openCodex = act -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen(act));
         com.panda.promisedend.client.ClientView.install();
     }
 }

@@ -192,6 +192,8 @@ public final class EndGameTests {
         FUNCTIONS.register("architect_arena_resets", () -> ArchitectGameTests::arenaResets);
         FUNCTIONS.register("architect_keystone_takes_double", () -> ArchitectGameTests::keystoneTakesDouble);
         FUNCTIONS.register("architect_death_breaks_seal", () -> ArchitectGameTests::deathBreaksSeal);
+        FUNCTIONS.register("architect_shard_lands_where_shown", () -> ArchitectGameTests::shardLandsWhereShown);
+        FUNCTIONS.register("architect_promise_reads_closing_page", () -> ArchitectGameTests::promiseReadsClosingPage);
         FUNCTIONS.register("architect_lattice_boosts", () -> ArchitectGameTests::latticeBoosts);
         FUNCTIONS.register("architect_runs_its_turns", () -> ArchitectGameTests::runsItsTurns);
         FUNCTIONS.register("architect_sweeps_the_hub", () -> ArchitectGameTests::sweepsTheHub);
@@ -213,7 +215,8 @@ public final class EndGameTests {
             java.util.Map.entry("set_bonus_void_touched", 400), java.util.Map.entry("ward_bounces_pearls", 160),
             java.util.Map.entry("crawler_only_tears_lattice", 340), java.util.Map.entry("phantom_lattice_reforms", 200),
             java.util.Map.entry("architect_only_edits_lattice", 90), java.util.Map.entry("architect_runs_its_turns", 780),
-            java.util.Map.entry("architect_sweeps_the_hub", 240));
+            java.util.Map.entry("architect_sweeps_the_hub", 240),
+            java.util.Map.entry("architect_shard_lands_where_shown", 180));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -241,13 +244,14 @@ public final class EndGameTests {
             // an Architect wakes for and builds against any survival player in 48, lays its disc past the test's bounds,
             // and its seal is the world's
             "architect_only_edits_lattice", "architect_arena_resets", "architect_keystone_takes_double", "architect_death_breaks_seal",
-            "architect_runs_its_turns", "architect_sweeps_the_hub", "architect_wakes_at_sixteen_once_unbound");
+            "architect_runs_its_turns", "architect_sweeps_the_hub", "architect_wakes_at_sixteen_once_unbound",
+            "architect_shard_lands_where_shown");
 
     /**
      * Tests open to the sky: a test's arena is roofed with barrier otherwise, a few blocks over its floor, and the
      * Architect's lobbed throws struck it two ticks out.
      */
-    private static final java.util.Set<String> SKY = java.util.Set.of("architect_runs_its_turns");
+    private static final java.util.Set<String> SKY = java.util.Set.of("architect_runs_its_turns", "architect_shard_lands_where_shown");
 
     private EndGameTests() {}
 

@@ -721,11 +721,21 @@ public class TheArchitect extends Monster implements GeoEntity {
         return ArchitectFight.phaseFor(share, current);
     }
 
+    /** Its bar's colour in each phase, so a phase is seen at a glance: purple, then magenta, then amber. */
+    public static BossEvent.BossBarColor barColour(int phase) {
+        return switch (phase) {
+            case 0 -> BossEvent.BossBarColor.PURPLE;
+            case 1 -> BossEvent.BossBarColor.PINK;
+            default -> BossEvent.BossBarColor.YELLOW;
+        };
+    }
+
     private void checkPhase(ServerLevel level) {
         int reached = phaseFor(getHealth() / getMaxHealth(), phase);
         if (reached == phase) return;
         this.phase = reached;
         this.next = 0;
+        bar.setColor(barColour(phase));
         if (phase >= 2) callCrawlers(level);
         playSound(ModSounds.ARCHITECT_PHASE.get(), 3.0F, 1.0F);
         Vec3 key = keystonePosition();
@@ -764,6 +774,7 @@ public class TheArchitect extends Monster implements GeoEntity {
         if (already || !(level() instanceof ServerLevel level)) return;
         bar.removeAllPlayers();
         resetArena(level);
+        fall(level);
         AncientWard.breakSeal(level.getServer(), 2);
         Set<ServerPlayer> rewarded = new LinkedHashSet<>();
         for (UUID id : fought) if (level.getServer().getPlayerList().getPlayer(id) instanceof ServerPlayer p) rewarded.add(p);
@@ -776,6 +787,27 @@ public class TheArchitect extends Monster implements GeoEntity {
                 if (!p.getInventory().add(reward)) p.spawnAtLocation(level, reward);
             }
         }
+    }
+
+    /**
+     * The third seal's moment: its keystone bursts in a flash of light and lattice, and lilac rings of lit motes stand
+     * over the arena round its rest, 4, 9 and 14 out.
+     */
+    private void fall(ServerLevel level) {
+        Vec3 key = keystonePosition();
+        level.sendParticles(ParticleTypes.END_ROD, key.x, key.y, key.z, 80, 0.4, 0.4, 0.4, 0.25);
+        level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, ModBlocks.RAW_LATTICE.get().defaultBlockState()),
+                key.x, key.y, key.z, 60, 0.6, 0.6, 0.6, 0.3);
+        BlockPos home = rest();
+        double y = home.getY() + 0.2;
+        for (int radius = 4; radius <= 14; radius += 5) {
+            int points = radius * 8;
+            for (int i = 0; i < points; i++) {
+                double a = Math.PI * 2 * i / points;
+                level.sendParticles(com.panda.promisedend.registry.ModParticles.CHORUS_VINE.get(), home.getX() + 0.5 + Math.cos(a) * radius, y, home.getZ() + 0.5 + Math.sin(a) * radius, 1, 0, 0.1, 0, 0);
+            }
+        }
+        playSound(ModSounds.ARCHITECT_PHASE.get(), 4.0F, 0.7F);
     }
 
     @Override
@@ -851,6 +883,7 @@ public class TheArchitect extends Monster implements GeoEntity {
         setState(input.getBooleanOr("awake", false) ? State.IDLE : State.DORMANT);
         bar.setVisible(state() != State.DORMANT);
         this.phase = input.getIntOr("phase", 0);
+        bar.setColor(barColour(phase));
         this.bound = input.getBooleanOr("bound", false);
         this.savedAt = input.getLongOr("saved_at", -1L);
         fought.clear();

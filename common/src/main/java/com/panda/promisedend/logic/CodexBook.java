@@ -56,6 +56,9 @@ public final class CodexBook {
     public static final Identifier TWELVE_TABLETS = PromisedEnd.id("outer/twelve_tablets");
     public static final int HALF = 12;
 
+    /** The Architect's Promise used: the closing page, written in under the last act's goals (block.ArchitectsPromiseBlock). */
+    public static final Identifier PROMISE_KEPT = PromisedEnd.id("void/promise_kept");
+
     /** The tablets' pages, and the advancement for having read any (the root of their tab). */
     public static final int PAGES = 24;
     public static final Identifier TABLETS = PromisedEnd.id("lore/root");

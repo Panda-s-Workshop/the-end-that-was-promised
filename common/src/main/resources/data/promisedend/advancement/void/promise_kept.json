@@ -1,0 +1,29 @@
+{
+  "parent": "promisedend:void/defeat_architect",
+  "criteria": {
+    "read": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "promisedend:architects_promise"
+    },
+    "title": {
+      "translate": "advancements.promisedend.void.promise_kept.title"
+    },
+    "description": {
+      "translate": "advancements.promisedend.void.promise_kept.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

@@ -31,6 +31,11 @@ public class LatticeShard extends ThrowableItemProjectile {
     public static final double GRAVITY = 0.04, SPEED = 0.4;
     /** It breaks up after this long, wherever it is. */
     public static final int LIFETIME = 120;
+    /** The ring that shows where it will come down: this wide, on the ground under its aim. */
+    public static final double RING = 1.2;
+
+    /** Where it was thrown to come down, while it flies (not saved: one loaded mid-flight shows no ring). */
+    private @org.jspecify.annotations.Nullable Vec3 aim;
 
     public LatticeShard(EntityType<? extends LatticeShard> type, Level level) {
         super(type, level);
@@ -41,6 +46,12 @@ public class LatticeShard extends ThrowableItemProjectile {
         super(ModEntities.LATTICE_SHARD.get(), architect, level, ModBlocks.RAW_LATTICE.get().asItem().getDefaultInstance());
         this.setPos(architect.keystonePosition());
         setDeltaMovement(lob(position(), aim, SPEED, GRAVITY));
+        this.aim = aim;
+    }
+
+    /** Where it will come down, if it was thrown at somewhere. */
+    public java.util.Optional<Vec3> aim() {
+        return java.util.Optional.ofNullable(aim);
     }
 
     /** The throw from {@code from} that comes down on {@code to} ({@link ArchitectFight#lob}). */
@@ -67,6 +78,20 @@ public class LatticeShard extends ThrowableItemProjectile {
             if (tickCount % 2 == 0) level().addParticle(ParticleTypes.END_ROD, getX(), getY(), getZ(), 0, 0, 0);
         } else if (tickCount > LIFETIME) {
             breakUp((ServerLevel) level());
+        } else if (aim != null && tickCount % 2 == 0) {
+            ring((ServerLevel) level());
+        }
+    }
+
+    /**
+     * A lilac ring on the ground under its aim (the aim is at a body's middle, its feet in that block), as the
+     * Leviathan's breach shows: lit motes that hang still a moment, as dust draws near-black in the End's low light.
+     */
+    private void ring(ServerLevel level) {
+        double y = Math.floor(aim.y) + 0.1;
+        for (int i = 0; i < 14; i++) {
+            double a = Math.PI * 2 * i / 14;
+            level.sendParticles(com.panda.promisedend.registry.ModParticles.CHORUS_VINE.get(), aim.x + Math.cos(a) * RING, y, aim.z + Math.sin(a) * RING, 1, 0, 0, 0, 0);
         }
     }
 

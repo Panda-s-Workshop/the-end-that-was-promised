@@ -110,7 +110,13 @@ public final class AncientWard {
         if (end != null) {
             for (ServerPlayer p : end.players()) {
                 p.sendSystemMessage(Component.translatable("ward.promisedend.seal_broken", Component.translatable("ward.promisedend.seal." + SEALS.get(index)), count, of));
-                if (falls) p.sendSystemMessage(Component.translatable("ward.promisedend.falls"));
+                if (falls) {
+                    p.sendSystemMessage(Component.translatable("ward.promisedend.falls"));
+                    // and on the screen: the moment the last act opens
+                    p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(10, 70, 20));
+                    p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(Component.translatable("ward.promisedend.falls.subtitle")));
+                    p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(Component.translatable("ward.promisedend.falls.title")));
+                }
                 end.playSound(null, p.blockPosition(), falls ? SoundEvents.END_PORTAL_SPAWN : SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.MASTER, 1.0F, 0.8F);
             }
         }

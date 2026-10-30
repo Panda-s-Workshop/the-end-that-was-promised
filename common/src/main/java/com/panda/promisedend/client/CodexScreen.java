@@ -44,7 +44,13 @@ public class CodexScreen extends Screen {
     private int page;
 
     public CodexScreen() {
+        this(-1);
+    }
+
+    /** Open on act {@code act}, or on the first for -1 (the Architect's Promise opens it on the last). */
+    public CodexScreen(int act) {
         super(Component.translatable("screen.promisedend.codex.title"));
+        if (act >= 0) select(act);
     }
 
     @Override
@@ -329,6 +335,7 @@ public class CodexScreen extends Screen {
             g.text(font, fit(Component.translatable(goal.hint()).getString(), R_W - 12), x + 12, gy + 9, INK_MUTED, false);
             gy += GOAL_H;
         }
+        if (selected == CodexBook.ACTS.size() - 1) closing(g, x, gy + 4);
         // progress: a bar and a count under the goals
         int by = y0 + H - 26;
         int filled = R_W * count / act.goals().size();
@@ -337,6 +344,18 @@ public class CodexScreen extends Screen {
         Component label = count == act.goals().size() ? Component.translatable("screen.promisedend.codex.complete")
                 : Component.translatable("screen.promisedend.codex.progress", count, act.goals().size());
         g.text(font, label, x + (R_W - font.width(label)) / 2, by + 6, INK_MUTED, false);
+    }
+
+    /** The closing page under the last act's goals: written in once the Architect's Promise is used, its hint till then. */
+    private void closing(GuiGraphicsExtractor g, int x, int y) {
+        rule(g, x, y, R_W);
+        if (!done(CodexBook.PROMISE_KEPT)) {
+            wrapped(g, Component.translatable("screen.promisedend.codex.closing.unread"), x, y + 6, INK_MUTED, 3);
+            return;
+        }
+        Component heading = Component.translatable("screen.promisedend.codex.closing").withStyle(ChatFormatting.ITALIC);
+        g.text(font, heading, x + (R_W - font.width(heading)) / 2, y + 5, INK, false);
+        wrapped(g, Component.translatable("codex.promisedend.closing"), x, y + 17, INK_MUTED, 6);
     }
 
     private void wrapped(GuiGraphicsExtractor g, Component text, int x, int y, int color, int maxLines) {

@@ -15,7 +15,7 @@ public class PromiseCodexItem extends Item {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        if (level.isClientSide()) PromisedEnd.openCodex.run();
+        if (level.isClientSide()) PromisedEnd.openCodex.accept(-1);
         return InteractionResult.SUCCESS;
     }
 }

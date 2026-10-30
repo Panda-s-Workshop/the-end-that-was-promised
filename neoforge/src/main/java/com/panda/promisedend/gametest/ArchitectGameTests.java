@@ -332,6 +332,85 @@ final class ArchitectGameTests {
         });
     }
 
+    /**
+     * A throw shows where it will come down and comes down there: two shards from the Architect's keystone (its AI off),
+     * one at a survival player held still 8 out, one at another 8 out the other way who steps 3 aside once it is
+     * thrown. Each shard's aim is under its target's middle (so its ring is at their feet); the still one is hit for
+     * {@link LatticeShard#DAMAGE} as the difficulty makes it, and the one who stepped aside isn't hit.
+     */
+    static void shardLandsWhereShown(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        layDisc(helper);
+        TheArchitect a = architect(helper);
+        a.setNoAi(true);
+        ServerPlayer still = EndGameTests.realPlayer(helper, GameType.SURVIVAL), steps = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        BlockPos floor = helper.absolutePos(MIDDLE);
+        Vec3 here = new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 8.5), there = new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() - 7.5);
+        Vec3 aside = there.add(3, 0, 0);
+        List<String> bad = new ArrayList<>();
+        float[] taken = {0, 0};
+        int[] thrown = {-1};
+        // a new player can't be hurt until their client counts as loaded (60 ticks here): the throws wait for it
+        for (int t = 1; t <= 170; t++) {
+            int tick = t;
+            helper.runAtTickTime(t, () -> {
+                // a blow taken last tick counted before the hold heals it
+                for (int i = 0; i < 2; i++) {
+                    ServerPlayer who = i == 0 ? still : steps;
+                    var last = who.getLastDamageSource();
+                    if (who.getHealth() < who.getMaxHealth() && last != null && last.getDirectEntity() instanceof LatticeShard) taken[i] += who.getMaxHealth() - who.getHealth();
+                }
+                hold(still, here);
+                hold(steps, thrown[0] > 0 && tick > thrown[0] + 4 ? aside : there);
+                if (thrown[0] < 0 && still.connection.hasClientLoaded() && steps.connection.hasClientLoaded()) {
+                    thrown[0] = tick;
+                    for (ServerPlayer target : List.of(still, steps)) {
+                        Vec3 aim = target.position().add(0, target.getBbHeight() * 0.4, 0);
+                        LatticeShard shard = new LatticeShard(level, a, aim);
+                        level.addFreshEntity(shard);
+                        Vec3 at = shard.aim().orElse(Vec3.ZERO);
+                        if (Math.hypot(at.x - target.getX(), at.z - target.getZ()) > 0.01 || Math.floor(at.y) != Math.floor(target.getY()))
+                            bad.add("a shard's ring would be at " + at + ", not under " + target.position());
+                    }
+                }
+            });
+        }
+        helper.runAtTickTime(172, () -> {
+            PromisedEnd.LOGGER.info("[architect_shard_lands_where_shown] thrown on tick {}; the still player took {}, the one who stepped aside {}", thrown[0], taken[0], taken[1]);
+            if (thrown[0] < 0 || thrown[0] > 90) bad.add("the throws went on tick " + thrown[0] + ", too late to land (the clients never loaded)");
+            float want = onPlayer(level, LatticeShard.DAMAGE);
+            if (want > 0 && Math.abs(taken[0] - want) > 0.01F) bad.add("the still player took " + taken[0] + ", not " + want);
+            if (taken[1] > 0) bad.add("the player who stepped aside was hit for " + taken[1]);
+            clearDisc(helper);
+            for (ServerPlayer who : List.of(still, steps)) level.getServer().getPlayerList().remove(who);
+            if (!bad.isEmpty()) helper.fail("a shard's landing: " + bad);
+            else helper.succeed();
+        });
+    }
+
+    /**
+     * The Architect's Promise, set down and used by a survival player, writes the Codex's closing page in (its
+     * advancement); the use succeeds and leaves the block.
+     */
+    static void promiseReadsClosingPage(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos at = helper.absolutePos(new BlockPos(1, 1, 1));
+        level.setBlock(at, ModBlocks.ARCHITECTS_PROMISE.get().defaultBlockState(), 3);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        hold(p, Vec3.atBottomCenterOf(at.south(2)));
+        var kept = level.getServer().getAdvancements().get(com.panda.promisedend.logic.CodexBook.PROMISE_KEPT);
+        List<String> bad = new ArrayList<>();
+        if (kept == null) bad.add("there is no void/promise_kept advancement");
+        else if (p.getAdvancements().getOrStartProgress(kept).isDone()) bad.add("the closing page was read before the Promise was used");
+        var result = level.getBlockState(at).useWithoutItem(level, p, new net.minecraft.world.phys.BlockHitResult(Vec3.atCenterOf(at), net.minecraft.core.Direction.SOUTH, at, false));
+        if (!result.consumesAction()) bad.add("using the Promise did nothing (" + result + ")");
+        if (kept != null && !p.getAdvancements().getOrStartProgress(kept).isDone()) bad.add("using the Promise didn't write the closing page in");
+        if (!level.getBlockState(at).is(ModBlocks.ARCHITECTS_PROMISE.get())) bad.add("the Promise went when used");
+        level.getServer().getPlayerList().remove(p);
+        if (!bad.isEmpty()) helper.fail("the Architect's Promise: " + bad);
+        else helper.succeed();
+    }
+
     /** A mob's blow of {@code damage} on a player, as the level's difficulty makes it (Normal is as written). */
     private static float onPlayer(ServerLevel level, float damage) {
         return switch (level.getDifficulty()) {
@@ -421,6 +500,7 @@ final class ArchitectGameTests {
                         a.hurtServer(level, level.damageSources().playerAttack(p), 20.0F);
                         phased[0] = tick;
                         if (a.phase() != 1) bad.add("a blow under 60 % left it in phase " + (a.phase() + 1));
+                        if (a.bar().getColor() != net.minecraft.world.BossEvent.BossBarColor.PINK) bad.add("its bar in phase 2 is " + a.bar().getColor() + ", not magenta");
                     }
                 }
                 if (tornAt[0] < 0 && a.unmade() > 0) {

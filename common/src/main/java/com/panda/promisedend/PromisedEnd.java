@@ -26,7 +26,8 @@ public final class PromisedEnd {
     private static boolean initialised;
 
     /** Opens the Codex screen; each loader's client entry sets it (common code can't name client classes). */
-    public static Runnable openCodex = () -> {};
+    /** Opens the Codex on the client, on act {@code i} (-1 for the first). */
+    public static java.util.function.IntConsumer openCodex = act -> {};
     /** Sends a payload to the server, if it knows it; each loader's client entry sets it. */
     public static java.util.function.Consumer<net.minecraft.network.protocol.common.custom.CustomPacketPayload> toServer = payload -> {};
 

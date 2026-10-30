@@ -47,7 +47,7 @@ public final class EndNeoForgeClient {
         };
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut e) ->
                 com.panda.promisedend.logic.VoidCurrents.heardTerrain(null));
-        PromisedEnd.openCodex = () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen());
+        PromisedEnd.openCodex = act -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(new com.panda.promisedend.client.CodexScreen(act));
         com.panda.promisedend.client.ClientView.install();
     }
 }
