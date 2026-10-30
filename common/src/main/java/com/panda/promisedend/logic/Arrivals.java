@@ -45,6 +45,31 @@ public final class Arrivals {
 
     private Arrivals() {}
 
+    /**
+     * The End's world border's least reach (to its nearest edge) that holds every arrival: the farthest point, the ground
+     * searched round it and a Waystation. Inside it a portal could set a player down past the border, where it kills
+     * them, so arrivals step aside to vanilla's, and the Ward with them, as with arrivals by coordinates off.
+     */
+    public static final int BORDER_REACH = Arrival.FARTHEST + Arrival.SEARCH + SIZE;
+    /** Whether arrivals were by coordinates when last asked: a change is said once, not each time. */
+    private static boolean wasByCoordinates = true;
+
+    /**
+     * Whether End portals set players down by their coordinates (and the Ward, the pearl's guide and the heart's return
+     * stand): the config on, and the End's world border wide enough to hold every arrival.
+     */
+    public static boolean byCoordinates(MinecraftServer server) {
+        if (!EndConfig.arrivalByCoordinates()) return false;
+        double reach = AncientWard.borderReach(server);
+        boolean fits = reach >= BORDER_REACH;
+        if (fits != wasByCoordinates) {
+            wasByCoordinates = fits;
+            if (!fits) PromisedEnd.LOGGER.warn("[promisedend] the End's world border ({} out) is inside where portals set players down ({}): arrivals are vanilla's, and the Ancients' Ward doesn't stand",
+                    Math.round(reach), BORDER_REACH);
+        }
+        return fits;
+    }
+
     /** A death this near the End's middle, the main island and the Rim before it, is a death at the heart. */
     public static final int HEART_REACH = 450;
 
@@ -56,7 +81,7 @@ public final class Arrivals {
      */
     public static @Nullable TeleportTransition destination(ServerLevel from, @Nullable Entity entity, BlockPos portal) {
         ServerLevel end = from.getServer().getLevel(Level.END);
-        if (end == null || from.dimension() == Level.END || !EndConfig.arrivalByCoordinates()) return null;
+        if (end == null || from.dimension() == Level.END || !byCoordinates(from.getServer())) return null;
         if (entity instanceof ServerPlayer player && diedAtHeart(player)) return heart(end);
         BlockPos centre = waystation(end, Arrival.target(portal.getX() + 0.5, portal.getZ() + 0.5));
         Vec3 at = stand(centre);

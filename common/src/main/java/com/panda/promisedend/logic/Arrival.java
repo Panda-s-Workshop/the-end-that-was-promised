@@ -40,7 +40,6 @@ public final class Arrival {
         return new double[] {ux * d, uz * d};
     }
 
-    /** Whether ({@code x}, {@code z}) is inside the Ancients' Ward of {@code radius}: a cylinder round the centre. */
     /** The eight-point compass name of the way ({@code dx}, {@code dz}) points: north is -z, east +x. */
     public static String compass(double dx, double dz) {
         String[] names = {"east", "southeast", "south", "southwest", "west", "northwest", "north", "northeast"};

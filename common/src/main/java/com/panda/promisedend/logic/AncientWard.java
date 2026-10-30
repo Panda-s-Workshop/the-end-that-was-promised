@@ -172,11 +172,11 @@ public final class AncientWard {
     /** Whether the Ward has fallen: it had seals, and every one of them is broken. */
     public static boolean fallen(MinecraftServer server) {
         int guarded = guarded(server);
-        return EndConfig.arrivalByCoordinates() && guarded != 0 && !binds(broken(server), guarded);
+        return Arrivals.byCoordinates(server) && guarded != 0 && !binds(broken(server), guarded);
     }
 
     public static boolean stands(MinecraftServer server) {
-        if (!EndConfig.arrivalByCoordinates() || !binds(broken(server), guarded(server))) return false;
+        if (!Arrivals.byCoordinates(server) || !binds(broken(server), guarded(server))) return false;
         ServerLevel end = server.getLevel(Level.END);
         var fight = end == null ? null : end.getDragonFight();
         return fight == null || !fight.hasPreviouslyKilledDragon();

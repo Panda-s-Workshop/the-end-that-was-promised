@@ -1,6 +1,5 @@
 package com.panda.promisedend.logic;
 
-import com.panda.promisedend.EndConfig;
 import com.panda.promisedend.registry.ModTags;
 import java.util.HashMap;
 import java.util.Map;
@@ -128,7 +127,7 @@ public final class PearlGuide {
      * by coordinates on (off, vanilla's End lands everyone at the centre).
      */
     public static boolean guides(ServerPlayer player) {
-        if (!EndConfig.arrivalByCoordinates() || player.isSpectator() || !(player.level() instanceof ServerLevel level) || level.dimension() != Level.END) return false;
+        if (player.isSpectator() || !(player.level() instanceof ServerLevel level) || level.dimension() != Level.END || !Arrivals.byCoordinates(level.getServer())) return false;
         if (Math.hypot(player.getX(), player.getZ()) < FROM) return false;
         return player.getItemInHand(InteractionHand.MAIN_HAND).is(Items.ENDER_PEARL) || player.getItemInHand(InteractionHand.OFF_HAND).is(Items.ENDER_PEARL);
     }

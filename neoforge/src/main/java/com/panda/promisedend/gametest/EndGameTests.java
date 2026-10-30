@@ -90,6 +90,7 @@ public final class EndGameTests {
         FUNCTIONS.register("drift_islet_saves", () -> EndGameTests::driftIsletSaves);
         FUNCTIONS.register("drift_islet_spares_builds", () -> EndGameTests::driftIsletSparesBuilds);
         FUNCTIONS.register("arrival_at_the_heart_once_the_ward_falls", () -> EndGameTests::arrivalAtTheHeart);
+        FUNCTIONS.register("arrivals_step_aside_inside_a_narrow_border", () -> EndGameTests::arrivalsInsideABorder);
         FUNCTIONS.register("drift_islet_headroom_turns", () -> EndGameTests::driftIsletHeadroomTurns);
         FUNCTIONS.register("drift_islet_keeps_rider_aloft", () -> EndGameTests::driftIsletKeepsRiderAloft);
         FUNCTIONS.register("drift_islet_crossing", () -> EndGameTests::driftIsletCrossing);
@@ -243,7 +244,7 @@ public final class EndGameTests {
      * test that succeeds removes every entity in and round its own bounds, so a neighbour finishing first took the
      * dragon with it (seen as a Warden whose heals never landed).
      */
-    private static final java.util.Set<String> ALONE = java.util.Set.of("void_anchor_ward_fallback", "arrival_at_the_heart_once_the_ward_falls", "leviathan_reward_kept_for_the_dead", "amber_gate_needs_key", "dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
+    private static final java.util.Set<String> ALONE = java.util.Set.of("void_anchor_ward_fallback", "arrival_at_the_heart_once_the_ward_falls", "arrivals_step_aside_inside_a_narrow_border", "leviathan_reward_kept_for_the_dead", "amber_gate_needs_key", "dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
             "warden_heals_dragon", "dragon_void_breath_dive", "void_breath_dodged", "called_wardens_take_turns",
             "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops",
             // counts constructs within 32 blocks, which reaches into the arenas beside it
@@ -4211,6 +4212,36 @@ public final class EndGameTests {
      * a death far out, and the next after coming back from the heart. The dragon is the finale with the Ward standing
      * and with it fallen. The seals are mended after.
      */
+    /**
+     * An End world border too narrow to hold every arrival (2,000 out, inside 2,769): portals are vanilla's, the Ward
+     * doesn't stand and the dragon isn't the finale. At the border's edge both are back. The border is put back after.
+     */
+    private static void arrivalsInsideABorder(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        var border = server.getLevel(net.minecraft.world.level.Level.END).getWorldBorder();
+        double size = border.getSize();
+        List<String> bad = new ArrayList<>();
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        try {
+            border.setSize(4_000);
+            var narrow = com.panda.promisedend.logic.Arrivals.destination(level, null, new BlockPos(2400, 64, 0));
+            boolean stands = com.panda.promisedend.logic.AncientWard.stands(server);
+            if (narrow != null) bad.add("a border 2,000 out still set an arrival down at " + narrow.position());
+            if (stands) bad.add("a border 2,000 out still raised the Ward");
+            if (com.panda.promisedend.logic.DragonWrath.finale(server)) bad.add("a border 2,000 out, the dragon is still the finale");
+            border.setSize(2.0 * com.panda.promisedend.logic.Arrivals.BORDER_REACH);
+            boolean back = com.panda.promisedend.logic.Arrivals.byCoordinates(server), backStands = com.panda.promisedend.logic.AncientWard.stands(server);
+            PromisedEnd.LOGGER.info("[arrivals_step_aside_inside_a_narrow_border] 2,000 out: arrival {}, the Ward {}; {} out: by coordinates {}, the Ward {}",
+                    narrow == null ? "vanilla's" : narrow.position(), stands, com.panda.promisedend.logic.Arrivals.BORDER_REACH, back, backStands);
+            if (!back || !backStands) bad.add("a border at " + com.panda.promisedend.logic.Arrivals.BORDER_REACH + " out: by coordinates " + back + ", the Ward " + backStands);
+        } finally {
+            border.setSize(size);
+        }
+        if (!bad.isEmpty()) helper.fail("a narrow border: " + bad);
+        else helper.succeed();
+    }
+
     private static void arrivalAtTheHeart(GameTestHelper helper) {
         var level = helper.getLevel();
         var server = level.getServer();
