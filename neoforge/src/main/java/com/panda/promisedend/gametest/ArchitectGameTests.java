@@ -411,6 +411,42 @@ final class ArchitectGameTests {
         else helper.succeed();
     }
 
+    /**
+     * Saved and loaded mid-fight, in its second phase after a survival player's blow: it comes back awake and between
+     * works, in the same phase with its bar magenta and shown, its health, rest and fighter kept (so its Promise still
+     * goes to them).
+     */
+    static void savedMidFight(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        layDisc(helper);
+        TheArchitect a = architect(helper);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        BlockPos floor = helper.absolutePos(MIDDLE);
+        List<String> bad = new ArrayList<>();
+        helper.runAtTickTime(2, () -> {
+            hold(p, new Vec3(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 8.5));
+            a.wake();
+            a.setHealth(a.getMaxHealth() * 0.61F);
+            a.openCage(40);
+            a.damageCooldownTime = 0;
+            a.hurtServer(level, level.damageSources().playerAttack(p), 20.0F);
+            if (a.phase() != 1) bad.add("the set-up left it in phase " + (a.phase() + 1) + ", not 2");
+            TheArchitect b = EndGameTests.reloaded(level, a, ModEntities.THE_ARCHITECT.get());
+            PromisedEnd.LOGGER.info("[architect_saved_mid_fight] before: {} phase {} health {}; after: {} phase {} health {} bar {} {}",
+                    a.state(), a.phase(), a.getHealth(), b.state(), b.phase(), b.getHealth(), b.bar().getColor(), b.bar().isVisible());
+            if (b.state() != TheArchitect.State.IDLE) bad.add("it came back " + b.state() + ", not awake between works");
+            if (b.phase() != a.phase()) bad.add("it came back in phase " + (b.phase() + 1) + ", not " + (a.phase() + 1));
+            if (b.bar().getColor() != TheArchitect.barColour(a.phase()) || !b.bar().isVisible()) bad.add("its bar came back " + b.bar().getColor() + ", shown " + b.bar().isVisible());
+            if (Math.abs(b.getHealth() - a.getHealth()) > 0.01F) bad.add("its health came back " + b.getHealth() + ", not " + a.getHealth());
+            if (!java.util.Objects.equals(b.home(), a.home())) bad.add("its rest came back " + b.home() + ", not " + a.home());
+            if (!b.fought().contains(p.getUUID())) bad.add("its fighter was forgotten");
+            clearDisc(helper);
+            level.getServer().getPlayerList().remove(p);
+            if (!bad.isEmpty()) helper.fail("the Architect saved mid-fight: " + bad);
+            else helper.succeed();
+        });
+    }
+
     /** A mob's blow of {@code damage} on a player, as the level's difficulty makes it (Normal is as written). */
     private static float onPlayer(ServerLevel level, float damage) {
         return switch (level.getDifficulty()) {

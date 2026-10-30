@@ -43,6 +43,63 @@ final class LeviathanGameTests {
     }
 
     /**
+     * Woken and wounded with no one near, it goes back to sleep in the pool's throat {@link VoidLeviathan#REST_TICKS}
+     * (30 s) later, not before, and keeps its wounds.
+     */
+    static void sleepsAlone(GameTestHelper helper) {
+        var level = helper.getLevel();
+        VoidLeviathan v = spawn(helper, true);
+        List<String> bad = new ArrayList<>();
+        float[] wounded = {0};
+        helper.runAtTickTime(2, () -> {
+            v.wake();
+            v.hurtServer(level, level.damageSources().magic(), 20.0F);
+            wounded[0] = v.getHealth();
+            if (wounded[0] >= v.getMaxHealth()) bad.add("the blow didn't land");
+        });
+        helper.runAtTickTime(2 + VoidLeviathan.REST_TICKS - 40, () -> {
+            if (v.state() == VoidLeviathan.State.DORMANT) bad.add("it slept before its 30 s alone were up");
+        });
+        helper.runAtTickTime(2 + VoidLeviathan.REST_TICKS + 20, () -> {
+            PromisedEnd.LOGGER.info("[leviathan_sleeps_alone] after {} ticks alone: {}, health {} (wounded to {})", VoidLeviathan.REST_TICKS + 20,
+                    v.state(), v.getHealth(), wounded[0]);
+            if (v.state() != VoidLeviathan.State.DORMANT) bad.add("30 s alone, it is still " + v.state());
+            if (v.getHealth() > wounded[0] + 0.01F) bad.add("it healed to " + v.getHealth() + " from " + wounded[0]);
+            if (!bad.isEmpty()) helper.fail("the Leviathan alone: " + bad);
+            else helper.succeed();
+        });
+    }
+
+    /**
+     * Saved and loaded while reared after a survival player's blow: it comes back awake under the surface (not
+     * mid-breach), its bar shown, its health, its pool and its fighter kept.
+     */
+    static void savedMidFight(GameTestHelper helper) {
+        var level = helper.getLevel();
+        VoidLeviathan v = spawn(helper, false);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        List<String> bad = new ArrayList<>();
+        helper.runAtTickTime(2, () -> {
+            v.wake();
+            v.rear(v.position().add(0, VoidLeviathan.SURFACE, 0));
+            v.hurtServer(level, level.damageSources().playerAttack(p), 20.0F);
+            VoidLeviathan b = EndGameTests.reloaded(level, v, ModEntities.VOID_LEVIATHAN.get());
+            PromisedEnd.LOGGER.info("[leviathan_saved_mid_fight] before: {} health {}; after: {} health {} bar {}", v.state(), v.getHealth(),
+                    b.state(), b.getHealth(), b.bar().isVisible());
+            if (v.state() != VoidLeviathan.State.EXPOSED) bad.add("the set-up left it " + v.state() + ", not reared");
+            if (b.state() != VoidLeviathan.State.SUBMERGED) bad.add("it came back " + b.state() + ", not awake under the surface");
+            if (!b.bar().isVisible()) bad.add("its bar came back hidden");
+            if (v.getHealth() >= v.getMaxHealth()) bad.add("the blow before the save didn't land");
+            if (Math.abs(b.getHealth() - v.getHealth()) > 0.01F) bad.add("its health came back " + b.getHealth() + ", not " + v.getHealth());
+            if (!java.util.Objects.equals(b.home(), v.home())) bad.add("its pool came back " + b.home() + ", not " + v.home());
+            if (!b.fought().contains(p.getUUID())) bad.add("its fighter was forgotten");
+            level.getServer().getPlayerList().remove(p);
+            if (!bad.isEmpty()) helper.fail("the Leviathan saved mid-fight: " + bad);
+            else helper.succeed();
+        });
+    }
+
+    /**
      * Asleep or under the surface, a blow lands at a fifth (and a blow wakes it); reared, all of it: 20 becomes 18.72
      * through its armour of 8, and under the surface 4 becomes 3.04.
      */

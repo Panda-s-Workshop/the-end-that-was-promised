@@ -219,6 +219,11 @@ public class TheArchitect extends Monster implements GeoEntity {
         return phase;
     }
 
+    /** Everyone who has struck it. */
+    public Set<UUID> fought() {
+        return java.util.Collections.unmodifiableSet(fought);
+    }
+
     public int walls() {
         return walls;
     }

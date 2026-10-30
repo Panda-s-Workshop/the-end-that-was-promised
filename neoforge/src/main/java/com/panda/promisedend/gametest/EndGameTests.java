@@ -193,6 +193,9 @@ public final class EndGameTests {
         FUNCTIONS.register("architect_keystone_takes_double", () -> ArchitectGameTests::keystoneTakesDouble);
         FUNCTIONS.register("architect_death_breaks_seal", () -> ArchitectGameTests::deathBreaksSeal);
         FUNCTIONS.register("architect_shard_lands_where_shown", () -> ArchitectGameTests::shardLandsWhereShown);
+        FUNCTIONS.register("architect_saved_mid_fight", () -> ArchitectGameTests::savedMidFight);
+        FUNCTIONS.register("leviathan_saved_mid_fight", () -> LeviathanGameTests::savedMidFight);
+        FUNCTIONS.register("leviathan_sleeps_alone", () -> LeviathanGameTests::sleepsAlone);
         FUNCTIONS.register("architect_promise_reads_closing_page", () -> ArchitectGameTests::promiseReadsClosingPage);
         FUNCTIONS.register("architect_lattice_boosts", () -> ArchitectGameTests::latticeBoosts);
         FUNCTIONS.register("architect_runs_its_turns", () -> ArchitectGameTests::runsItsTurns);
@@ -216,7 +219,7 @@ public final class EndGameTests {
             java.util.Map.entry("crawler_only_tears_lattice", 340), java.util.Map.entry("phantom_lattice_reforms", 200),
             java.util.Map.entry("architect_only_edits_lattice", 90), java.util.Map.entry("architect_runs_its_turns", 780),
             java.util.Map.entry("architect_sweeps_the_hub", 240),
-            java.util.Map.entry("architect_shard_lands_where_shown", 180));
+            java.util.Map.entry("architect_shard_lands_where_shown", 180), java.util.Map.entry("leviathan_sleeps_alone", 640));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -245,7 +248,9 @@ public final class EndGameTests {
             // and its seal is the world's
             "architect_only_edits_lattice", "architect_arena_resets", "architect_keystone_takes_double", "architect_death_breaks_seal",
             "architect_runs_its_turns", "architect_sweeps_the_hub", "architect_wakes_at_sixteen_once_unbound",
-            "architect_shard_lands_where_shown");
+            "architect_shard_lands_where_shown", "architect_saved_mid_fight",
+            // a player near would keep it awake
+            "leviathan_sleeps_alone");
 
     /**
      * Tests open to the sky: a test's arena is roofed with barrier otherwise, a few blocks over its floor, and the
@@ -3800,6 +3805,15 @@ public final class EndGameTests {
             }
         }
         return out;
+    }
+
+    /** {@code entity} saved and loaded into a new one of its type, as a chunk unloading and loading does (not added to the level). */
+    static <E extends net.minecraft.world.entity.Entity> E reloaded(net.minecraft.server.level.ServerLevel level, E entity, net.minecraft.world.entity.EntityType<E> type) {
+        var out = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, level.registryAccess());
+        entity.saveWithoutId(out);
+        E copy = type.create(level, net.minecraft.world.entity.EntitySpawnReason.LOAD);
+        copy.load(net.minecraft.world.level.storage.TagValueInput.create(net.minecraft.util.ProblemReporter.DISCARDING, level.registryAccess(), out.buildResult()));
+        return copy;
     }
 
     static net.minecraft.server.level.ServerPlayer realPlayer(GameTestHelper helper, net.minecraft.world.level.GameType mode) {
