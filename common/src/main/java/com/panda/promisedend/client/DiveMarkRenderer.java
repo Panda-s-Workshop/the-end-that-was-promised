@@ -22,7 +22,7 @@ import net.minecraft.world.phys.AABB;
  * fixed outer ring is the breath's edge, what is inside it when the breath lands is caught, and a second ring closes from
  * it to the centre as the 1.5 s run out, so the player reads where and when. Through the charge the edge pulses. Once the
  * breath is down the edge turns the void's dark violet and holds until the cloud's last quarter, which tells it from
- * vanilla's breath.
+ * vanilla's breath. A Leviathan's breach mark is the same telegraph in the rift's magenta, as wide as its breach strikes.
  */
 public final class DiveMarkRenderer extends EntityRenderer<DiveMark, DiveMarkRenderer.State> {
     private static final Identifier TEXTURE = PromisedEnd.id("textures/entity/crystal_warden_beam.png");
@@ -33,6 +33,7 @@ public final class DiveMarkRenderer extends EntityRenderer<DiveMark, DiveMarkRen
 
     public static final class State extends EntityRenderState {
         DiveMark.Stage stage = DiveMark.Stage.TELEGRAPH;
+        DiveMark.Kind kind = DiveMark.Kind.DIVE;
         float ticks;
     }
 
@@ -56,14 +57,25 @@ public final class DiveMarkRenderer extends EntityRenderer<DiveMark, DiveMarkRen
     public void extractRenderState(DiveMark mark, State state, float partialTick) {
         super.extractRenderState(mark, state, partialTick);
         state.stage = mark.stage();
+        state.kind = mark.kind();
         state.ticks = mark.clientStageTicks() + partialTick;
     }
 
     @Override
     public void submit(State state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera) {
         super.submit(state, pose, collector, camera);
-        float edge = DragonPhase3.BREATH_RADIUS;
         float t = state.ticks;
+        if (state.kind == DiveMark.Kind.BREACH) {
+            // the breach: the rift's magenta, a ring closing in to the middle over the telegraph, then held bright
+            float edge = (float) com.panda.promisedend.entity.VoidLeviathan.RING;
+            float left = 1.0F - Math.min(1.0F, t / com.panda.promisedend.entity.VoidLeviathan.TELEGRAPH_TICKS);
+            collector.submitCustomGeometry(pose, RING, (p, vc) -> {
+                ring(vc, p, edge, 0.12F, 255, 90, 230, (int) (205 + 50 * Math.sin(t * 0.8)));
+                if (left > 0.04F) ring(vc, p, edge * left, 0.07F, 255, 205, 250, 230);
+            });
+            return;
+        }
+        float edge = DragonPhase3.BREATH_RADIUS;
         collector.submitCustomGeometry(pose, RING, (p, vc) -> {
             switch (state.stage) {
                 case TELEGRAPH -> {

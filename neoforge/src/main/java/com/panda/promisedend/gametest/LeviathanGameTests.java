@@ -167,6 +167,15 @@ final class LeviathanGameTests {
                         helper.fail("the ring isn't under the player at " + stand + ": " + at);
                     }
                 }
+                // its ring is a breach mark at the ring's middle while it telegraphs, gone once it has reared
+                if (marked[0] > 0 && tick == marked[0] + 5) {
+                    var marks = level.getEntitiesOfClass(com.panda.promisedend.entity.DiveMark.class, v.getBoundingBox().inflate(24),
+                            m -> m.kind() == com.panda.promisedend.entity.DiveMark.Kind.BREACH);
+                    if (marks.size() != 1 || Math.hypot(marks.get(0).getX() - stand.x, marks.get(0).getZ() - stand.z) > 0.01)
+                        helper.fail("while it telegraphs, " + marks.size() + " breach marks, not one under the player");
+                }
+                if (exposed[0] > 0 && tick == exposed[0] + 10 && !level.getEntitiesOfClass(com.panda.promisedend.entity.DiveMark.class,
+                        v.getBoundingBox().inflate(24)).isEmpty()) helper.fail("the breach mark stayed after it reared");
                 if (marked[0] > 0 && struck[0] < 0 && p.getHealth() < p.getMaxHealth()) {
                     struck[0] = tick;
                     health[0] = p.getHealth();

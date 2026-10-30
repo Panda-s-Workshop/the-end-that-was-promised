@@ -18,7 +18,6 @@ import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -117,7 +116,6 @@ public class VoidLeviathan extends Monster implements GeoEntity {
     /** The tag a player gets once told how to fight it (the hint is said once). */
     public static final String HINTED = "promisedend.void_leviathan_hinted";
     private static final net.minecraft.resources.Identifier DEFEATED = PromisedEnd.id("void/defeat_leviathan");
-    private static final DustParticleOptions RIFT = new DustParticleOptions(0xD07CFF, 1.6F);
 
     public enum State { DORMANT, SUBMERGED, TELEGRAPH, BREACH, EXPOSED, DIVE }
 
@@ -292,6 +290,15 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         if (home == null) home = blockPosition();
         this.breach = breachPoint(Vec3.atBottomCenterOf(home), target.position(), surface());
         setState(State.TELEGRAPH, TELEGRAPH_TICKS);
+        // its ring on the surface, drawn lit by clients (End light greys a ring of dust to a haze)
+        if (level() instanceof ServerLevel level) {
+            DiveMark mark = com.panda.promisedend.registry.ModEntities.DIVE_MARK.get().create(level, net.minecraft.world.entity.EntitySpawnReason.EVENT);
+            if (mark != null) {
+                mark.setKind(DiveMark.Kind.BREACH);
+                mark.snapTo(breach.x, breach.y, breach.z, 0.0F, 0.0F);
+                level.addFreshEntity(mark);
+            }
+        }
         playSound(ModSounds.VOID_LEVIATHAN_TELEGRAPH.get(), 3.0F, 1.0F);
     }
 
@@ -391,15 +398,13 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         }
     }
 
-    /** The telegraph: a ring of the rift's light on the floor's plane round the breach point, motes rising inside it. */
+    /**
+     * The telegraph's motes: the ring itself is a {@link DiveMark} clients draw lit; over it a column at its middle,
+     * where it will come up, seen from across the Maw, of lit rift motes rising.
+     */
     private void ring(ServerLevel level) {
         if (breach == null) return;
-        for (int i = 0; i < 48; i++) {
-            double a = Math.PI * 2 * i / 48 + tickCount * 0.05;
-            level.sendParticles(RIFT, breach.x + RING * Math.cos(a), breach.y + 0.15, breach.z + RING * Math.sin(a), 1, 0, 0, 0, 0);
-        }
-        // a column at its middle, where it will come up: seen from across the Maw, and over the pool's dark
-        for (int i = 0; i < 6; i++) level.sendParticles(RIFT, breach.x, breach.y + 0.4 + i * 0.7, breach.z, 1, 0.08, 0.1, 0.08, 0);
+        for (int i = 0; i < 6; i++) level.sendParticles(com.panda.promisedend.registry.ModParticles.RIFT_MOTE.get(), breach.x, breach.y + 0.4 + i * 0.7, breach.z, 1, 0.08, 0.1, 0.08, 0);
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, breach.x, breach.y + 0.2, breach.z, 6, RING * 0.4, 0.1, RING * 0.4, 0.04);
     }
 
@@ -410,7 +415,7 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         setState(State.EXPOSED, EXPOSED_TICKS);
         if (breach == null) return;
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, breach.x, breach.y + 0.5, breach.z, 80, RING * 0.5, 1.0, RING * 0.5, 0.25);
-        level.sendParticles(RIFT, breach.x, breach.y + 0.5, breach.z, 40, RING * 0.5, 0.6, RING * 0.5, 0.0);
+        level.sendParticles(com.panda.promisedend.registry.ModParticles.RIFT_MOTE.get(), breach.x, breach.y + 0.5, breach.z, 40, RING * 0.5, 0.6, RING * 0.5, 0.0);
         for (ServerPlayer p : near(level, ARENA)) {
             if (inRing(breach, p.position()) && p.hurtServer(level, damageSources().mobAttack(this), BREACH_DAMAGE)) struck++;
         }
