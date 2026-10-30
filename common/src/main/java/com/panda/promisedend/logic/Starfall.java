@@ -138,6 +138,17 @@ public final class Starfall {
         return Stored.of(server).target;
     }
 
+    /** Where the last star fell, if one has. */
+    public static Optional<BlockPos> last(MinecraftServer server) {
+        return Stored.of(server).last;
+    }
+
+    /** Where a Star Compass points: a fall on its way (its beam), or else the last crater, or nowhere. */
+    public static Optional<BlockPos> aim(MinecraftServer server) {
+        Stored s = Stored.of(server);
+        return s.target.isPresent() ? s.target : s.last;
+    }
+
     /** Brings a fall on its way down in {@code ticks}, not to wait out its warning (the harness's). */
     public static void hurry(MinecraftServer server, int ticks) {
         Stored s = Stored.of(server);
@@ -251,6 +262,9 @@ public final class Starfall {
 
     /** The impact: a streak down, a flash, the crater, its ore and the core. */
     public static void impact(ServerLevel level, BlockPos at, int radius) {
+        Stored stored = Stored.of(level.getServer());
+        stored.last = Optional.of(at.immutable());
+        stored.setDirty();
         Random random = random(level);
         double x = at.getX() + 0.5, z = at.getZ() + 0.5;
         for (ServerPlayer p : near(level, at)) {
@@ -359,21 +373,25 @@ public final class Starfall {
                 Codec.LONG.optionalFieldOf("day", 0L).forGetter(s -> s.day),
                 Codec.INT.optionalFieldOf("today", 0).forGetter(s -> s.today),
                 BlockPos.CODEC.optionalFieldOf("target").forGetter(s -> s.target),
-                Codec.LONG.optionalFieldOf("impact_at", 0L).forGetter(s -> s.impactAt)).apply(i, Stored::new));
+                Codec.LONG.optionalFieldOf("impact_at", 0L).forGetter(s -> s.impactAt),
+                BlockPos.CODEC.optionalFieldOf("last").forGetter(s -> s.last)).apply(i, Stored::new));
         static final SavedDataType<Stored> TYPE = new SavedDataType<>(PromisedEnd.id("starfall"), Stored::new, CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
         long nextAt, day, impactAt;
         int today;
         Optional<BlockPos> target = Optional.empty();
+        /** The last crater, for the Star Compass. */
+        Optional<BlockPos> last = Optional.empty();
 
         Stored() {}
 
-        Stored(long nextAt, long day, int today, Optional<BlockPos> target, long impactAt) {
+        Stored(long nextAt, long day, int today, Optional<BlockPos> target, long impactAt, Optional<BlockPos> last) {
             this.nextAt = nextAt;
             this.day = day;
             this.today = today;
             this.target = target;
             this.impactAt = impactAt;
+            this.last = last;
         }
 
         static Stored of(MinecraftServer server) {

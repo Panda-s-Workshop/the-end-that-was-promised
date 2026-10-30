@@ -124,6 +124,9 @@ public final class ModItems {
     /** A fallen star's heart, one in each crater: a shrine's offering of the fourth favour. */
     public static final DeferredItem<HintItem> STARFALL_CORE = ITEMS.registerItem("starfall_core", p -> new HintItem(p.rarity(net.minecraft.world.item.Rarity.RARE)
             .fireResistant().component(net.minecraft.core.component.DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true), "starfall_core", 2));
+    /** A Starfall Core set in a compass: it points at a star on its way, or the last crater (item.StarCompassItem). */
+    public static final DeferredItem<com.panda.promisedend.item.StarCompassItem> STAR_COMPASS = ITEMS.registerItem("star_compass",
+            p -> new com.panda.promisedend.item.StarCompassItem(p.rarity(net.minecraft.world.item.Rarity.UNCOMMON).fireResistant(), "star_compass", 2));
     public static final DeferredItem<Item> VOIDSTEEL_INGOT = ITEMS.registerSimpleItem("voidsteel_ingot", p -> p.fireResistant());
     // ---- elytra augments, smithed on with a Dragon Scale (item.Augments, item.ElytraAugmentRecipe)
     public static final DeferredItem<HintItem> DRIFT_WEAVE = ITEMS.registerItem("drift_weave", p -> new HintItem(p, "drift_weave", 2));

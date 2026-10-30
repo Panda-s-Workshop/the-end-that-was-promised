@@ -22,7 +22,8 @@ final class StarfallGameTests {
      * bowl and leaves obsidian (outside {@code #promisedend:starfall_replaceable}) and the ground past its rim (its top
      * maybe burnt to Voidstone); its
      * walls hold 3-6 Starmetal Ore, each facing into it, and one Starfall Core lies in it, glowing, never to despawn.
-     * The ore gives Starmetal to an iron pickaxe; the core is a shrine's fourth-favour offering.
+     * The ore gives Starmetal to an iron pickaxe; the core is a shrine's fourth-favour offering. A Star Compass then points
+     * at this crater, the last (no star on its way), in the End; a compass, four Starmetal and the core make one.
      */
     static void craterRespectsTag(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -52,6 +53,23 @@ final class StarfallGameTests {
         player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         player.fallDistance = 4;
         Starfall.impact(level, at, 4);
+        var compass = new net.minecraft.world.item.ItemStack(ModItems.STAR_COMPASS.get());
+        com.panda.promisedend.item.StarCompassItem.aim(compass, level);
+        var aim = compass.get(net.minecraft.core.component.DataComponents.LODESTONE_TRACKER);
+        if (Starfall.pending(level.getServer()).isEmpty()
+                && (aim == null || !aim.target().equals(java.util.Optional.of(net.minecraft.core.GlobalPos.of(net.minecraft.world.level.Level.END, at))) || aim.tracked()))
+            bad.add("the Star Compass points at " + aim + ", not the last crater " + at.toShortString() + " in the End, untracked");
+        var grid = new ArrayList<net.minecraft.world.item.ItemStack>();
+        for (char c : " M MKM C ".toCharArray()) grid.add(switch (c) {
+            case 'M' -> new net.minecraft.world.item.ItemStack(ModItems.STARMETAL.get());
+            case 'K' -> new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS);
+            case 'C' -> new net.minecraft.world.item.ItemStack(ModItems.STARFALL_CORE.get());
+            default -> net.minecraft.world.item.ItemStack.EMPTY;
+        });
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, grid);
+        var made = level.getServer().getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level)
+                .map(r -> r.value().assemble(input)).orElse(net.minecraft.world.item.ItemStack.EMPTY);
+        if (!made.is(ModItems.STAR_COMPASS.get())) bad.add("the Star Compass's recipe makes " + made);
         var thrown = player.getDeltaMovement();
         if (thrown.x < 0.5 || thrown.y < 0.3) bad.add("the player wasn't thrown clear, away and up: " + thrown);
         if (!player.syncVelocity) bad.add("the throw isn't sent to the player's own client (syncVelocity)");
