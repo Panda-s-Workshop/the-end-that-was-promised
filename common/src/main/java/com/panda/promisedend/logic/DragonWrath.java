@@ -49,7 +49,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Dragon Wrath: one number for the world, 0 to 5, raised by each dragon that dies. Each dragon that appears has its
- * health scaled by the Wrath at that moment (200, 250 ... 450), and the Wrath it was fought at picks the hoard left in a
+ * health scaled by the Wrath at that moment (200, 250 ... 450; {@link #FINALE} times that where the Ward keeps it for
+ * last), and the Wrath it was fought at picks the hoard left in a
  * chest beside the exit portal once it is gone: {@code chests/dragon_hoard/wrath_<n>}, 3 + Wrath Dragon Scales for now.
  *
  * <p>A kill is a dragon that goes through its dying animation; one removed by {@code /kill} has none and earns nothing.
@@ -108,9 +109,13 @@ public final class DragonWrath {
         return maxHealth(wrath) * (finale ? FINALE : 1.0F);
     }
 
-    /** Whether the dragon is fought last: the Ward stands between it and the outer End, with a seal still to break. */
+    /**
+     * Whether the dragon is fought last: the Ward stands between it and the outer End (the first dragon, scaled while it
+     * stands), or every seal it had is broken (a rematch after the Ward fell). A world whose dragon fell before the Ward
+     * ever stood, with its seals unbroken, keeps vanilla's.
+     */
     public static boolean finale(MinecraftServer server) {
-        return EndConfig.arrivalByCoordinates() && AncientWard.guarded(server) != 0;
+        return AncientWard.stands(server) || AncientWard.fallen(server);
     }
 
     public static int scales(int wrath) {

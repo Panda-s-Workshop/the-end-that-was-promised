@@ -167,6 +167,11 @@ final class LeviathanGameTests {
                     took[0], took[1], took[2], took[3]);
             if (Math.abs(took[0] - 18.72F) > 0.05F) bad.add("from 17 out, a blow of 20 took " + took[0] + ", not 18.72");
             for (int i = 1; i < from.length; i++) if (took[i] != 0) bad.add("from " + from[i][0] + " out, " + from[i][1] + " up, a blow of 20 took " + took[i] + ", not 0");
+            // a blast with no one behind it (a bed's), reared: nothing
+            v.rear(v.position().add(0, VoidLeviathan.SURFACE, 0));
+            float before = v.getHealth();
+            v.hurtServer(level, level.damageSources().explosion(null, null), 20.0F);
+            if (v.getHealth() != before) bad.add("a blast with no one behind it took " + (before - v.getHealth()));
             level.getServer().getPlayerList().remove(p);
             if (!bad.isEmpty()) helper.fail("leviathan: " + bad);
             helper.succeed();

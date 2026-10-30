@@ -89,6 +89,7 @@ public final class EndGameTests {
         FUNCTIONS.register("drift_islet_blocked_turns", () -> EndGameTests::driftIsletBlockedTurns);
         FUNCTIONS.register("drift_islet_saves", () -> EndGameTests::driftIsletSaves);
         FUNCTIONS.register("drift_islet_spares_builds", () -> EndGameTests::driftIsletSparesBuilds);
+        FUNCTIONS.register("arrival_at_the_heart_once_the_ward_falls", () -> EndGameTests::arrivalAtTheHeart);
         FUNCTIONS.register("drift_islet_headroom_turns", () -> EndGameTests::driftIsletHeadroomTurns);
         FUNCTIONS.register("drift_islet_keeps_rider_aloft", () -> EndGameTests::driftIsletKeepsRiderAloft);
         FUNCTIONS.register("drift_islet_crossing", () -> EndGameTests::driftIsletCrossing);
@@ -242,7 +243,7 @@ public final class EndGameTests {
      * test that succeeds removes every entity in and round its own bounds, so a neighbour finishing first took the
      * dragon with it (seen as a Warden whose heals never landed).
      */
-    private static final java.util.Set<String> ALONE = java.util.Set.of("void_anchor_ward_fallback", "leviathan_reward_kept_for_the_dead", "amber_gate_needs_key", "dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
+    private static final java.util.Set<String> ALONE = java.util.Set.of("void_anchor_ward_fallback", "arrival_at_the_heart_once_the_ward_falls", "leviathan_reward_kept_for_the_dead", "amber_gate_needs_key", "dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
             "warden_heals_dragon", "dragon_void_breath_dive", "void_breath_dodged", "called_wardens_take_turns",
             "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops",
             // counts constructs within 32 blocks, which reaches into the arenas beside it
@@ -4201,6 +4202,40 @@ public final class EndGameTests {
         islet.discard();
         copy.discard();
         if (!bad.isEmpty()) helper.fail("drift islet save: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * Once the Ward has fallen, a player who has arrived before comes back at the heart: vanilla's platform by the main
+     * island, on obsidian, told so. One arriving the first time still comes to a Waystation. The seals are mended after.
+     */
+    private static void arrivalAtTheHeart(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        List<String> bad = new ArrayList<>();
+        var player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        com.panda.promisedend.logic.Arrivals.forget(server, player.getUUID());
+        // its own portal, so it builds no Waystation where arrival_by_coordinates counts them
+        BlockPos portal = new BlockPos(-1720, 64, 940);
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        int guarded = com.panda.promisedend.logic.AncientWard.guarded(server);
+        for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) if ((guarded & 1 << i) != 0) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
+        if (!com.panda.promisedend.logic.AncientWard.fallen(server)) bad.add("every seal broken, the Ward hasn't fallen");
+        var first = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        if (first == null || Math.hypot(first.position().x, first.position().z) < com.panda.promisedend.logic.Arrival.NEAREST - com.panda.promisedend.logic.Arrival.SEARCH)
+            bad.add("a first arrival wasn't set down at a Waystation: " + (first == null ? null : first.position()));
+        if (first != null) first.postTeleportTransition().onTransition(player);
+        var again = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        var spawn = net.minecraft.world.phys.Vec3.atBottomCenterOf(net.minecraft.server.level.ServerLevel.END_SPAWN_POINT.below());
+        PromisedEnd.LOGGER.info("[arrival_at_the_heart_once_the_ward_falls] first at {}, again at {}", first == null ? null : first.position(), again == null ? null : again.position());
+        if (again == null || !again.position().equals(spawn)) bad.add("coming back, set down at " + (again == null ? null : again.position()) + ", not the heart's " + spawn);
+        else if (!end.getBlockState(BlockPos.containing(spawn).below()).is(net.minecraft.world.level.block.Blocks.OBSIDIAN)) bad.add("no platform under the heart's arrival");
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        com.panda.promisedend.logic.Arrivals.forget(server, player.getUUID());
+        player.discard();
+        if (!bad.isEmpty()) helper.fail("arrival at the heart: " + bad);
         helper.succeed();
     }
 

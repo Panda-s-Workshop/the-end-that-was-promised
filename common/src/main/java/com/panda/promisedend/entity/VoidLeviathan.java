@@ -542,12 +542,9 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) return super.hurtServer(level, source, amount);
         boolean exposed = state() == State.EXPOSED;
         Entity attacker = source.getEntity();
-        if (attacker instanceof ServerPlayer p && !p.isCreative()) {
-            fought.add(p.getUUID());
-            if (state() == State.DORMANT) wake();
-        }
+        if (attacker instanceof ServerPlayer p && !p.isCreative() && state() == State.DORMANT) wake();
         // only a fighter its breach could reach hurts it (a bow from past the lip or a vent's top, a bed's blast with no
-        // one behind it, don't)
+        // one behind it, don't), and only one who does counts as having fought it
         if (attacker == null || home != null && !inReach(Vec3.atBottomCenterOf(home), surface(), attacker.position())) {
             if (attacker instanceof ServerPlayer p) {
                 playSound(ModSounds.VOID_LEVIATHAN_HURT_DEEP.get(), 1.5F, 1.4F);
@@ -555,6 +552,7 @@ public class VoidLeviathan extends Monster implements GeoEntity {
             }
             return false;
         }
+        if (attacker instanceof ServerPlayer p && !p.isCreative()) fought.add(p.getUUID());
         if (!exposed && attacker instanceof Player) playSound(ModSounds.VOID_LEVIATHAN_HURT_DEEP.get(), 1.5F, 1.0F);
         return super.hurtServer(level, source, exposed ? amount : amount * OUTSIDE);
     }

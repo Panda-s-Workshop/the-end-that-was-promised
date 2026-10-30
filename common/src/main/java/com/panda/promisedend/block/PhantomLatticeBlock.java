@@ -87,6 +87,16 @@ public class PhantomLatticeBlock extends Block {
     }
 
     /**
+     * A face against another Phantom Lattice of its kind (raised against raised, torn against torn) isn't drawn, as
+     * glass's: a wall or a torn floor shows its outside, not two or three layers of panes behind it.
+     */
+    @Override
+    protected boolean skipRendering(BlockState state, BlockState adjacent, net.minecraft.core.Direction direction) {
+        return adjacent.is(this) && (adjacent.getValue(FORM) == Form.RAISED) == (state.getValue(FORM) == Form.RAISED)
+                || super.skipRendering(state, adjacent, direction);
+    }
+
+    /**
      * Raises a wall block at {@code pos} for {@code ticks}, pushing up what stands there. False, and nothing changed,
      * where there is anything but air: it never takes a player's block, or the arena's.
      */

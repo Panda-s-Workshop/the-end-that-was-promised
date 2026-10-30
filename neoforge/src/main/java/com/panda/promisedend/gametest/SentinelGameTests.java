@@ -56,6 +56,8 @@ final class SentinelGameTests {
         if (s.state() != HollowSentinel.State.CLOSED) bad.add("a blow didn't wake it: " + s.state());
         if (s.hurtServer(level, level.damageSources().playerAttack(p), 10.0F) || s.getHealth() != full) bad.add("a closed Sentinel was hurt");
         s.crackOpen();
+        // a blast with no one behind it (a bed's) does nothing, open or not
+        if (s.hurtServer(level, level.damageSources().explosion(null, null), 10.0F) || s.getHealth() != full) bad.add("a blast with no one behind it hurt it");
         s.hurtServer(level, level.damageSources().playerAttack(p), 10.0F);
         float took = full - s.getHealth();
         PromisedEnd.LOGGER.info("[sentinel_closed_is_invulnerable] open, a blow of 10 took {}", took);

@@ -66,6 +66,26 @@ class BalanceTest {
         assertTrue(critical >= 180 && critical <= 360, "critical " + critical + " s");
     }
 
+    // with the end-game's enchantments a fight may be shorter (they are the player's own work), but never under half its
+    // band's floor: Sharpness V adds 3 to a sword's blow (0.5 a level and 0.5), every blow critical; a Power V bow's full
+    // draw is 15 (2 and Power's 3, times its speed of 3) once a second, on the Architect's keystone
+    private static final float SHARPNESS_V = 3.0F, POWER_V_ARROW = 15.0F;
+
+    @Test
+    void enchantedFightsStayOverHalfTheirFloor() {
+        float swings = 4.0F + GearTiers.SWORD_SPEED, ring = Resonance.BONUS_DAMAGE / Resonance.EVERY;
+        double sentinel = SentinelFight.seconds((GearTiers.DIAMOND.swordDamage() + SHARPNESS_V) * Balance.CRITICAL, swings);
+        double leviathan = LeviathanFight.seconds((GearTiers.RESONITE.swordDamage() + SHARPNESS_V) * Balance.CRITICAL + ring, swings);
+        double leviathanBow = LeviathanFight.seconds(POWER_V_ARROW, 1.0F);
+        double architect = ArchitectFight.seconds((GearTiers.VOIDSTEEL.swordDamage() + SHARPNESS_V) * Balance.CRITICAL, swings);
+        double architectBow = ArchitectFight.seconds(POWER_V_ARROW * ArchitectFight.KEYSTONE_DAMAGE, 1.0F);
+        System.out.printf("Enchanted: Sentinel %.0f s, Leviathan %.0f s (bow %.0f s), Architect %.0f s (bow on the keystone %.0f s)%n",
+                sentinel, leviathan, leviathanBow, architect, architectBow);
+        assertTrue(sentinel >= 30, "Sentinel " + sentinel + " s");
+        assertTrue(leviathan >= 90 && leviathanBow >= 90, "Leviathan " + leviathan + " s, bow " + leviathanBow + " s");
+        assertTrue(architect >= 120 && architectBow >= 120, "Architect " + architect + " s, bow " + architectBow + " s");
+    }
+
     @Test
     void voidsteelPlayerTakesFourToEightMinutesOnTheArchitect() {
         float sword = GearTiers.VOIDSTEEL.swordDamage(), swings = 4.0F + GearTiers.SWORD_SPEED;

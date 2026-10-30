@@ -45,16 +45,36 @@ public final class Arrivals {
 
     private Arrivals() {}
 
-    /** Where an entity entering an End portal at {@code portal} in {@code from} goes, or null to leave it to vanilla. */
+    /**
+     * Where an entity entering an End portal at {@code portal} in {@code from} goes, or null to leave it to vanilla. A
+     * player who has arrived before, coming back once the Ward has fallen, is set down at the heart: its fight is there,
+     * and a death in it shouldn't cost the whole way in again.
+     */
     public static @Nullable TeleportTransition destination(ServerLevel from, @Nullable Entity entity, BlockPos portal) {
         ServerLevel end = from.getServer().getLevel(Level.END);
         if (end == null || from.dimension() == Level.END || !EndConfig.arrivalByCoordinates()) return null;
+        if (entity instanceof ServerPlayer player && Stored.of(from.getServer()).greeted.contains(player.getUUID())
+                && AncientWard.fallen(from.getServer())) return heart(end);
         BlockPos centre = waystation(end, Arrival.target(portal.getX() + 0.5, portal.getZ() + 0.5));
         Vec3 at = stand(centre);
         mend(end, at);
         float yaw = Arrival.facingCentre(at.x, at.z);
         return new TeleportTransition(end, at, Vec3.ZERO, yaw, 0.0F, Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
                 TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET).then(Arrivals::greet));
+    }
+
+    /**
+     * The heart's arrival, vanilla's own: the obsidian platform by the main island, made (its floor one under the block
+     * it is given), the player set down on it facing west, with a line saying where they are (public for GameTests).
+     */
+    public static TeleportTransition heart(ServerLevel end) {
+        Vec3 at = Vec3.atBottomCenterOf(ServerLevel.END_SPAWN_POINT.below());
+        net.minecraft.world.level.levelgen.feature.EndPlatformFeature.createEndPlatform(end, BlockPos.containing(at), true);
+        return new TeleportTransition(end, at, Vec3.ZERO, net.minecraft.core.Direction.WEST.toYRot(), 0.0F,
+                Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
+                TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET).then(e -> {
+                    if (e instanceof ServerPlayer p) p.sendSystemMessage(Component.translatable("arrival.promisedend.heart_return"));
+                }));
     }
 
     /**
