@@ -20,7 +20,7 @@ import net.minecraft.world.level.Level;
  */
 public final class ServerCheck {
     public static final String PROPERTY = "promisedend.servercheck", RIM_GAP = "promisedend.rimgap";
-    /** Runs one part of the check alone (drift, citadel, maw, foundry, arrivals), so a fix reruns only its own. */
+    /** Runs one part of the check alone (drift, observatory, citadel, maw, foundry, arrivals), so a fix reruns only its own. */
     public static final String ONLY = "promisedend.servercheck.only";
     private static final int RADIUS = 64;
 
@@ -79,6 +79,7 @@ public final class ServerCheck {
             PromisedEnd.LOGGER.info("[promisedend servercheck] world seed {}; only {}", end.getSeed(), only);
             return switch (only) {
                 case "drift" -> driftRoutes(end);
+                case "observatory" -> observatory(end);
                 case "citadel" -> citadel(end);
                 case "maw" -> maw(end);
                 case "foundry" -> foundry(end);
@@ -1030,7 +1031,48 @@ public final class ServerCheck {
             if (state.is(ModBlocks.STAR_CHART_DESK.get()) && desk == null) desk = q.immutable();
             if (state.is(net.minecraft.world.level.block.Blocks.CHEST)) chests++;
         }
-        if (desk == null) return "no Star Chart Desk in the Fallen Observatory at " + at;
+        if (desk == null) {
+            // where it stands instead, if anywhere near: the whole height, twice as wide
+            java.util.List<BlockPos> any = new java.util.ArrayList<>();
+            for (BlockPos q : BlockPos.betweenClosed(at.offset(-48, end.getMinY() - at.getY(), -48), at.offset(48, end.getMaxY() - at.getY(), 48))) {
+                if (end.getBlockState(q).is(ModBlocks.STAR_CHART_DESK.get())) any.add(q.immutable());
+            }
+            var structure = end.registryAccess().lookupOrThrow(Registries.STRUCTURE).getValue(PromisedEnd.id("fallen_observatory"));
+            var start = structure == null ? null : end.getChunk(at.getX() >> 4, at.getZ() >> 4).getStartForStructure(structure);
+            String what = start == null ? "no start in its chunk" : "its start " + (start.isValid() ? start.getBoundingBox() + ", " + start.getPieces().size() + " pieces" : "invalid");
+            if (start != null && start.isValid()) {
+                var counts = new java.util.TreeMap<String, Integer>();
+                var box = start.getBoundingBox();
+                for (BlockPos q : BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
+                    var state = end.getBlockState(q);
+                    if (!state.isAir()) counts.merge(state.getBlock().builtInRegistryHolder().getRegisteredName(), 1, Integer::sum);
+                }
+                what += ", in its box " + counts;
+                // by chunk: a chunk generated without the piece shows as one with none of it
+                var byChunk = new java.util.TreeMap<String, Integer>();
+                for (BlockPos q : BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
+                    var state = end.getBlockState(q);
+                    if (!state.isAir() && !state.is(net.minecraft.world.level.block.Blocks.END_STONE))
+                        byChunk.merge((q.getX() >> 4) + "," + (q.getZ() >> 4) + " y" + q.getY(), 1, Integer::sum);
+                }
+                what += ", its blocks by chunk and height " + byChunk;
+                // whatever else stands where its desk should
+                BlockPos middle = new BlockPos((box.minX() + box.maxX()) / 2, box.minY() + 1, (box.minZ() + box.maxZ()) / 2);
+                var others = end.structureManager().getAllStructuresAt(middle).keySet().stream()
+                        .map(st -> String.valueOf(end.registryAccess().lookupOrThrow(Registries.STRUCTURE).getKey(st))).toList();
+                var nearStarts = new java.util.ArrayList<String>();
+                for (int cx = (box.minX() >> 4) - 4; cx <= (box.maxX() >> 4) + 4; cx++) {
+                    for (int cz = (box.minZ() >> 4) - 4; cz <= (box.maxZ() >> 4) + 4; cz++) {
+                        for (var e : end.getChunk(cx, cz).getAllStarts().entrySet()) {
+                            if (e.getValue().isValid() && e.getValue().getBoundingBox().intersects(box))
+                                nearStarts.add(end.registryAccess().lookupOrThrow(Registries.STRUCTURE).getKey(e.getKey()) + " " + e.getValue().getBoundingBox());
+                        }
+                    }
+                }
+                what += "; structures at its middle " + others + "; starts whose box meets its " + nearStarts;
+            }
+            return "no Star Chart Desk in the Fallen Observatory at " + at + " (within 48 at any height: " + any + "; " + what + ")";
+        }
         if (!(end.getBlockEntity(desk) instanceof com.panda.promisedend.block.StarChartDeskBlockEntity entity)) return "the Star Chart Desk at " + desk + " has no block entity";
         var kinds = new java.util.TreeSet<String>();
         for (int i = 0; i < 20; i++) {

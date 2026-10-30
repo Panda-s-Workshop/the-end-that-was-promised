@@ -16,6 +16,9 @@ import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadType;
  * when {@code terrain.enabled} is off. It stays a {@link RandomSpreadStructurePlacement}, so {@code /locate}
  * and Star Charts find it. Its {@code terrain} ({@code any}, {@code on} or {@code off}) places it only with the terrain
  * on or off: a guardian's place with it on, its fallback in any End biome with it off, so a world has one or the other.
+ * Its {@code keep_clear_of} sets keep it {@code keep_clear_chunks} chunks from where any of them may start: vanilla's
+ * exclusion zone names one set, and with the terrain off a guardian's fallback, in any End biome, stood on a Fallen
+ * Observatory and carved its desk away.
  */
 public class RingSpreadPlacement extends RandomSpreadStructurePlacement {
     public static final MapCodec<RingSpreadPlacement> CODEC = RecordCodecBuilder.<RingSpreadPlacement>mapCodec(i -> placementCodec(i).and(i.group(
@@ -25,19 +28,44 @@ public class RingSpreadPlacement extends RandomSpreadStructurePlacement {
             Codec.intRange(0, 30_000_000).fieldOf("min_distance").forGetter(RingSpreadPlacement::minDistance),
             Codec.intRange(0, 30_000_000).fieldOf("max_distance").forGetter(RingSpreadPlacement::maxDistance),
             Codec.STRING.validate(t -> java.util.List.of("any", "on", "off").contains(t) ? DataResult.success(t) : DataResult.error(() -> "terrain must be any, on or off: " + t))
-                    .optionalFieldOf("terrain", "any").forGetter(RingSpreadPlacement::terrain)
+                    .optionalFieldOf("terrain", "any").forGetter(RingSpreadPlacement::terrain),
+            net.minecraft.resources.ResourceKey.codec(net.minecraft.core.registries.Registries.STRUCTURE_SET).listOf()
+                    .optionalFieldOf("keep_clear_of", java.util.List.of()).forGetter(RingSpreadPlacement::keepClearOf),
+            Codec.intRange(0, 16).optionalFieldOf("keep_clear_chunks", 0).forGetter(RingSpreadPlacement::keepClearChunks)
     )).apply(i, RingSpreadPlacement::new)).validate(p -> p.spacing() <= p.separation() ? DataResult.error(() -> "Spacing has to be larger than separation")
             : p.maxDistance() <= p.minDistance() ? DataResult.error(() -> "max_distance has to be larger than min_distance") : DataResult.success(p));
 
     private final int minDistance, maxDistance;
     private final String terrain;
+    private final java.util.List<net.minecraft.resources.ResourceKey<net.minecraft.world.level.levelgen.structure.StructureSet>> keepClearOf;
+    private final int keepClearChunks;
 
     public RingSpreadPlacement(Vec3i locateOffset, FrequencyReductionMethod reduction, float frequency, int salt, Optional<ExclusionZone> exclusion,
-            int spacing, int separation, RandomSpreadType spreadType, int minDistance, int maxDistance, String terrain) {
+            int spacing, int separation, RandomSpreadType spreadType, int minDistance, int maxDistance, String terrain,
+            java.util.List<net.minecraft.resources.ResourceKey<net.minecraft.world.level.levelgen.structure.StructureSet>> keepClearOf, int keepClearChunks) {
         super(locateOffset, reduction, frequency, salt, exclusion, spacing, separation, spreadType);
         this.minDistance = minDistance;
         this.maxDistance = maxDistance;
         this.terrain = terrain;
+        this.keepClearOf = java.util.List.copyOf(keepClearOf);
+        this.keepClearChunks = keepClearChunks;
+    }
+
+    public java.util.List<net.minecraft.resources.ResourceKey<net.minecraft.world.level.levelgen.structure.StructureSet>> keepClearOf() {
+        return keepClearOf;
+    }
+
+    public int keepClearChunks() {
+        return keepClearChunks;
+    }
+
+    /** Whether one of the sets it keeps clear of may start within {@link #keepClearChunks} of the chunk. */
+    private boolean nearKept(ChunkGeneratorStructureState state, int chunkX, int chunkZ) {
+        if (keepClearOf.isEmpty() || keepClearChunks <= 0) return false;
+        for (var set : state.possibleStructureSets()) {
+            if (set.unwrapKey().filter(keepClearOf::contains).isPresent() && state.hasStructureChunkInRange(set, chunkX, chunkZ, keepClearChunks)) return true;
+        }
+        return false;
     }
 
     public String terrain() {
@@ -69,7 +97,7 @@ public class RingSpreadPlacement extends RandomSpreadStructurePlacement {
 
     @Override
     protected boolean isPlacementChunk(ChunkGeneratorStructureState state, int chunkX, int chunkZ) {
-        return placesNow() && inRing(chunkX, chunkZ) && super.isPlacementChunk(state, chunkX, chunkZ);
+        return placesNow() && inRing(chunkX, chunkZ) && super.isPlacementChunk(state, chunkX, chunkZ) && !nearKept(state, chunkX, chunkZ);
     }
 
     @Override

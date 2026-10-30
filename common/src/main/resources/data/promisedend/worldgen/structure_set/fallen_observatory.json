@@ -6,9 +6,20 @@
     }
   ],
   "placement": {
-    "type": "minecraft:random_spread",
+    "type": "promisedend:ring_spread",
     "spacing": 28,
     "separation": 10,
-    "salt": 1419446220
+    "salt": 1419446220,
+    "min_distance": 0,
+    "max_distance": 30000000,
+    "keep_clear_of": [
+      "promisedend:shulker_foundry",
+      "promisedend:shulker_foundry_fallback",
+      "promisedend:rift_maw",
+      "promisedend:rift_maw_fallback",
+      "promisedend:unfinished_citadel",
+      "promisedend:unfinished_citadel_fallback"
+    ],
+    "keep_clear_chunks": 7
   }
 }

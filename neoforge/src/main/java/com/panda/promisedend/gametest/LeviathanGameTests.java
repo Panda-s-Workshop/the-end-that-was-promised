@@ -368,6 +368,8 @@ final class LeviathanGameTests {
         ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
         List<String> bad = new ArrayList<>();
         v.wake();
+        // a fighter strikes from the pool's lip: out of its reach a blow isn't one
+        onTheLip(p, v);
         v.hurtServer(level, level.damageSources().playerAttack(p), 2.0F);
         if (!v.fought().contains(p.getUUID())) bad.add("the blow didn't make them a fighter");
         p.setHealth(0.0F);

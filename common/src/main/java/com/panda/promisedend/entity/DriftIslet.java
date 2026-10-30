@@ -286,8 +286,9 @@ public class DriftIslet extends Entity {
     }
 
     /**
-     * Clears its way: what worldgen grew into the room it sweeps, its own block and the two over it a rider stands in,
-     * slice by slice along its route, and mends its two moorings (a feature in a chunk next door can reach in after the
+     * Clears its way: what worldgen grew into the room it sweeps, its own block, the two over it a rider stands in and
+     * one more (as the route's own pass clears: on a slope the islet ahead lifts a rider's head into it), slice by slice
+     * along its route, and mends its two moorings (a feature in a chunk next door can reach in after the
      * route's own pass, into its way or over a post). Each chunk along it is done once, the first time it is loaded, and
      * only if no player has yet spent {@link #UNTOUCHED_TICKS} near it: one a player has been near may hold their build
      * (a bridge across the gap, made before the far end loaded), so it is left as it is, and the islet turns back at a
@@ -306,7 +307,7 @@ public class DriftIslet extends Entity {
         java.util.Map<Long, Boolean> claimed = new java.util.HashMap<>();
         for (double d = 0; d <= length + 0.01; d += 0.5) {
             double[] p = route.at(Math.min(1, d / Math.max(length, 1e-6)));
-            AABB slice = new AABB(p[0] - 1.5, p[1], p[2] - 1.5, p[0] + 1.5, p[1] + 3, p[2] + 1.5).deflate(0.01);
+            AABB slice = new AABB(p[0] - 1.5, p[1], p[2] - 1.5, p[0] + 1.5, p[1] + 4, p[2] + 1.5).deflate(0.01);
             for (int x = (int) Math.floor(slice.minX); x <= (int) Math.floor(slice.maxX); x++) {
                 for (int z = (int) Math.floor(slice.minZ); z <= (int) Math.floor(slice.maxZ); z++) {
                     long chunk = net.minecraft.world.level.ChunkPos.pack(x >> 4, z >> 4);
