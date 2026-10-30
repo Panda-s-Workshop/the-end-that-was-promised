@@ -272,6 +272,14 @@ final class LeviathanGameTests {
                 edge = new Vec3(rest.x + 15, surface, rest.z - 3);
         int[] began = {-1}, shoves = {0}, lifted = {0}, held = {0}, ended = {0};
         double[] longest = {0};
+        List<String> bad = new ArrayList<>();
+        // a failure throws: its three players and its chunks go first, or the next Leviathan test nearby isn't alone
+        Runnable clear = () -> {
+            level.getServer().getPlayerList().remove(p);
+            level.getServer().getPlayerList().remove(flying);
+            level.getServer().getPlayerList().remove(lip);
+            release.run();
+        };
         // where it will rear: in a chunk held ticking above, whose entities load in the background
         BlockPos rearsAt = BlockPos.containing(VoidLeviathan.breachPoint(rest, stand, surface));
         for (int t = 1; t <= 300; t++) {
@@ -290,7 +298,7 @@ final class LeviathanGameTests {
                         v.setHealth(v.getMaxHealth() * 0.15F);
                         v.rear(VoidLeviathan.breachPoint(rest, stand, surface));
                     } else if (tick == 150) {
-                        release.run();
+                        clear.run();
                         helper.fail("the arena's chunks weren't entity-ticking by tick 150: " + level.isPositionEntityTicking(v.blockPosition())
                                 + ", where it rears " + level.isPositionEntityTicking(rearsAt));
                     }
@@ -299,7 +307,9 @@ final class LeviathanGameTests {
                 if (v.state() == VoidLeviathan.State.EXPOSED) {
                     // what the last tick gave each, then each set back where it stood
                     Vec3 got = p.getDeltaMovement(), up = flying.getDeltaMovement(), at = lip.getDeltaMovement();
-                    if (Math.hypot(at.x, at.z) > 0.05) {
+                    // drawn is toward the pool's middle; its reared body, a few blocks off, can push them the other way
+                    Vec3 inward = new Vec3(rest.x - lip.getX(), 0, rest.z - lip.getZ()).normalize();
+                    if (at.x * inward.x + at.z * inward.z > 0.05) {
                         held[0]++;
                         Vec3 middle = Vec3.atBottomCenterOf(BlockPos.containing(rest));
                         var hurt = lip.getLastDamageSource();
@@ -311,7 +321,7 @@ final class LeviathanGameTests {
                     if (flat > 0.05) {
                         shoves[0]++;
                         longest[0] = Math.max(longest[0], flat);
-                        if (got.x > -0.9 * flat) helper.fail("the draw shoved the player " + got + ", not toward it");
+                        if (got.x > -0.9 * flat) bad.add("the draw shoved the player " + got + ", not toward it");
                     }
                     if (Math.hypot(up.x, up.z) > 0.05) lifted[0]++;
                     p.snapTo(stand.x, stand.y, stand.z, 90, 0);
@@ -329,20 +339,18 @@ final class LeviathanGameTests {
                             v.pulls(), shoves[0], String.format(java.util.Locale.ROOT, "%.3f", longest[0]), lifted[0], v.timer());
                     // the count is the Leviathan's own: the player's side misses the first and the last (read only while EXPOSED)
                     int want = VoidLeviathan.EXPOSED_TICKS / VoidLeviathan.PULL_EVERY;
-                    if (Math.abs(v.pulls() - want) > 1) helper.fail(v.pulls() + " draws in its four seconds, not " + want);
-                    if (shoves[0] < want - 3) helper.fail("the player felt " + shoves[0] + " of its " + v.pulls() + " draws");
-                    if (Math.abs(longest[0] - VoidLeviathan.PULL_SHOVE) > 0.05) helper.fail("a shove of " + longest[0] + ", not " + VoidLeviathan.PULL_SHOVE);
-                    if (lifted[0] > 0) helper.fail("a player in the air was drawn " + lifted[0] + " times");
-                    if (held[0] > 0) helper.fail("a player already at the lip was drawn " + held[0] + " times, toward the pool");
-                    if (v.timer() > VoidLeviathan.PAIR_GAP) helper.fail("below half, the next breach is " + v.timer() + " off, not a pair's " + VoidLeviathan.PAIR_GAP);
-                    level.getServer().getPlayerList().remove(p);
-                    level.getServer().getPlayerList().remove(flying);
-                    level.getServer().getPlayerList().remove(lip);
-                    release.run();
-                    helper.succeed();
+                    if (Math.abs(v.pulls() - want) > 1) bad.add(v.pulls() + " draws in its four seconds, not " + want);
+                    if (shoves[0] < want - 3) bad.add("the player felt " + shoves[0] + " of its " + v.pulls() + " draws");
+                    if (Math.abs(longest[0] - VoidLeviathan.PULL_SHOVE) > 0.05) bad.add("a shove of " + longest[0] + ", not " + VoidLeviathan.PULL_SHOVE);
+                    if (lifted[0] > 0) bad.add("a player in the air was drawn " + lifted[0] + " times");
+                    if (held[0] > 0) bad.add("a player already at the lip was drawn " + held[0] + " times, toward the pool");
+                    if (v.timer() > VoidLeviathan.PAIR_GAP) bad.add("below half, the next breach is " + v.timer() + " off, not a pair's " + VoidLeviathan.PAIR_GAP);
+                    clear.run();
+                    if (!bad.isEmpty()) helper.fail("the draw: " + bad);
+                    else helper.succeed();
                 }
                 if (tick == began[0] + 199) {
-                    release.run();
+                    clear.run();
                     helper.fail("it never dived: " + v.state() + " at " + v.position() + ", " + v.timer() + " left, ticking "
                             + level.isPositionEntityTicking(v.blockPosition()));
                 }
