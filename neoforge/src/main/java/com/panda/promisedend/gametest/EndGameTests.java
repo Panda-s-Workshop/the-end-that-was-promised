@@ -3791,8 +3791,8 @@ public final class EndGameTests {
         boolean stands = com.panda.promisedend.logic.AncientWard.stands(server);
         boolean foundry = stands && (com.panda.promisedend.logic.AncientWard.broken(server) & 1) == 0;
         String pearlLine = foundry ? "arrival.promisedend.pearl.foundry" : "arrival.promisedend.pearl";
-        var lines = stands ? List.of("arrival.promisedend.first", "arrival.promisedend.ward", pearlLine)
-                : List.of("arrival.promisedend.first", "arrival.promisedend.heart", pearlLine);
+        var lines = stands ? List.of("arrival.promisedend.first", "arrival.promisedend.gate", "arrival.promisedend.ward", pearlLine)
+                : List.of("arrival.promisedend.first", "arrival.promisedend.gate", "arrival.promisedend.heart", pearlLine);
         if (!said.equals(lines)) bad.add("the greeting said " + said);
         player.discard();
         if (!bad.isEmpty()) helper.fail("arrival: " + bad);
@@ -4223,6 +4223,9 @@ public final class EndGameTests {
         double size = border.getSize();
         List<String> bad = new ArrayList<>();
         com.panda.promisedend.logic.AncientWard.reset(server);
+        // the seals the border holds, not every guardian's, as a real server has them
+        String flag = System.getProperty(com.panda.promisedend.logic.AncientWard.ALL_GUARDIANS);
+        System.clearProperty(com.panda.promisedend.logic.AncientWard.ALL_GUARDIANS);
         try {
             border.setSize(4_000);
             var narrow = com.panda.promisedend.logic.Arrivals.destination(level, null, new BlockPos(2400, 64, 0));
@@ -4235,8 +4238,19 @@ public final class EndGameTests {
             PromisedEnd.LOGGER.info("[arrivals_step_aside_inside_a_narrow_border] 2,000 out: arrival {}, the Ward {}; {} out: by coordinates {}, the Ward {}",
                     narrow == null ? "vanilla's" : narrow.position(), stands, com.panda.promisedend.logic.Arrivals.BORDER_REACH, back, backStands);
             if (!back || !backStands) bad.add("a border at " + com.panda.promisedend.logic.Arrivals.BORDER_REACH + " out: by coordinates " + back + ", the Ward " + backStands);
+            // the two seals in reach broken, the Ward falls; the border grown past the Citadels', it stays down
+            for (int i = 0; i < 2; i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
+            boolean fell = com.panda.promisedend.logic.AncientWard.fallen(server);
+            border.setSize(60_000_000);
+            boolean still = com.panda.promisedend.logic.AncientWard.fallen(server), risen = com.panda.promisedend.logic.AncientWard.stands(server);
+            PromisedEnd.LOGGER.info("[arrivals_step_aside_inside_a_narrow_border] two seals broken at {} out: fallen {}; grown to 30M: fallen {}, standing {}",
+                    com.panda.promisedend.logic.Arrivals.BORDER_REACH, fell, still, risen);
+            if (!fell) bad.add("both seals in reach broken, the Ward didn't fall");
+            if (!still || risen) bad.add("a border grown past the Citadels raised the fallen Ward again");
         } finally {
             border.setSize(size);
+            com.panda.promisedend.logic.AncientWard.reset(server);
+            if (flag != null) System.setProperty(com.panda.promisedend.logic.AncientWard.ALL_GUARDIANS, flag);
         }
         if (!bad.isEmpty()) helper.fail("a narrow border: " + bad);
         else helper.succeed();
@@ -6903,6 +6917,7 @@ public final class EndGameTests {
                 if (woke[0] < 0 && !weaver.disguised()) {
                     woke[0] = in;
                     if (!has(player, com.panda.promisedend.logic.CodexBook.WAKE_WEAVER)) helper.fail("the player who woke the weaver wasn't awarded its rule");
+                    if (!player.entityTags().contains(com.panda.promisedend.entity.ChorusWeaver.HINTED)) helper.fail("the player who woke the weaver wasn't told what it is");
                 }
                 if (woke[0] < 0 && in == 20) helper.fail("a survival player 3 off didn't wake the weaver in 20 ticks");
                 if (woke[0] >= 0 && in - woke[0] > 21) {
@@ -7047,6 +7062,13 @@ public final class EndGameTests {
                     PromisedEnd.LOGGER.info("[purpur_sentry_shields_and_lunges] shield up: a blow from in front stopped, one from behind took {}",
                             String.format("%.2f", health[0] - sentry.getHealth()));
                     if (sentry.getHealth() >= health[0]) helper.fail("a blow from behind didn't land on the shielded sentry");
+                    // a player's blow turned from in front: its rule said, once
+                    var facer = helper.makeMockServerPlayerInLevel();
+                    facer.snapTo(golem.getX(), golem.getY(), golem.getZ(), 0, 0);
+                    facer.removeTag(com.panda.promisedend.entity.PurpurSentry.HINTED);
+                    sentry.hurtServer(level, level.damageSources().playerAttack(facer), 6.0F);
+                    if (!facer.entityTags().contains(com.panda.promisedend.entity.PurpurSentry.HINTED)) helper.fail("a player's blow turned by the shield wasn't told the rule");
+                    facer.discard();
                     var flanker = helper.makeMockServerPlayerInLevel();
                     flanker.snapTo(sentry.getX(), sentry.getY(), sentry.getZ() - 3, 0, 0);
                     sentry.hurtServer(level, level.damageSources().playerAttack(flanker), 6.0F);

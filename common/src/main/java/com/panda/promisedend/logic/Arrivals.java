@@ -297,6 +297,7 @@ public final class Arrivals {
     public static List<Component> greeting(Entity player) {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.translatable("arrival.promisedend.first"));
+        lines.add(Component.translatable("arrival.promisedend.gate"));
         double out = Math.hypot(player.getX(), player.getZ());
         Component way = Component.translatable("direction.promisedend." + Arrival.compass(-player.getX(), -player.getZ()));
         if (AncientWard.stands(player.level().getServer())) {

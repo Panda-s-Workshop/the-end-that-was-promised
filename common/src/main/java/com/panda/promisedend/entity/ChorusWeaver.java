@@ -184,11 +184,25 @@ public class ChorusWeaver extends Monster implements GeoEntity {
         this.yHeadRot = yaw;
     }
 
+    /** A player told what it is: once a player. */
+    public static final String HINTED = "promisedend.chorus_weaver_hinted";
+
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         boolean hurt = super.hurtServer(level, source, amount);
-        if (hurt && disguised()) reveal();
+        if (hurt && disguised()) {
+            reveal();
+            hint(source.getEntity());
+        }
         return hurt;
+    }
+
+    /** The first time one wakes for a player, what it is, once. */
+    private static void hint(net.minecraft.world.entity.@org.jspecify.annotations.Nullable Entity entity) {
+        if (entity instanceof net.minecraft.server.level.ServerPlayer player && !player.entityTags().contains(HINTED)) {
+            player.addTag(HINTED);
+            player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("hint.promisedend.chorus_weaver.woke"));
+        }
     }
 
     @Override
@@ -207,6 +221,7 @@ public class ChorusWeaver extends Monster implements GeoEntity {
                 if (near != null) {
                     setTarget(near);
                     reveal();
+                    hint(near);
                     Constructs.award(near, com.panda.promisedend.logic.CodexBook.WAKE_WEAVER, "woke");
                 }
             }

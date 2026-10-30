@@ -157,6 +157,9 @@ public class PurpurSentry extends Monster implements GeoEntity {
         return ShieldArc.inFront(this.yBodyRot, FRONT_HALF_ANGLE, from.x - getX(), from.z - getZ());
     }
 
+    /** A player told its rule: once a player. */
+    public static final String HINTED = "promisedend.purpur_sentry_hinted";
+
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         // the shield stops a blow at its front, as a player's shield does; a shot it met is in deflection
@@ -164,6 +167,11 @@ public class PurpurSentry extends Monster implements GeoEntity {
         if (state() == State.SHIELD && from != null && !(source.getDirectEntity() instanceof Projectile)
                 && !source.is(DamageTypeTags.BYPASSES_SHIELD) && inFront(from)) {
             ring(level, from);
+            // the first blow a player's has turned, its rule, once
+            if (source.getEntity() instanceof net.minecraft.server.level.ServerPlayer player && !player.entityTags().contains(HINTED)) {
+                player.addTag(HINTED);
+                player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("hint.promisedend.purpur_sentry.flank"));
+            }
             return false;
         }
         boolean shielded = state() == State.SHIELD && from != null;

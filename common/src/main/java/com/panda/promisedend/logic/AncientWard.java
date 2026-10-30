@@ -169,14 +169,18 @@ public final class AncientWard {
         return (guarded & ALL & ~broken) != 0;
     }
 
-    /** Whether the Ward has fallen: it had seals, and every one of them is broken. */
+    /**
+     * Whether the Ward has fallen: it had seals, and every one of them is broken. Once fallen it stays down, though a
+     * world border grown since brings another seal into reach.
+     */
     public static boolean fallen(MinecraftServer server) {
+        if (!Arrivals.byCoordinates(server)) return false;
         int guarded = guarded(server);
-        return Arrivals.byCoordinates(server) && guarded != 0 && !binds(broken(server), guarded);
+        return Stored.of(server).fell || guarded != 0 && !binds(broken(server), guarded);
     }
 
     public static boolean stands(MinecraftServer server) {
-        if (!Arrivals.byCoordinates(server) || !binds(broken(server), guarded(server))) return false;
+        if (!Arrivals.byCoordinates(server) || Stored.of(server).fell || !binds(broken(server), guarded(server))) return false;
         ServerLevel end = server.getLevel(Level.END);
         var fight = end == null ? null : end.getDragonFight();
         return fight == null || !fight.hasPreviouslyKilledDragon();
@@ -202,6 +206,7 @@ public final class AncientWard {
         int count = Integer.bitCount(stored.broken & guarded), of = Integer.bitCount(guarded);
         // the Ward falls with the last seal that binds it, which is the third only once every guardian is in
         boolean falls = binds(stored.broken & ~bit, guarded) && !binds(stored.broken, guarded);
+        if (falls) stored.fell = true;
         ServerLevel end = server.getLevel(Level.END);
         if (end != null) {
             for (ServerPlayer p : end.players()) {
@@ -224,6 +229,7 @@ public final class AncientWard {
     public static void reset(MinecraftServer server) {
         Stored stored = Stored.of(server);
         stored.broken = 0;
+        stored.fell = false;
         stored.setDirty();
     }
 
@@ -333,15 +339,19 @@ public final class AncientWard {
     /** The broken seals. */
     private static final class Stored extends SavedData {
         static final Codec<Stored> CODEC = RecordCodecBuilder.create(i -> i.group(
-                Codec.INT.optionalFieldOf("broken", 0).forGetter(s -> s.broken)).apply(i, Stored::new));
+                Codec.INT.optionalFieldOf("broken", 0).forGetter(s -> s.broken),
+                Codec.BOOL.optionalFieldOf("fell", false).forGetter(s -> s.fell)).apply(i, Stored::new));
         static final SavedDataType<Stored> TYPE = new SavedDataType<>(PromisedEnd.id("seals"), Stored::new, CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
         int broken;
+        /** Whether the Ward fell with a seal's breaking: it stays down. */
+        boolean fell;
 
         Stored() {}
 
-        Stored(int broken) {
+        Stored(int broken, boolean fell) {
             this.broken = broken & ALL;
+            this.fell = fell;
         }
 
         static Stored of(MinecraftServer server) {
