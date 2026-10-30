@@ -6,6 +6,9 @@
     "promisedend:void_shrine",
     "promisedend:fallen_observatory",
     "promisedend:unfinished_citadel",
+    "promisedend:shulker_foundry_fallback",
+    "promisedend:rift_maw_fallback",
+    "promisedend:unfinished_citadel_fallback",
     "minecraft:end_city"
   ]
 }

@@ -1,5 +1,6 @@
 {
   "values": [
-    "promisedend:rift_maw"
+    "promisedend:rift_maw",
+    "promisedend:rift_maw_fallback"
   ]
 }

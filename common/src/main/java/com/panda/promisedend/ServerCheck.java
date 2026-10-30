@@ -887,7 +887,6 @@ public final class ServerCheck {
                 marks.stream().map(d -> d.type().getRegisteredName() + " at " + Math.round(d.x()) + ", " + Math.round(d.z())).toList());
         if (!name.equals("item." + PromisedEnd.MODID + ".star_chart.foundry")) return "the Star Chart is named " + name;
         if (marks.stream().noneMatch(d -> Math.hypot(d.x() - found.getX(), d.z() - found.getZ()) < 16)) return "the Star Chart marks no Foundry at " + found + ": " + marks;
-        WAYSTATION_MARK[0] = found;
         return null;
     }
 
@@ -1013,10 +1012,8 @@ public final class ServerCheck {
     /**
      * The Fallen Observatory nearest a point 1500 out, generated here: its Star Chart Desk stands with its block entity
      * and draws only kinds this world can chart, its chest and its Sentries are in place, and the chart it gives,
-     * unrolled there, marks a Foundry other than the one the Waystation's chart led to (each place is charted once).
+     * unrolled there, marks the Foundry nearest the desk (a guardian's charts lead to the nearest, so a group's agree).
      */
-    /** Where the Waystation's chart led, for the observatory's check that the next chart leads elsewhere. */
-    private static final BlockPos[] WAYSTATION_MARK = {null};
 
     private static String observatory(net.minecraft.server.level.ServerLevel end) {
         BlockPos from = new BlockPos(1500, 64, 0);
@@ -1053,8 +1050,10 @@ public final class ServerCheck {
         if (chests < 1) return "the Fallen Observatory at " + at + " has no chest";
         if (sentries < 2) return "the Fallen Observatory at " + at + " has " + sentries + " Purpur Sentries";
         if (marks.isEmpty()) return "a Foundry chart unrolled at " + desk + " marks nothing";
-        if (WAYSTATION_MARK[0] != null && marks.stream().anyMatch(d -> Math.hypot(d.x() - WAYSTATION_MARK[0].getX(), d.z() - WAYSTATION_MARK[0].getZ()) < 32))
-            return "the desk's chart leads back to the Foundry the Waystation's chart marked, " + WAYSTATION_MARK[0];
+        BlockPos nearest = end.findNearestMapStructure(com.panda.promisedend.item.StarChartItem.tag(PromisedEnd.id("on_foundry_charts")), desk,
+                com.panda.promisedend.item.StarChartItem.SEARCH_RINGS, false);
+        if (nearest == null || marks.stream().noneMatch(d -> Math.hypot(d.x() - nearest.getX(), d.z() - nearest.getZ()) < 32))
+            return "the desk's chart doesn't mark the Foundry nearest it, " + nearest;
         return null;
     }
 

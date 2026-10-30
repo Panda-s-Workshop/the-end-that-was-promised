@@ -43,7 +43,8 @@ public final class DriftRouteStructure extends Structure {
      */
     private static final java.util.Map<String, Integer> REACH = java.util.Map.of(
             "promisedend:rim_outpost", 22, "promisedend:shulker_foundry", 42, "promisedend:rift_maw", 64,
-            "promisedend:void_shrine", 18, "promisedend:fallen_observatory", 24, "promisedend:unfinished_citadel", 81);
+            "promisedend:void_shrine", 18, "promisedend:fallen_observatory", 24, "promisedend:unfinished_citadel", 81,
+            "promisedend:shulker_foundry_fallback", 42, "promisedend:rift_maw_fallback", 64, "promisedend:unfinished_citadel_fallback", 81);
     private static final int REACH_ELSE = 96;
     /** This structure, which its own clearing passes and every other's keeps out of. */
     public static final net.minecraft.resources.ResourceKey<Structure> KEY = net.minecraft.resources.ResourceKey.create(

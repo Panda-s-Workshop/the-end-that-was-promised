@@ -1,5 +1,6 @@
 {
   "values": [
-    "promisedend:unfinished_citadel"
+    "promisedend:unfinished_citadel",
+    "promisedend:unfinished_citadel_fallback"
   ]
 }

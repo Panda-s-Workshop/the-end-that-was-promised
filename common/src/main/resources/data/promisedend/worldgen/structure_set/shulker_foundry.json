@@ -6,9 +6,12 @@
     }
   ],
   "placement": {
-    "type": "minecraft:random_spread",
+    "type": "promisedend:ring_spread",
     "spacing": 20,
     "separation": 8,
-    "salt": 1155452640
+    "salt": 1155452640,
+    "min_distance": 0,
+    "max_distance": 30000000,
+    "terrain": "on"
   }
 }

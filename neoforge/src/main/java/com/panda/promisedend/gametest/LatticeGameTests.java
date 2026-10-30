@@ -190,6 +190,8 @@ final class LatticeGameTests {
 
     static void amberGateNeedsKey(GameTestHelper helper) {
         var level = helper.getLevel();
+        // no other test's fallen Architect or opened gate near (the record is the world's)
+        com.panda.promisedend.logic.Citadels.clear(level.getServer());
         var gate = ModBlocks.AMBER_GATE.get();
         java.util.List<BlockPos> joined = new java.util.ArrayList<>();
         for (int x = 2; x <= 4; x++) for (int y = 2; y <= 5; y++) joined.add(helper.absolutePos(new BlockPos(x, y, 2)));
@@ -240,6 +242,25 @@ final class LatticeGameTests {
         architect.discard();
         level.getBlockState(used).useWithoutItem(level, player, hit);
         if (open.test(used)) bad.add("an empty hand opened it with no Architect left");
+        // fallen, the gate opens to a key and keeps it, and to an empty hand
+        com.panda.promisedend.logic.Citadels.fell(level.getServer(), architect.blockPosition());
+        var kept = new net.minecraft.world.item.ItemStack(com.panda.promisedend.registry.ModItems.AMBER_KEY.get());
+        player.setItemInHand(hand, kept);
+        level.getBlockState(used).useItemOn(kept, level, player, hand, hit);
+        if (!open.test(used) || kept.getCount() != 1) bad.add("its Architect fallen, a key opened it " + open.test(used) + " and was kept " + (kept.getCount() == 1));
+        for (BlockPos p : joined) level.getBlockState(p).tick(level, p, level.getRandom());
+        level.getBlockState(used).useWithoutItem(level, player, hit);
+        if (!open.test(used)) bad.add("its Architect fallen, an empty hand didn't open it");
+        // a bound Architect loaded only after its gate was opened unbinds itself within a second
+        com.panda.promisedend.logic.Citadels.clear(level.getServer());
+        com.panda.promisedend.logic.Citadels.opened(level.getServer(), used);
+        var late = helper.spawn(com.panda.promisedend.registry.ModEntities.THE_ARCHITECT.get(), new BlockPos(5, 2, 6));
+        late.setBound(true);
+        late.setHome(late.blockPosition());
+        for (int i = 0; i < 21; i++) late.tick();
+        if (late.bound()) bad.add("an Architect loaded after its gate was opened stayed bound");
+        late.discard();
+        com.panda.promisedend.logic.Citadels.clear(level.getServer());
         player.discard();
         if (!bad.isEmpty()) helper.fail("amber gate: " + bad);
         else helper.succeed();

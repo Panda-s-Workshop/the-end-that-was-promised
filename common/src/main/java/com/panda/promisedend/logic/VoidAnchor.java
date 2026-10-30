@@ -180,6 +180,22 @@ public final class VoidAnchor {
         return spawn;
     }
 
+    /**
+     * While the Ancients' Ward stands the End's last resort is inside it, where the Ward would send the player home
+     * the same tick: the nearest Waystation's standing place instead (mended as for an arrival), or null with none built.
+     */
+    public static @org.jspecify.annotations.Nullable Vec3 wardFallback(ServerLevel end, Vec3 from) {
+        if (!AncientWard.stands(end.getServer())) return null;
+        BlockPos best = null;
+        for (BlockPos gate : Arrivals.built(end.getServer())) {
+            if (best == null || gate.distToCenterSqr(from) < best.distToCenterSqr(from)) best = gate;
+        }
+        if (best == null) return null;
+        Vec3 stand = Arrivals.stand(best);
+        Arrivals.mend(end, stand);
+        return stand;
+    }
+
     /** The exact landing point on a spot: on top of a bottom slab or path, not inside it. */
     public static Vec3 landing(ServerLevel level, BlockPos feet) {
         var shape = level.getBlockState(feet).getCollisionShape(level, feet);
@@ -239,7 +255,8 @@ public final class VoidAnchor {
             to = landing(from, near);
         } else if (from.dimension() == Level.END) {
             level = from;
-            to = landing(from, endFallback(from));
+            to = wardFallback(from, fromPos);
+            if (to == null) to = landing(from, endFallback(from));
         } else {
             var spawn = server.overworld().getRespawnData();
             level = server.getLevel(spawn.dimension());

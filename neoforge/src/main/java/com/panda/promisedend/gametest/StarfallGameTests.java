@@ -55,6 +55,25 @@ final class StarfallGameTests {
         });
     }
 
+    /**
+     * A star through a thin island keeps its core: a radius-4 fall on an island one block thick goes through it, and the
+     * core, two seconds on, is still by the crater (on the ground under it, or hung in the hole), not lost to the void.
+     */
+    static void coreKeptThroughThinIsland(GameTestHelper helper) {
+        var level = helper.getLevel();
+        for (int x = 1; x <= 11; x++) for (int z = 1; z <= 11; z++) helper.setBlock(new BlockPos(x, 8, z), Blocks.END_STONE);
+        BlockPos at = helper.absolutePos(new BlockPos(6, 8, 6));
+        helper.runAtTickTime(2, () -> Starfall.impact(level, at, 4));
+        helper.runAtTickTime(42, () -> {
+            var cores = level.getEntitiesOfClass(ItemEntity.class, new AABB(at).inflate(12, 14, 12), i -> i.getItem().is(ModItems.STARFALL_CORE.get()));
+            PromisedEnd.LOGGER.info("[starfall_core_kept_through_thin_island] cores {} at {}", cores.size(), cores.stream().map(i -> i.position().toString()).toList());
+            if (cores.size() != 1) helper.fail(cores.size() + " cores by the crater through a thin island, not 1");
+            else if (cores.getFirst().getY() < at.getY() - 13) helper.fail("the core fell to " + cores.getFirst().getY());
+            else helper.succeed();
+            cores.forEach(net.minecraft.world.entity.Entity::discard);
+        });
+    }
+
     static void craterRespectsTag(GameTestHelper helper) {
         var level = helper.getLevel();
         List<String> bad = new ArrayList<>();

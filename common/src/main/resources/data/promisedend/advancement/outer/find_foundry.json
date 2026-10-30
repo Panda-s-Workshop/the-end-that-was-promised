@@ -9,7 +9,10 @@
           "entity": "this",
           "predicate": {
             "minecraft:location": {
-              "structures": "promisedend:shulker_foundry"
+              "structures": [
+                "promisedend:shulker_foundry",
+                "promisedend:shulker_foundry_fallback"
+              ]
             }
           }
         }

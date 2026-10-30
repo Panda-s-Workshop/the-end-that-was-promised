@@ -1,0 +1,17 @@
+{
+  "structures": [
+    {
+      "structure": "promisedend:shulker_foundry_fallback",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "promisedend:ring_spread",
+    "spacing": 20,
+    "separation": 8,
+    "salt": 1155452640,
+    "min_distance": 1100,
+    "max_distance": 30000000,
+    "terrain": "off"
+  }
+}

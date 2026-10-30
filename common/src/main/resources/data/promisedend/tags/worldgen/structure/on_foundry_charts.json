@@ -1,5 +1,6 @@
 {
   "values": [
-    "promisedend:shulker_foundry"
+    "promisedend:shulker_foundry",
+    "promisedend:shulker_foundry_fallback"
   ]
 }

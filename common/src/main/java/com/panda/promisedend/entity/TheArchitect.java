@@ -23,7 +23,6 @@ import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -126,7 +125,6 @@ public class TheArchitect extends Monster implements GeoEntity {
     /** The tag a player gets once told how to fight it (the hint is said once). */
     public static final String HINTED = "promisedend.the_architect_hinted";
     private static final net.minecraft.resources.Identifier DEFEATED = PromisedEnd.id("void/defeat_architect");
-    private static final DustParticleOptions GLOW = new DustParticleOptions(0xFFF4FF, 1.4F);
 
     public enum State { DORMANT, IDLE, RAISE, THROW, UNMAKE }
 
@@ -372,12 +370,14 @@ public class TheArchitect extends Monster implements GeoEntity {
         if (tickCount % 10 == 0) updateBar(level);
         if (state() == State.DORMANT) {
             hold(Vec3.atBottomCenterOf(home));
+            // its gate opened by a key before it was loaded: unbound all the same
+            if (bound && tickCount % 20 == 0 && com.panda.promisedend.logic.Citadels.openedNear(level.getServer(), blockPosition(), com.panda.promisedend.block.AmberGateBlock.UNBINDS)) unbind();
             if (tickCount % 10 == 0 && !bound && !near(level, WAKE_RANGE).isEmpty()) wake();
             return;
         }
         if (open > 0 && --open % 4 == 0) {
             Vec3 key = keystonePosition();
-            level.sendParticles(GLOW, key.x, key.y, key.z, 2, 0.25, 0.25, 0.25, 0.0);
+            level.sendParticles(ParticleTypes.END_ROD, key.x, key.y, key.z, 2, 0.25, 0.25, 0.25, 0.0);
         }
         // the arena put back after a minute with no one near
         if (near(level, RESET_RANGE).isEmpty()) {
@@ -574,7 +574,8 @@ public class TheArchitect extends Monster implements GeoEntity {
     /** The marked tiles glow while they go, a lit haze over each, so a step off them is in time. */
     private void glow(ServerLevel level) {
         for (BlockPos at : marked) {
-            level.sendParticles(GLOW, at.getX() + 0.5, at.getY() + 1.05, at.getZ() + 0.5, 3, 0.3, 0.02, 0.3, 0.0);
+            // lit lilac motes: dust greys to a murk in the End's light
+            level.sendParticles(com.panda.promisedend.registry.ModParticles.CHORUS_VINE.get(), at.getX() + 0.5, at.getY() + 1.05, at.getZ() + 0.5, 3, 0.35, 0.02, 0.35, 0.0);
             if (stateTicks % 8 == 0) level.sendParticles(ParticleTypes.END_ROD, at.getX() + 0.5, at.getY() + 1.1, at.getZ() + 0.5, 1, 0.3, 0.05, 0.3, 0.02);
         }
     }
@@ -777,6 +778,7 @@ public class TheArchitect extends Monster implements GeoEntity {
         boolean already = this.dead;
         super.die(source);
         if (already || !(level() instanceof ServerLevel level)) return;
+        com.panda.promisedend.logic.Citadels.fell(level.getServer(), blockPosition());
         bar.removeAllPlayers();
         resetArena(level);
         fall(level);

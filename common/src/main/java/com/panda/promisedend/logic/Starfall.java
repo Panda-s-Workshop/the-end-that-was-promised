@@ -51,9 +51,8 @@ import org.jspecify.annotations.Nullable;
 public final class Starfall {
     /** The beam's particles go up every this many ticks. */
     private static final int BEAM_EVERY = 4;
-    /** The beam's height over the target, and its colour: the star's pale gold, the biggest dust there is. */
+    /** The beam's height over the target. Its sparks are lit gold falling down it: dust greys in the End's light. */
     private static final double BEAM_HEIGHT = 96;
-    private static final net.minecraft.core.particles.DustParticleOptions BEAM = new net.minecraft.core.particles.DustParticleOptions(0xFFE7A0, 4.0F);
     /** Tries at a target round the chosen player, and the wait before the next look when none was safe: 10 s. */
     private static final int TRIES = 24, RETRY = 200;
 
@@ -62,9 +61,13 @@ public final class Starfall {
 
     private Starfall() {}
 
-    /** Whether the Starfall's clock has started: the Maw's seal broken, so stars fall from Act IV on. */
+    /**
+     * Whether the Starfall's clock has started: the Maw's seal broken, so stars fall from Act IV on; or from the start
+     * where no Maw can generate (another mod's End biomes), so stars still fall.
+     */
     public static boolean started(MinecraftServer server) {
-        return (AncientWard.broken(server) & 1 << AncientWard.SEALS.indexOf("maw")) != 0;
+        int maw = 1 << AncientWard.SEALS.indexOf("maw");
+        return ((AncientWard.broken(server) | ~AncientWard.guarded(server)) & maw) != 0;
     }
 
     /** At the end of every server tick. */
@@ -254,7 +257,7 @@ public final class Starfall {
         for (ServerPlayer p : near(level, at)) {
             for (int i = 0; i < steps; i++) {
                 double y = at.getY() + 1 + (i + level.getRandom().nextDouble()) * BEAM_HEIGHT / steps;
-                level.sendParticles(p, BEAM, true, true, x, y, z, 1, 0.12, 0.3, 0.12, 0);
+                level.sendParticles(p, com.panda.promisedend.registry.ModParticles.STAR_SPARK.get(), true, true, x, y, z, 1, 0.12, 0.3, 0.12, 0);
                 // a count of 0 sends the offset as the spark's motion: down the column. The sparks are lit of themselves,
                 // so they carry far where the dust dims in the End's light
                 level.sendParticles(p, ParticleTypes.END_ROD, true, true, x, y, z, 0, 0, -1, 0, 0.35);
@@ -285,10 +288,16 @@ public final class Starfall {
         Collections.shuffle(walls, random);
         int ores = Math.min(StarfallSchedule.ores(random), walls.size());
         for (int i = 0; i < ores; i++) level.setBlock(walls.get(i), ModBlocks.STARMETAL_ORE.get().defaultBlockState(), 3);
-        // the core lies at the bottom of the bowl, glowing, and stays until it is taken
+        // the core lies at the bottom of the bowl, glowing, and stays until it is taken; where the bowl went through a
+        // thin island, on the ground under it, or with none, hung in the hole it made (it fell into the void)
         BlockPos bottom = at;
         while (bottom.getY() > at.getY() - radius && level.getBlockState(bottom.below()).isAir()) bottom = bottom.below();
+        BlockPos ground = bottom;
+        while (ground.getY() > at.getY() - 3 * radius && level.getBlockState(ground.below()).isAir()) ground = ground.below();
+        boolean held = level.getBlockState(ground.below()).isAir();
+        if (!held) bottom = ground;
         ItemEntity core = new ItemEntity(level, bottom.getX() + 0.5, bottom.getY() + 0.1, bottom.getZ() + 0.5, new ItemStack(ModItems.STARFALL_CORE.get()));
+        core.setNoGravity(held);
         core.setDeltaMovement(Vec3.ZERO);
         core.setUnlimitedLifetime();
         core.setGlowingTag(true);

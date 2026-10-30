@@ -1,6 +1,7 @@
 package com.panda.promisedend.block;
 
 import com.panda.promisedend.entity.TheArchitect;
+import com.panda.promisedend.logic.Citadels;
 import com.panda.promisedend.registry.ModItems;
 import com.panda.promisedend.registry.ModSounds;
 import java.util.ArrayDeque;
@@ -38,7 +39,9 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * clear amber light you walk through. Then it closes, pushing up and out anything left standing in it. Opened, it also
  * unbinds the Architect inside, for good ({@link TheArchitect#unbind}): until then it can't be woken, however a player
  * came in. A gate opened already takes no second key. Once its Architect is unbound, the shut gate opens again to an
- * empty hand while it lives: a fight lost or run past the ten minutes needs no second key.
+ * empty hand while it lives: a fight lost or run past the ten minutes needs no second key; and once it has fallen,
+ * for good. A key is spent only to unbind: on a gate whose Architect is awake or fallen it opens and is kept. An
+ * Architect not yet loaded when its gate was opened unbinds once it is ({@link Citadels}).
  */
 public class AmberGateBlock extends Block {
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -75,8 +78,10 @@ public class AmberGateBlock extends Block {
         if (!stack.is(ModItems.AMBER_KEY.get())) return super.useItemOn(stack, state, level, pos, player, hand, hit);
         if (state.getValue(OPEN)) return InteractionResult.PASS;
         if (level instanceof ServerLevel server) {
+            String free = free(server, pos);
             open(server, pos);
-            stack.consume(1, player);
+            if (free == null) stack.consume(1, player);
+            else player.sendOverlayMessage(Component.translatable(free));
         }
         return InteractionResult.SUCCESS;
     }
@@ -84,14 +89,19 @@ public class AmberGateBlock extends Block {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!state.getValue(OPEN) && level instanceof ServerLevel server) {
-            if (awake(server, pos)) {
-                open(server, pos);
-                player.sendOverlayMessage(Component.translatable("message.promisedend.amber_gate.gives_way"));
-            } else {
-                player.sendOverlayMessage(Component.translatable("message.promisedend.amber_gate.locked"));
-            }
+            String free = free(server, pos);
+            if (free != null) open(server, pos);
+            player.sendOverlayMessage(Component.translatable(free != null ? free : "message.promisedend.amber_gate.locked"));
         }
         return InteractionResult.SUCCESS;
+    }
+
+    /** Why the gate at {@code pos} opens without a key (the line said), or null when it takes one. */
+    private static @org.jspecify.annotations.Nullable String free(ServerLevel level, BlockPos pos) {
+        if (!level.getEntitiesOfClass(TheArchitect.class, new AABB(pos).inflate(UNBINDS), a -> a.isAlive() && a.bound()).isEmpty()) return null;
+        if (awake(level, pos)) return "message.promisedend.amber_gate.gives_way";
+        if (Citadels.fallenNear(level.getServer(), pos, UNBINDS)) return "message.promisedend.amber_gate.fallen";
+        return null;
     }
 
     /** Whether an Architect the gate at {@code pos} unbound still lives within its reach. */
@@ -128,6 +138,7 @@ public class AmberGateBlock extends Block {
         }
         level.playSound(null, pos, ModSounds.AMBER_GATE_OPEN.get(), SoundSource.BLOCKS, 1.5F, 1.0F);
         for (TheArchitect a : level.getEntitiesOfClass(TheArchitect.class, new AABB(pos).inflate(UNBINDS))) a.unbind();
+        Citadels.opened(level.getServer(), pos);
     }
 
     @Override

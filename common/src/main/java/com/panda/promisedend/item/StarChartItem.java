@@ -73,12 +73,16 @@ public class StarChartItem extends Item {
         return kind == null ? super.getName(stack) : name(kind);
     }
 
+    /** The kinds that lead to a guardian's place: a group's charts of one, given at one kill, lead to the same place. */
+    private static final java.util.Set<String> GUARDIANS = java.util.Set.of("on_foundry_charts", "on_rift_maw_charts", "on_citadel_charts");
+
     /**
      * Unrolls the chart into a marked map, or null when none of its kind lies within reach. The place found is charted:
-     * no later chart leads to it.
+     * no later chart leads to it; but a guardian's charts lead to the nearest, charted or not, as a group goes together.
      */
     public static ItemStack unroll(ServerLevel level, BlockPos from, Identifier kind) {
-        BlockPos found = level.findNearestMapStructure(tag(kind), from, SEARCH_RINGS, true);
+        boolean guardian = kind.getNamespace().equals(PromisedEnd.MODID) && GUARDIANS.contains(kind.getPath());
+        BlockPos found = level.findNearestMapStructure(tag(kind), from, SEARCH_RINGS, !guardian);
         if (found == null) return null;
         // on the mark, as vanilla's explorer maps: the map snaps its centre to a grid as wide as itself, so a map
         // centred anywhere else can leave the mark off it; the reader, off it, shows at its edge on their way. No biome

@@ -1,0 +1,17 @@
+{
+  "structures": [
+    {
+      "structure": "promisedend:rift_maw_fallback",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "promisedend:ring_spread",
+    "spacing": 20,
+    "separation": 8,
+    "salt": 1793629368,
+    "min_distance": 1100,
+    "max_distance": 30000000,
+    "terrain": "off"
+  }
+}

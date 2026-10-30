@@ -398,15 +398,42 @@ final class SentinelGameTests {
      * four in five standing in its own biomes at their middle, and (when {@code own} is given) four in five in that one.
      */
     private static void withinReach(GameTestHelper helper, String name, String test, int out, String own) {
+        List<String> bad = reachProblems(helper, name, test, out, own);
+        if (!bad.isEmpty()) helper.fail(name + " out of a pearl's reach: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * With the terrain off (as under another mod's End biomes), each guardian's place doesn't generate and its
+     * fallback does, in any End biome, its nearest within a pearl's reach of the same points as the place's.
+     */
+    static void guardiansFallBackWithTerrainOff(GameTestHelper helper) {
+        var previous = com.panda.promisedend.EndConfig.current();
+        List<String> bad = new ArrayList<>();
+        try {
+            com.panda.promisedend.EndConfig.use(EndGameTests.terrainOff(previous));
+            var sets = helper.getLevel().registryAccess().lookupOrThrow(Registries.STRUCTURE_SET);
+            for (var g : List.of(java.util.Map.entry("shulker_foundry", 1500), java.util.Map.entry("rift_maw", 1500), java.util.Map.entry("unfinished_citadel", 9000))) {
+                var place = sets.getOrThrow(ResourceKey.create(Registries.STRUCTURE_SET, PromisedEnd.id(g.getKey()))).value().placement();
+                if (!(place instanceof com.panda.promisedend.worldgen.RingSpreadPlacement ring) || ring.placesNow()) bad.add(g.getKey() + " still places with the terrain off");
+                for (String p : reachProblems(helper, g.getKey() + "_fallback", "guardians_fall_back_with_terrain_off", g.getValue(), null)) bad.add(g.getKey() + "'s fallback: " + p);
+            }
+        } finally {
+            com.panda.promisedend.EndConfig.use(previous);
+        }
+        if (!bad.isEmpty()) helper.fail("the guardians with the terrain off: " + bad);
+        helper.succeed();
+    }
+
+    private static List<String> reachProblems(GameTestHelper helper, String name, String test, int out, String own) {
         var access = helper.getLevel().registryAccess();
         ChunkGenerator generator = access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.NORMAL).value()
                 .createWorldDimensions().get(LevelStem.END).orElseThrow().generator();
         var noise = (NoiseBasedChunkGenerator) generator;
         var set = access.lookupOrThrow(Registries.STRUCTURE_SET).getOrThrow(ResourceKey.create(Registries.STRUCTURE_SET, PromisedEnd.id(name)));
-        if (!(set.value().placement() instanceof RandomSpreadStructurePlacement placement)) {
-            helper.fail(name + "'s placement isn't a random spread");
-            return;
-        }
+        if (!(set.value().placement() instanceof RandomSpreadStructurePlacement placement)) return List.of(name + "'s placement isn't a random spread");
+        var ring = placement instanceof com.panda.promisedend.worldgen.RingSpreadPlacement r ? r : null;
+        if (ring != null && !ring.placesNow()) return List.of(name + " doesn't place with the terrain as it is");
         var allowed = set.value().structures().getFirst().structure().value().biomes();
         int spacing = placement.spacing(), reach = com.panda.promisedend.logic.PearlGuide.SEARCH;
         long previous = EndBiomes.seed();
@@ -431,6 +458,7 @@ final class SentinelGameTests {
                     for (int gx = Math.floorDiv(px - reach, spacing); gx <= Math.floorDiv(px + reach, spacing); gx++) {
                         for (int gz = Math.floorDiv(pz - reach, spacing); gz <= Math.floorDiv(pz + reach, spacing); gz++) {
                             var chunk = placement.getPotentialStructureChunk(seed, gx * spacing, gz * spacing);
+                            if (ring != null && !ring.inRing(chunk.x(), chunk.z())) continue;
                             int d = (int) Math.hypot(chunk.x() - px, chunk.z() - pz);
                             if (d > reach || d >= nearest) continue;
                             if (allowed.contains(biomes.getNoiseBiome((chunk.getMinBlockX() + 8) >> 2, 62 >> 2, (chunk.getMinBlockZ() + 8) >> 2))) {
@@ -464,7 +492,6 @@ final class SentinelGameTests {
             bad.add("only " + allowedMiddles[0] + " of " + allowedMiddles[1] + " stand in their own biomes at their middle: " + middles);
         if (own != null && middles.getOrDefault(own, 0) * 5 < allowedMiddles[1] * 4)
             bad.add("only " + middles.getOrDefault(own, 0) + " of " + allowedMiddles[1] + " stand in the " + own + " at their middle: " + middles);
-        if (!bad.isEmpty()) helper.fail(name + " out of a pearl's reach: " + bad);
-        helper.succeed();
+        return bad;
     }
 }

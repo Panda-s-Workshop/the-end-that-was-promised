@@ -51,6 +51,7 @@ public final class EndGameTests {
         FUNCTIONS.register("void_anchor_needs_charge", () -> EndGameTests::voidAnchorNeedsCharge);
         FUNCTIONS.register("structures_place", () -> EndGameTests::structuresPlace);
         FUNCTIONS.register("codex_goals_are_advancements", () -> EndGameTests::codexGoalsAreAdvancements);
+        FUNCTIONS.register("ward_binds_only_placeable_seals", () -> EndGameTests::wardBindsOnlyPlaceableSeals);
         FUNCTIONS.register("structure_sets_resolve", () -> EndGameTests::structureSetsResolve);
         FUNCTIONS.register("rim_outpost_near_spawn", () -> EndGameTests::rimOutpostNearSpawn);
         FUNCTIONS.register("every_recipe_unlocks", () -> EndGameTests::everyRecipeUnlocks);
@@ -62,6 +63,7 @@ public final class EndGameTests {
         FUNCTIONS.register("void_anchor_safe_ground", () -> EndGameTests::voidAnchorSafeGround);
         FUNCTIONS.register("void_anchor_landing", () -> EndGameTests::voidAnchorLanding);
         FUNCTIONS.register("void_anchor_end_fallback", () -> EndGameTests::voidAnchorEndFallback);
+        FUNCTIONS.register("void_anchor_ward_fallback", () -> EndGameTests::voidAnchorWardFallback);
         FUNCTIONS.register("rim_progress_by_distance", () -> EndGameTests::rimProgressByDistance);
         FUNCTIONS.register("rim_outpost_footprint", () -> EndGameTests::rimOutpostFootprint);
         FUNCTIONS.register("act_one_goals_by_inventory", () -> EndGameTests::actOneGoalsByInventory);
@@ -76,6 +78,7 @@ public final class EndGameTests {
         FUNCTIONS.register("constructs_edges_walls_and_swarms", () -> EndGameTests::constructsEdgesWallsAndSwarms);
         FUNCTIONS.register("construct_spawns_keep_to_their_lands", () -> EndGameTests::constructSpawnsKeepToTheirLands);
         FUNCTIONS.register("arrival_by_coordinates", () -> EndGameTests::arrivalByCoordinates);
+        FUNCTIONS.register("waystation_stand_mended", () -> EndGameTests::waystationStandMended);
         FUNCTIONS.register("ward_sets_back", () -> EndGameTests::wardSetsBack);
         FUNCTIONS.register("seals_drop_the_ward", () -> EndGameTests::sealsDropTheWard);
         FUNCTIONS.register("ward_bounces_pearls", () -> EndGameTests::wardBouncesPearls);
@@ -175,6 +178,7 @@ public final class EndGameTests {
         FUNCTIONS.register("rift_maw_places", () -> LeviathanGameTests::riftMawPlaces);
         FUNCTIONS.register("rift_maws_within_reach", () -> SentinelGameTests::riftMawsWithinReach);
         FUNCTIONS.register("citadels_within_reach", () -> SentinelGameTests::citadelsWithinReach);
+        FUNCTIONS.register("guardians_fall_back_with_terrain_off", () -> SentinelGameTests::guardiansFallBackWithTerrainOff);
         FUNCTIONS.register("voidsteel_gear", () -> VoidsteelGameTests::voidsteelGear);
         FUNCTIONS.register("storage_blocks", () -> VoidsteelGameTests::storageBlocks);
         FUNCTIONS.register("set_bonus_void_touched", () -> VoidsteelGameTests::setBonusVoidTouched);
@@ -184,6 +188,7 @@ public final class EndGameTests {
         FUNCTIONS.register("augment_fin_and_set_stack_lift", () -> AugmentGameTests::finAndSetStackLift);
         FUNCTIONS.register("starfall_crater_respects_tag", () -> StarfallGameTests::craterRespectsTag);
         FUNCTIONS.register("starfall_thrown_unhurt", () -> StarfallGameTests::thrownUnhurt);
+        FUNCTIONS.register("starfall_core_kept_through_thin_island", () -> StarfallGameTests::coreKeptThroughThinIsland);
         FUNCTIONS.register("crawler_only_tears_lattice", () -> LatticeGameTests::crawlerOnlyTearsLattice);
         FUNCTIONS.register("phantom_lattice_reforms", () -> LatticeGameTests::phantomLatticeReforms);
         FUNCTIONS.register("amber_gate_needs_key", () -> LatticeGameTests::amberGateNeedsKey);
@@ -233,7 +238,7 @@ public final class EndGameTests {
      * test that succeeds removes every entity in and round its own bounds, so a neighbour finishing first took the
      * dragon with it (seen as a Warden whose heals never landed).
      */
-    private static final java.util.Set<String> ALONE = java.util.Set.of("dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
+    private static final java.util.Set<String> ALONE = java.util.Set.of("void_anchor_ward_fallback", "amber_gate_needs_key", "dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
             "warden_heals_dragon", "dragon_void_breath_dive", "void_breath_dodged", "called_wardens_take_turns",
             "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops",
             // counts constructs within 32 blocks, which reaches into the arenas beside it
@@ -3703,7 +3708,7 @@ public final class EndGameTests {
     }
 
     /** {@code previous} with the terrain off. */
-    private static com.panda.promisedend.EndConfig.Source terrainOff(com.panda.promisedend.EndConfig.Source previous) {
+    static com.panda.promisedend.EndConfig.Source terrainOff(com.panda.promisedend.EndConfig.Source previous) {
         return new com.panda.promisedend.EndConfig.Source() {
             @Override public boolean terrainEnabled() { return false; }
             @Override public int edgeDistance() { return previous.edgeDistance(); }
@@ -4535,6 +4540,31 @@ public final class EndGameTests {
      * With no footing in the End, the rescue lands on the arrival platform; with the platform gone, on
      * the main island's top; with neither, it rebuilds vanilla's obsidian platform and lands there.
      */
+    /**
+     * With the Ward standing, a rescue with no footing lands at the nearest Waystation's standing place (outside it),
+     * not on the main island inside it, where the Ward would send the player home; with the Ward down, there's none.
+     */
+    private static void voidAnchorWardFallback(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var end = server.getLevel(net.minecraft.world.level.Level.END);
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        List<String> bad = new ArrayList<>();
+        BlockPos gate = com.panda.promisedend.logic.Arrivals.waystation(end, new double[] {1500, 40});
+        var from = new net.minecraft.world.phys.Vec3(1480, 0, 60);
+        BlockPos nearest = gate;
+        for (BlockPos g : com.panda.promisedend.logic.Arrivals.built(server)) if (g.distToCenterSqr(from) < nearest.distToCenterSqr(from)) nearest = g;
+        if (!com.panda.promisedend.logic.AncientWard.stands(server)) bad.add("the Ward doesn't stand for the test");
+        var to = com.panda.promisedend.logic.VoidAnchor.wardFallback(end, from);
+        PromisedEnd.LOGGER.info("[void_anchor_ward_fallback] the Ward standing: {}, the nearest Waystation's stand {}", to, com.panda.promisedend.logic.Arrivals.stand(nearest));
+        if (to == null || to.distanceToSqr(com.panda.promisedend.logic.Arrivals.stand(nearest)) > 0.01) bad.add("with the Ward standing, landed at " + to);
+        else if (com.panda.promisedend.logic.AncientWard.inside(to.x, to.z, com.panda.promisedend.EndConfig.wardRadius())) bad.add("the Waystation's stand is inside the Ward");
+        for (int i = 0; i < com.panda.promisedend.logic.AncientWard.SEALS.size(); i++) com.panda.promisedend.logic.AncientWard.breakSeal(server, i);
+        if (com.panda.promisedend.logic.VoidAnchor.wardFallback(end, from) != null) bad.add("with the Ward down, it still went to a Waystation");
+        com.panda.promisedend.logic.AncientWard.reset(server);
+        if (!bad.isEmpty()) helper.fail("the anchor with the Ward: " + bad);
+        else helper.succeed();
+    }
+
     private static void voidAnchorEndFallback(GameTestHelper helper) {
         var end = helper.getLevel().getServer().getLevel(net.minecraft.world.level.Level.END);
         if (end == null) {
@@ -5440,6 +5470,52 @@ public final class EndGameTests {
      * Every Codex goal is a real advancement with a display (the client is only sent advancements that have
      * one), and every act with goals opens on a real advancement.
      */
+    /**
+     * A seal binds the Ward only where its guardian's place can generate. Each place's fallback takes any End biome, so
+     * an End of the main island's biome alone (another mod's biomes past it) keeps all three, as a real End does; one
+     * with no End biome at all (a mod's own End dimension type) keeps none, and the Ward can't stand.
+     */
+    private static void wardBindsOnlyPlaceableSeals(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var biomes = server.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.BIOME);
+        java.util.function.Function<String, net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome>> biome =
+                id -> biomes.getOrThrow(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME, net.minecraft.resources.Identifier.parse(id)));
+        int island = com.panda.promisedend.logic.AncientWard.placeable(java.util.Set.of(biome.apply("minecraft:the_end")), server.registryAccess());
+        int none = com.panda.promisedend.logic.AncientWard.placeable(java.util.Set.of(biome.apply("minecraft:plains")), server.registryAccess());
+        // a real End's (the test server's is one fixed biome)
+        var source = net.minecraft.world.level.biome.TheEndBiomeSource.create(biomes);
+        int own = com.panda.promisedend.logic.AncientWard.placeable(source.possibleBiomes(), server.registryAccess());
+        PromisedEnd.LOGGER.info("[ward_binds_only_placeable_seals] the island's biome only {}, no End biome {}, a real End {}", island, none, own);
+        List<String> bad = new ArrayList<>();
+        if (island != com.panda.promisedend.logic.AncientWard.ALL) bad.add("the main island's biome alone gives seals " + island + ", not all three");
+        if (none != 0) bad.add("no End biome gives seals " + none);
+        if (com.panda.promisedend.logic.AncientWard.binds(0, none)) bad.add("the Ward binds with no seal placeable");
+        if (own != com.panda.promisedend.logic.AncientWard.ALL) bad.add("a real End gives seals " + own + ", not all three");
+        if (!bad.isEmpty()) helper.fail("placeable seals: " + bad);
+        else helper.succeed();
+    }
+
+    /**
+     * A Waystation's standing place is mended for each arrival: its floor block mined (and one beside it) is put back,
+     * a block placed where the player stands is broken, and the floor that stands is left as it was.
+     */
+    private static void waystationStandMended(GameTestHelper helper) {
+        var level = helper.getLevel();
+        for (int x = 1; x <= 5; x++) for (int z = 1; z <= 5; z++) helper.setBlock(new BlockPos(x, 1, z), net.minecraft.world.level.block.Blocks.OBSIDIAN);
+        helper.setBlock(new BlockPos(3, 1, 3), net.minecraft.world.level.block.Blocks.AIR);
+        helper.setBlock(new BlockPos(4, 1, 3), net.minecraft.world.level.block.Blocks.AIR);
+        helper.setBlock(new BlockPos(3, 3, 3), net.minecraft.world.level.block.Blocks.COBBLESTONE);
+        com.panda.promisedend.logic.Arrivals.mend(level, net.minecraft.world.phys.Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 2, 3))));
+        List<String> bad = new ArrayList<>();
+        var polished = com.panda.promisedend.registry.ModBlocks.POLISHED_VOIDSTONE_SET.base().get();
+        if (!helper.getBlockState(new BlockPos(3, 1, 3)).is(polished)) bad.add("the mined floor under the stand is " + helper.getBlockState(new BlockPos(3, 1, 3)));
+        if (!helper.getBlockState(new BlockPos(4, 1, 3)).is(polished)) bad.add("the mined floor beside it is " + helper.getBlockState(new BlockPos(4, 1, 3)));
+        if (!helper.getBlockState(new BlockPos(2, 1, 3)).is(net.minecraft.world.level.block.Blocks.OBSIDIAN)) bad.add("the floor that stood was changed");
+        if (!helper.getBlockState(new BlockPos(3, 3, 3)).isAir()) bad.add("the block placed where the player stands stayed");
+        if (!bad.isEmpty()) helper.fail("the stand: " + bad);
+        else helper.succeed();
+    }
+
     private static void codexGoalsAreAdvancements(GameTestHelper helper) {
         var advancements = helper.getLevel().getServer().getAdvancements();
         List<String> bad = new ArrayList<>();

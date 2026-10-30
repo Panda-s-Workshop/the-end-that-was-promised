@@ -37,6 +37,8 @@ public final class ModParticleProviders {
                 new Mote(level, x, y, z, sprites, PUFF));
         sink.sprites(ModParticles.CHORUS_VINE.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
                 new Mote(level, x, y, z, sprites, VINE));
+        sink.sprites(ModParticles.STAR_SPARK.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
+                new Mote(level, x, y, z, sprites, SPARK));
         sink.sprites(ModParticles.CURRENT_MOTE.get(), sprites -> (options, level, x, y, z, dx, dy, dz, random) ->
                 new Carried(level, x, y, z, sprites, CURRENT, dx, dy, dz));
     }
@@ -60,6 +62,8 @@ public final class ModParticleProviders {
     static final Motion PUFF = new Motion(0.15, -0.12F, 0.002, 0.0, 20, 15, 0.18F, 0.12F);
     /** A weaver's vine hangs still and goes in under a second: no fall, no sway, larger than pollen. */
     static final Motion VINE = new Motion(0.0, 0.0F, 0.0, 0.0, 14, 6, 0.12F, 0.04F);
+    /** A star's spark falls fast and keeps falling, some 8-14 blocks down the beam, large: the beam is seen from 100 off. */
+    static final Motion SPARK = new Motion(-0.3, 0.03F, 0.0, 0.0, 22, 14, 0.55F, 0.3F);
     /** A void current's mote neither rises nor falls: it drifts along at the speed it was given, some 20-35 blocks. */
     static final Motion CURRENT = new Motion(0.0, 0.0F, 0.0008, 0.0, 50, 40, 0.22F, 0.1F);
 

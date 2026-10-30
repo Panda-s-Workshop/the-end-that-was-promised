@@ -51,6 +51,7 @@ public final class Arrivals {
         if (end == null || from.dimension() == Level.END || !EndConfig.arrivalByCoordinates()) return null;
         BlockPos centre = waystation(end, Arrival.target(portal.getX() + 0.5, portal.getZ() + 0.5));
         Vec3 at = stand(centre);
+        mend(end, at);
         float yaw = Arrival.facingCentre(at.x, at.z);
         return new TeleportTransition(end, at, Vec3.ZERO, yaw, 0.0F, Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
                 TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET).then(Arrivals::greet));
@@ -65,6 +66,27 @@ public final class Arrivals {
         int x = centre.getX(), z = centre.getZ();
         int dx = Math.abs(x) >= Math.abs(z) ? (x < 0 ? -1 : 1) : 0, dz = dx == 0 ? (z < 0 ? -1 : 1) : 0;
         return Vec3.atBottomCenterOf(centre.offset(dx * STAND, 1, dz * STAND));
+    }
+
+    /**
+     * The standing place made sound for an arrival, as vanilla's obsidian platform is: the 3x3 of floor under it put
+     * back where it was mined or never grew, and the two blocks over it cleared, so a mined floor block can't drop the
+     * next player through into the void, nor a placed one set them down inside it (public for GameTests).
+     */
+    public static void mend(ServerLevel end, Vec3 at) {
+        BlockPos stand = BlockPos.containing(at);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                BlockPos floor = stand.offset(dx, -1, dz);
+                if (!end.getBlockState(floor).isFaceSturdy(end, floor, net.minecraft.core.Direction.UP))
+                    end.setBlock(floor, com.panda.promisedend.registry.ModBlocks.POLISHED_VOIDSTONE_SET.base().get().defaultBlockState(), 3);
+            }
+        }
+        // only its own column: the floor's edge slabs and the Rift Gate stand a block off it
+        for (int up = 0; up <= 1; up++) {
+            BlockPos air = stand.above(up);
+            if (!end.getBlockState(air).getCollisionShape(end, air).isEmpty()) end.destroyBlock(air, true);
+        }
     }
 
     /** The gate of the Waystation whose standing place is {@code at}, or null. */

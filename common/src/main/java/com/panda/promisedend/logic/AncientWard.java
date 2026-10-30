@@ -62,6 +62,11 @@ public final class AncientWard {
     /** Each player's (or their mount's) last place outside the Ward, in the End; cleared for a new server. */
     private static final Map<UUID, Vec3> OUTSIDE = new HashMap<>();
     private static @org.jspecify.annotations.Nullable MinecraftServer forServer;
+    /** The guardians' places, in {@link #SEALS}' order. */
+    private static final List<String> PLACES = List.of("shulker_foundry", "rift_maw", "unfinished_citadel");
+    /** The seals whose guardian's place can generate in this server's End, and the server it was worked out for. */
+    private static int placeable = ALL;
+    private static @org.jspecify.annotations.Nullable MinecraftServer placeableFor;
 
     private AncientWard() {}
 
@@ -70,9 +75,49 @@ public final class AncientWard {
         return Arrival.insideWard(x, z, radius);
     }
 
-    /** The seals whose guardian is in the game. */
+    /** The seals whose guardian is in the game, and whose place can generate in the last server's End looked at. */
     public static int guarded() {
-        return Boolean.getBoolean(ALL_GUARDIANS) ? ALL : GUARDED;
+        return Boolean.getBoolean(ALL_GUARDIANS) ? ALL : GUARDED & placeable;
+    }
+
+    /** The seals whose guardian is in the game and whose place can generate in {@code server}'s End. */
+    public static int guarded(MinecraftServer server) {
+        if (placeableFor != server) {
+            placeable = placeable(server);
+            placeableFor = server;
+        }
+        return guarded();
+    }
+
+    /**
+     * The seals whose guardian's place lists a biome the End's biome source can give. With the terrain off under another
+     * End mod's biomes none may: a seal that can't be broken would hold the Ward, and the dragon, for good.
+     */
+    static int placeable(MinecraftServer server) {
+        ServerLevel end = server.getLevel(Level.END);
+        return end == null ? ALL : placeable(end.getChunkSource().getGenerator().getBiomeSource().possibleBiomes(), server.registryAccess());
+    }
+
+    /** The seals whose guardian's place lists one of {@code possible} (public for GameTests). */
+    public static int placeable(java.util.Set<net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome>> possible, net.minecraft.core.RegistryAccess access) {
+        var structures = access.lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+        // by key: the biome source's holders aren't always the registry's own (ours come through the mixin's set)
+        var keys = new java.util.HashSet<net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome>>();
+        for (var h : possible) h.unwrapKey().ifPresent(keys::add);
+        int mask = 0;
+        for (int i = 0; i < PLACES.size(); i++) {
+            // the place, or its fallback with the terrain off (any End biome)
+            boolean can = false, known = false;
+            for (String id : List.of(PLACES.get(i), PLACES.get(i) + "_fallback")) {
+                var structure = structures.getValue(PromisedEnd.id(id));
+                if (structure == null) continue;
+                known = true;
+                can |= structure.biomes().stream().anyMatch(h -> h.unwrapKey().map(keys::contains).orElse(false));
+            }
+            if (can || !known) mask |= 1 << i;
+            else PromisedEnd.LOGGER.warn("[promisedend] no {} can generate in this End's biomes: its seal won't bind the Ancients' Ward", PLACES.get(i));
+        }
+        return mask;
     }
 
     /** Whether a seal still binds the Ward: one whose guardian is in the game and isn't broken. */
@@ -81,7 +126,7 @@ public final class AncientWard {
     }
 
     public static boolean stands(MinecraftServer server) {
-        if (!EndConfig.arrivalByCoordinates() || !binds(broken(server), guarded())) return false;
+        if (!EndConfig.arrivalByCoordinates() || !binds(broken(server), guarded(server))) return false;
         ServerLevel end = server.getLevel(Level.END);
         var fight = end == null ? null : end.getDragonFight();
         return fight == null || !fight.hasPreviouslyKilledDragon();
@@ -103,9 +148,10 @@ public final class AncientWard {
         stored.broken |= bit;
         stored.setDirty();
         // counted among the seals that bind it: while a guardian isn't in the game, its seal isn't one of them
-        int count = Integer.bitCount(stored.broken & guarded()), of = Integer.bitCount(guarded());
+        int guarded = guarded(server);
+        int count = Integer.bitCount(stored.broken & guarded), of = Integer.bitCount(guarded);
         // the Ward falls with the last seal that binds it, which is the third only once every guardian is in
-        boolean falls = binds(stored.broken & ~bit, guarded()) && !binds(stored.broken, guarded());
+        boolean falls = binds(stored.broken & ~bit, guarded) && !binds(stored.broken, guarded);
         ServerLevel end = server.getLevel(Level.END);
         if (end != null) {
             for (ServerPlayer p : end.players()) {
