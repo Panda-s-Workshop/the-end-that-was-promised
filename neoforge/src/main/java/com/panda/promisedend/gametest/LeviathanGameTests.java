@@ -386,6 +386,8 @@ final class LeviathanGameTests {
         if (p.getInventory().countItem(ModItems.LEVIATHAN_FIN.get()) != 1) bad.add("alive again, they have " + p.getInventory().countItem(ModItems.LEVIATHAN_FIN.get()) + " Fins");
         if (defeated == null || !p.getAdvancements().getOrStartProgress(defeated).isDone()) bad.add("alive again, no defeat_leviathan");
         if (!com.panda.promisedend.logic.Rewards.owed(server, p.getUUID()).isEmpty()) bad.add("still owed after it was given");
+        // its drops go: the next test on this spot counts a Leviathan's drops (and found twice as many)
+        level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, v.getBoundingBox().inflate(48)).forEach(net.minecraft.world.entity.Entity::discard);
         AncientWard.reset(server);
         server.getPlayerList().remove(p);
         if (!bad.isEmpty()) helper.fail("the reward kept: " + bad);

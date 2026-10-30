@@ -221,7 +221,7 @@ public final class EndGameTests {
     private static final java.util.Map<String, Integer> TIMEOUTS = java.util.Map.ofEntries(
             java.util.Map.entry("crystal_warden_beam_cap_and_rest", 220), java.util.Map.entry("wrath_increments_on_kill", 260),
             java.util.Map.entry("dragon_drops_scales", 240), java.util.Map.entry("void_water_slows", 160),
-            java.util.Map.entry("dragon_phase3_triggers", 460), java.util.Map.entry("updraft_lifts_entity", 360),
+            java.util.Map.entry("dragon_phase3_triggers", 2460), java.util.Map.entry("updraft_lifts_entity", 360),
             java.util.Map.entry("echo_amber_flares", 180), java.util.Map.entry("cave_dark_held_off", 200), java.util.Map.entry("drift_islet_blocked_turns", 160), java.util.Map.entry("drift_islet_headroom_turns", 160), java.util.Map.entry("current_carries_entity", 560),
             java.util.Map.entry("chorus_weaver_lashes", 380), java.util.Map.entry("chorus_weaver_meets_its_waker", 140), java.util.Map.entry("lumen_wisp_lights_the_way", 460),
             java.util.Map.entry("rift_stalker_blinks_and_freezes", 300), java.util.Map.entry("constructs_edges_walls_and_swarms", 200), java.util.Map.entry("purpur_sentry_shields_and_lunges", 260),
@@ -5272,23 +5272,26 @@ public final class EndGameTests {
         // the kill waits until every warden has ticked in an entity-ticking chunk: a forced chunk's entities load in the
         // background, and on a busy test server a warden called at tick 10 sat 26 ticks in a chunk that wasn't ticking
         // yet, so it never saw its dragon die (the shattering itself is the warden's own tick). Once, under load,
-        // one waited past tick 140 too, so the wait runs to tick 400
+        // one waited past tick 140 too. A test server runs its ticks as fast as it can (400 took 0.3 s on CI) while the
+        // chunks load on worker threads in real time, so no count of ticks is a wait: it waits for them, to tick 2,400
         long[] killed = {-1};
-        for (int t = 30; t <= 420; t++) {
+        for (int t = 30; t <= 2420; t++) {
             int tick = t;
             helper.runAtTickTime(t, () -> {
                 if (killed[0] < 0) {
                     var wardens = wardensOf(helper, dragon);
                     boolean ready = wardens.stream().allMatch(w -> w.tickCount > 0 && helper.getLevel().isPositionEntityTicking(w.blockPosition()));
-                    if (!ready && tick < 400) return;
+                    if (!ready && tick < 2400) return;
                     if (wardens.size() != com.panda.promisedend.logic.DragonPhase3.wardenCount(0)) fail(helper, release, "it called wardens again");
                     PromisedEnd.LOGGER.info("[dragon_phase3_triggers] wardens ready {}, the dragon killed at tick {}", ready, tick);
                     dragon.kill(helper.getLevel());
                     killed[0] = tick;
                 } else if (tick == killed[0] + 6) {
                     var left = wardensOf(helper, dragon);
+                    // read while the chunks are still held
+                    var ticking = left.stream().map(w -> helper.getLevel().isPositionEntityTicking(w.blockPosition())).toList();
                     release.run();
-                    if (!left.isEmpty()) helper.fail(left.size() + " wardens outlived their dragon (killed at tick " + killed[0] + "): " + left.stream().map(w -> String.format(java.util.Locale.ROOT,
+                    if (!left.isEmpty()) helper.fail("entity-ticking " + ticking + "; " + left.size() + " wardens outlived their dragon (killed at tick " + killed[0] + "): " + left.stream().map(w -> String.format(java.util.Locale.ROOT,
                             "[alive %s, removed %s, health %.1f, ticks %d, no AI %s, entity-ticking %s, at %.1f %.1f %.1f, %.1f from the dragon]",
                             w.isAlive(), w.getRemovalReason(), w.getHealth(), w.tickCount, w.isNoAi(),
                             helper.getLevel().isPositionEntityTicking(w.blockPosition()), w.getX(), w.getY(), w.getZ(), w.distanceTo(dragon))).toList());
@@ -5311,6 +5314,8 @@ public final class EndGameTests {
         for (int cx = (at.getX() - reach) >> 4; cx <= (at.getX() + reach) >> 4; cx++) {
             for (int cz = (at.getZ() - reach) >> 4; cz <= (at.getZ() + reach) >> 4; cz++) {
                 if (level.setChunkForced(cx, cz, true)) forced.add(new net.minecraft.world.level.ChunkPos(cx, cz));
+                // loaded now, not on a worker thread while the test's ticks run ahead
+                level.getChunk(cx, cz);
             }
         }
         return () -> forced.forEach(c -> level.setChunkForced(c.x(), c.z(), false));
