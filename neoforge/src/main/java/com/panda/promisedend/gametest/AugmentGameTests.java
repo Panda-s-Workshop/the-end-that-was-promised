@@ -35,7 +35,8 @@ final class AugmentGameTests {
      * A smithing table puts Drift Weave and the Leviathan Fin on an elytra, each once, keeping its enchantments, damage
      * and name; the result is still an elytra; it takes neither a second time, nor any glider outside
      * #promisedend:augmentable_elytra, nor without the Echo Amber; the augments survive a save (the component's
-     * codec) and show in the tooltip.
+     * codec) and show in the tooltip. Worn, the woven one looks woven and the one with both shows both (its equippable's
+     * asset); a plain elytra keeps vanilla's.
      */
     static void appliesInSmithing(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -54,9 +55,14 @@ final class AugmentGameTests {
             if (once.getEnchantments().getLevel(unbreaking) != 3 || once.getDamageValue() != 100) bad.add("it lost its enchantment or wear: " + once);
         }
         if (!smith(helper, weave, once, scale).isEmpty()) bad.add("a second Drift Weave went on");
+        java.util.function.Function<ItemStack, String> looks = s -> s.get(net.minecraft.core.component.DataComponents.EQUIPPABLE).assetId()
+                .map(k -> k.identifier().toString()).orElse("none");
+        if (!looks.apply(once).equals("promisedend:elytra_weave")) bad.add("the woven elytra looks " + looks.apply(once));
+        if (!looks.apply(new ItemStack(Items.ELYTRA)).equals("minecraft:elytra")) bad.add("a plain elytra looks " + looks.apply(new ItemStack(Items.ELYTRA)));
         var twice = smith(helper, fin, once, scale);
         if (!Augments.of(twice).has(Augments.DRIFT_WEAVE) || !Augments.of(twice).has(Augments.LEVIATHAN_FIN) || Augments.of(twice).list().size() != 2)
             bad.add("weave then fin gives " + Augments.of(twice));
+        if (!looks.apply(twice).equals("promisedend:elytra_fin_weave")) bad.add("the elytra with both looks " + looks.apply(twice));
         if (!smith(helper, fin, new ItemStack(Items.DIAMOND_CHESTPLATE), scale).isEmpty()) bad.add("the fin went on a chestplate");
         if (!smith(helper, fin, new ItemStack(Items.ELYTRA), new ItemStack(Items.DIAMOND)).isEmpty()) bad.add("the fin went on without Echo Amber");
         // three at most, whatever they are

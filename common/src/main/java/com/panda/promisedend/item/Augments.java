@@ -83,7 +83,34 @@ public record Augments(List<Identifier> list) implements TooltipProvider {
         more.add(augment);
         ItemStack out = elytra.copyWithCount(1);
         out.set(ModComponents.AUGMENTS.get(), new Augments(more));
+        dress(out);
         return out;
+    }
+
+    /**
+     * The look worn wings take from their augments, an equipment asset of ours: the Fin's violet trim, Drift Weave's
+     * sheen, or both; empty for none of those (the Architect's Lattice has no look).
+     */
+    public static java.util.Optional<net.minecraft.resources.ResourceKey<net.minecraft.world.item.equipment.EquipmentAsset>> look(Augments augments) {
+        boolean fin = augments.has(LEVIATHAN_FIN), weave = augments.has(DRIFT_WEAVE);
+        if (!fin && !weave) return java.util.Optional.empty();
+        String name = "elytra_" + (fin && weave ? "fin_weave" : fin ? "fin" : "weave");
+        return java.util.Optional.of(net.minecraft.resources.ResourceKey.create(net.minecraft.world.item.equipment.EquipmentAssets.ROOT_ID, PromisedEnd.id(name)));
+    }
+
+    /**
+     * Shows {@code stack}'s augments on it when worn: its equippable's asset becomes {@link #look}'s (the wings layer
+     * reads the asset). Only an elytra that looks as vanilla's or as one of ours: another mod's glider keeps its own.
+     */
+    public static void dress(ItemStack stack) {
+        var worn = stack.get(net.minecraft.core.component.DataComponents.EQUIPPABLE);
+        if (worn == null || worn.assetId().isEmpty()) return;
+        var now = worn.assetId().get();
+        if (!now.equals(net.minecraft.world.item.equipment.EquipmentAssets.ELYTRA) && !now.identifier().getNamespace().equals(PromisedEnd.MODID)) return;
+        var asset = look(of(stack)).orElse(net.minecraft.world.item.equipment.EquipmentAssets.ELYTRA);
+        stack.set(net.minecraft.core.component.DataComponents.EQUIPPABLE, new net.minecraft.world.item.equipment.Equippable(worn.slot(), worn.equipSound(),
+                java.util.Optional.of(asset), worn.cameraOverlay(), worn.allowedEntities(), worn.dispensable(), worn.swappable(), worn.damageOnHurt(),
+                worn.equipOnInteract(), worn.canBeSheared(), worn.shearingSound()));
     }
 
     /** Whether {@code e} is gliding on a glider worn on the chest with {@code augment}. */
