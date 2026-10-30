@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modpacks and config · The End That Was Promised</title>
+<meta name="description" content="The End That Was Promised&#x27;s config, commands and tags, and how it works with other mods.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Modpacks and config · The End That Was Promised">
+<meta property="og:description" content="The End That Was Promised&#x27;s config, commands and tags, and how it works with other mods.">
+<meta property="og:image" content="https://panda-s-workshop.github.io/the-end-that-was-promised/img/social.jpg">
+<meta property="og:url" content="https://panda-s-workshop.github.io/the-end-that-was-promised/packs.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#110d18">
+<link rel="icon" type="image/png" href="img/icon.png">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="wrap">
+<a class="brand" href="index.html"><img src="img/icon.png" alt="">The End That Was Promised</a>
+<button class="menu-btn" aria-label="Menu" aria-expanded="false">Menu</button>
+<nav class="nav" aria-label="Main"><a href="index.html">Home</a><a href="journey.html">How it plays</a><a href="lands.html">The lands</a><a href="bestiary.html">Bestiary</a><a href="gear.html">Gear and crafting</a><a href="showcase.html">Showcase</a><a href="packs.html" aria-current="page">Modpacks and config</a><a href="https://github.com/Panda-s-Workshop/the-end-that-was-promised" rel="noopener">GitHub</a></nav>
+</div></header>
+<main id="main">
+<div class="pagehead"><div class="wrap"><div class="eyebrow">Modpacks</div><h1>Modpacks and config</h1><p>The settings, the commands, the tags a pack can change, and how The End That Was Promised sits beside other mods.</p></div></div><div class="wrap narrow">
+<section id="config"><h2>Config</h2>
+<p>NeoForge: <code>config/promisedend-synced.toml</code>, sent from the server to every player. Fabric:
+<code>config/promisedend.properties</code>, written with the defaults on first start and read at startup. The settings
+are the same on both.</p>
+<div class="tw"><table><thead><tr><th>NeoForge</th><th>Fabric</th><th>Default</th><th>Range</th><th>What it does</th></tr></thead><tbody><tr><td><code>enabled</code></td><td><code>terrain.enabled</code></td><td>true</td><td>true or false</td><td>Our End biomes replace the vanilla outer-End biomes. Turn off for packs with another End biome overhaul.</td></tr><tr><td><code>edge_distance</code></td><td><code>terrain.edge_distance</code></td><td>8,000</td><td>2,000 to 1,000,000</td><td>Where the Unfinished Edge begins, in blocks from the End&#x27;s origin. Takes effect in newly generated chunks.</td></tr><tr><td><code>trigger_depth</code></td><td><code>anchor.trigger_depth</code></td><td>24</td><td>0 to 52</td><td>How far below the dimension&#x27;s lowest block a falling player with a Void Anchor is pulled back (the End: Y -24).</td></tr><tr><td><code>phase3</code></td><td><code>dragon.phase3</code></td><td>true</td><td>true or false</td><td>The dragon&#x27;s third phase: below a quarter of its health it calls Crystal Wardens to its pillars (3 to 5 by Wrath) and dives with void breath.</td></tr><tr><td><code>wrath</code></td><td><code>dragon.wrath</code></td><td>true</td><td>true or false</td><td>Each dragon killed raises the world&#x27;s Wrath by 1: the next dragon has more health and calls more Wardens, and its hoard is bigger. Off: every fight is the first.</td></tr><tr><td><code>max_wrath</code></td><td><code>dragon.max_wrath</code></td><td>5</td><td>0 to 5</td><td>The highest Wrath a world reaches.</td></tr><tr><td><code>by_coordinates</code></td><td><code>arrival.by_coordinates</code></td><td>true</td><td>true or false</td><td>An End portal sets you down in the outer End in the portal&#x27;s direction, at an Ancient Waystation with a way home, and the Ancients&#x27; Ward keeps everyone from the dragon until three guardians&#x27; seals break. Off: vanilla&#x27;s platform and the dragon at once.</td></tr><tr><td><code>ward_radius</code></td><td><code>arrival.ward_radius</code></td><td>640</td><td>300 to 800</td><td>The Ancients&#x27; Ward&#x27;s radius round the End&#x27;s centre, in blocks.</td></tr><tr><td><code>cooldown_ticks</code></td><td><code>shrine.cooldown_ticks</code></td><td>24,000</td><td>0 to 1,728,000</td><td>How long a player waits for another boon at the same Void Shrine, in ticks (24000: 20 minutes).</td></tr><tr><td><code>enabled</code></td><td><code>starfall.enabled</code></td><td>true</td><td>true or false</td><td>Stars fall on the outer End&#x27;s islands while a player is out there, leaving a crater with Starmetal Ore and a Starfall Core. A crater takes only natural End blocks and never lands within 8 blocks of anything built.</td></tr><tr><td><code>interval_ticks</code></td><td><code>starfall.interval_ticks</code></td><td>48,000</td><td>1,200 to 1,728,000</td><td>The ticks between falls, give or take a quarter (48000: two Minecraft days).</td></tr><tr><td><code>max_per_day</code></td><td><code>starfall.max_per_day</code></td><td>2</td><td>0 to 24</td><td>The most stars that fall in a Minecraft day.</td></tr></tbody></table></div></section>
+<section id="commands"><h2>Commands</h2>
+<p>For operators (permission level 2):</p>
+<ul>
+<li><code>/promisedend wrath get</code>, <code>/promisedend wrath set &lt;0-5&gt;</code>: the world's Dragon Wrath, held under <code>max_wrath</code>.</li>
+<li><code>/promisedend seals get</code>, <code>/promisedend seals break &lt;1-3&gt;</code>, <code>/promisedend seals reset</code>: the Ancients' Ward's seals (break one as its guardian's fall does).</li>
+<li><code>/promisedend starfall now</code>: a star falls near you now.</li>
+<li><code>/promisedend codex reset &lt;players&gt;</code>: forgets every Codex goal (the tablets' pages stay read).</li>
+</ul>
+<p>The ruins are found with vanilla's <code>/locate structure</code>.</p></section>
+<section id="data"><h2>Tags</h2>
+<div class="tw"><table><thead><tr><th>Kind</th><th>Tag</th><th>Holds</th></tr></thead><tbody><tr><td>Item</td><td><code>#promisedend:offerings/favour_1</code></td><td>What a Shrine Altar takes, by worth: <code>favour_1</code> to <code>favour_5</code>.</td></tr><tr><td>Item</td><td><code>#promisedend:augmentable_elytra</code></td><td>What the elytra augments can be smithed onto (by default the elytra).</td></tr><tr><td>Item</td><td><code>#promisedend:repaired_by_dragon_scale</code></td><td>What a Dragon Scale repairs in an anvil.</td></tr><tr><td>Biome</td><td><code>#promisedend:outer_end</code></td><td>The eleven outer lands; Void Shrines may stand in any of them.</td></tr><tr><td>Biome</td><td><code>#promisedend:has_structure/&lt;ruin&gt;</code></td><td>Where each ruin may stand (<code>void_shrine</code>, <code>fallen_observatory</code>, <code>shulker_foundry</code>, <code>rift_maw</code>, <code>unfinished_citadel</code>, <code>rim_outpost</code>).</td></tr><tr><td>Biome</td><td><code>#promisedend:has_drift_islets</code></td><td>Where Drift Islets' routes are looked for.</td></tr><tr><td>Biome</td><td><code>#promisedend:void_currents</code></td><td>Where void currents run.</td></tr><tr><td>Biome</td><td><code>#promisedend:rim_fallback</code></td><td>With the terrain off, the End biomes that take the Rim's islands and outposts.</td></tr></tbody></table></div>
+<p>Every new biome is in <code>#minecraft:is_end</code> and <code>#c:is_end</code>, so other mods' End spawns that use those
+tags reach them.</p></section>
+<section id="compat"><h2>Other mods</h2>
+<ul>
+<li><b>Another End biome mod:</b> set <code>terrain.enabled</code> to false. The new biomes then stay out, and the rest still
+works: the Rim's islands and outposts and the guardians' ruins come to the End biomes that are there instead.</li>
+<li><b>The dragon:</b> its third phase and Wrath can each be turned off (<code>dragon.phase3</code>, <code>dragon.wrath</code>).</li>
+<li><b>The arrival:</b> with <code>arrival.by_coordinates</code> off, portals lead to vanilla's platform and the dragon at once, and there is no Ward.</li>
+<li>The new gear is made of plain tool and armour items, and the elytra augments leave the elytra a vanilla elytra.</li>
+</ul></section>
+</div>
+</main>
+<footer><div class="wrap cols">
+<div><b>The End That Was Promised</b><br>A Minecraft 26.3 mod for NeoForge and Fabric.</div>
+<div><ul><li><a href="index.html">Home</a></li><li><a href="journey.html">How it plays</a></li><li><a href="lands.html">The lands</a></li><li><a href="bestiary.html">Bestiary</a></li><li><a href="gear.html">Gear and crafting</a></li><li><a href="showcase.html">Showcase</a></li><li><a href="packs.html">Modpacks and config</a></li></ul></div>
+<div><ul>
+<li><a href="https://www.curseforge.com/minecraft/mc-mods/the-end-that-was-promised" rel="noopener">Download on CurseForge</a></li>
+<li><a href="https://github.com/Panda-s-Workshop/the-end-that-was-promised/releases">GitHub Releases (manual installs)</a></li>
+<li><a href="https://github.com/Panda-s-Workshop/the-end-that-was-promised">Source code</a></li>
+<li><a href="https://github.com/Panda-s-Workshop/the-end-that-was-promised/issues">Report a bug</a></li>
+</ul></div>
+</div></footer>
+<script src="assets/site.js" defer></script>
+</body>
+</html>
