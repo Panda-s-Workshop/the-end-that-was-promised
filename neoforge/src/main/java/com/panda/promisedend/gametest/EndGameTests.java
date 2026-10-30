@@ -4294,6 +4294,9 @@ public final class EndGameTests {
         if (again == null || !again.position().equals(spawn)) bad.add("after a death at the heart, set down at " + (again == null ? null : again.position()) + ", not the heart's " + spawn);
         else if (!end.getBlockState(BlockPos.containing(spawn).below()).is(net.minecraft.world.level.block.Blocks.OBSIDIAN)) bad.add("no platform under the heart's arrival");
         if (after == null || after.position().equals(spawn)) bad.add("the trip after coming back from the heart set down at the heart again");
+        // the heart's platform it built goes: void_anchor_end_fallback, after it, wants nothing to stand on there
+        BlockPos platform = BlockPos.containing(spawn).below();
+        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) end.setBlockAndUpdate(platform.offset(dx, 0, dz), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
         com.panda.promisedend.logic.AncientWard.reset(server);
         if (com.panda.promisedend.logic.AncientWard.stands(server) && !com.panda.promisedend.logic.DragonWrath.finale(server)) bad.add("the Ward standing, the dragon isn't the finale");
         com.panda.promisedend.logic.Arrivals.forget(server, player.getUUID());
