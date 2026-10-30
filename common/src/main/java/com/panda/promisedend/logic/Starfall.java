@@ -57,6 +57,9 @@ public final class Starfall {
     /** Tries at a target round the chosen player, and the wait before the next look when none was safe: 10 s. */
     private static final int TRIES = 24, RETRY = 200;
 
+    /** How long what a star throws clear falls slowly: up over the bowl and down past its rim. */
+    public static final int THROWN_SLOW_TICKS = 100;
+
     private Starfall() {}
 
     /** Whether the Starfall's clock has started: the Maw's seal broken, so stars fall from Act IV on. */
@@ -290,12 +293,15 @@ public final class Starfall {
         core.setUnlimitedLifetime();
         core.setGlowingTag(true);
         level.addFreshEntity(core);
-        // what stood in it is thrown clear (a player's own client moves only with syncVelocity), its fall forgotten
+        // what stood in it is thrown clear (a player's own client moves only with syncVelocity), its fall forgotten, and
+        // let down slowly: thrown up over the bowl, the drop back would hurt
         for (Entity e : level.getEntities((Entity) null, new AABB(at).inflate(radius + 2), e -> !(e instanceof ItemEntity) && !e.isSpectator())) {
             Vec3 away = e.position().subtract(x, at.getY(), z);
             Vec3 push = away.horizontalDistanceSqr() < 1e-4 ? new Vec3(0, 1, 0) : away.normalize().add(0, 0.6, 0);
             e.setDeltaMovement(e.getDeltaMovement().add(push.scale(1.2)));
             e.resetFallDistance();
+            if (e instanceof net.minecraft.world.entity.LivingEntity living)
+                living.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.SLOW_FALLING, THROWN_SLOW_TICKS, 0, false, false, true));
             e.needsSync = true;
             if (e instanceof ServerPlayer) e.syncVelocity = true;
         }

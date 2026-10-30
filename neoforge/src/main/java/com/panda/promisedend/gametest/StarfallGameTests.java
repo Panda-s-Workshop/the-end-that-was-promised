@@ -25,6 +25,36 @@ final class StarfallGameTests {
      * The ore gives Starmetal to an iron pickaxe; the core is a shrine's fourth-favour offering. A Star Compass then points
      * at this crater, the last (no star on its way), in the End; a compass, four Starmetal and the core make one.
      */
+    /**
+     * What stands where a star lands is thrown clear and comes down unhurt: a pig at the middle of a radius-4 fall,
+     * thrown up over the bowl, lands with its health whole and out of the bowl's middle.
+     */
+    static void thrownUnhurt(GameTestHelper helper) {
+        var level = helper.getLevel();
+        for (int x = 1; x <= 11; x++) {
+            for (int z = 1; z <= 11; z++) {
+                for (int y = 1; y <= 4; y++) helper.setBlock(new BlockPos(x, y, z), Blocks.END_STONE);
+            }
+        }
+        BlockPos at = helper.absolutePos(new BlockPos(6, 4, 6));
+        var pig = helper.spawn(net.minecraft.world.entity.EntityTypes.PIG, new BlockPos(6, 5, 6));
+        float whole = pig.getHealth();
+        double[] top = {pig.getY()};
+        helper.runAtTickTime(5, () -> Starfall.impact(level, at, 4));
+        helper.onEachTick(() -> top[0] = Math.max(top[0], pig.getY()));
+        helper.runAtTickTime(120, () -> {
+            List<String> bad = new ArrayList<>();
+            PromisedEnd.LOGGER.info("[starfall_thrown_unhurt] rose to {} from {}, health {} of {}, on the ground {} at {}", top[0], at.getY() + 1,
+                    pig.getHealth(), whole, pig.onGround(), pig.position());
+            if (top[0] < at.getY() + 3) bad.add("it wasn't thrown up: it rose to " + top[0]);
+            if (!pig.isAlive() || pig.getHealth() < whole) bad.add("it came down hurt: " + pig.getHealth() + " of " + whole);
+            if (!pig.onGround()) bad.add("it hasn't landed");
+            pig.discard();
+            if (!bad.isEmpty()) helper.fail("thrown by a star: " + bad);
+            else helper.succeed();
+        });
+    }
+
     static void craterRespectsTag(GameTestHelper helper) {
         var level = helper.getLevel();
         List<String> bad = new ArrayList<>();

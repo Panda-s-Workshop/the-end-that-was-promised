@@ -183,6 +183,7 @@ public final class EndGameTests {
         FUNCTIONS.register("augment_smithing_table_awards_the_goal", () -> AugmentGameTests::smithingTableAwardsTheGoal);
         FUNCTIONS.register("augment_fin_and_set_stack_lift", () -> AugmentGameTests::finAndSetStackLift);
         FUNCTIONS.register("starfall_crater_respects_tag", () -> StarfallGameTests::craterRespectsTag);
+        FUNCTIONS.register("starfall_thrown_unhurt", () -> StarfallGameTests::thrownUnhurt);
         FUNCTIONS.register("crawler_only_tears_lattice", () -> LatticeGameTests::crawlerOnlyTearsLattice);
         FUNCTIONS.register("phantom_lattice_reforms", () -> LatticeGameTests::phantomLatticeReforms);
         FUNCTIONS.register("amber_gate_needs_key", () -> LatticeGameTests::amberGateNeedsKey);
@@ -220,7 +221,7 @@ public final class EndGameTests {
             java.util.Map.entry("crawler_only_tears_lattice", 340), java.util.Map.entry("phantom_lattice_reforms", 200),
             java.util.Map.entry("architect_only_edits_lattice", 90), java.util.Map.entry("architect_runs_its_turns", 780),
             java.util.Map.entry("architect_sweeps_the_hub", 240),
-            java.util.Map.entry("architect_shard_lands_where_shown", 180), java.util.Map.entry("leviathan_sleeps_alone", 640));
+            java.util.Map.entry("architect_shard_lands_where_shown", 180), java.util.Map.entry("leviathan_sleeps_alone", 640), java.util.Map.entry("starfall_thrown_unhurt", 160));
     /**
      * Tests in a batch of their own: the world has one Wrath, which these change, and a batch's tests run side by side
      * (batches run one after another).
@@ -257,7 +258,7 @@ public final class EndGameTests {
      * Tests open to the sky: a test's arena is roofed with barrier otherwise, a few blocks over its floor, and the
      * Architect's lobbed throws struck it two ticks out.
      */
-    private static final java.util.Set<String> SKY = java.util.Set.of("architect_runs_its_turns", "architect_shard_lands_where_shown");
+    private static final java.util.Set<String> SKY = java.util.Set.of("architect_runs_its_turns", "architect_shard_lands_where_shown", "starfall_thrown_unhurt");
 
     private EndGameTests() {}
 
