@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "hanging=false": {
+      "model": "promisedend:block/lumen_lantern"
+    },
+    "hanging=true": {
+      "model": "promisedend:block/lumen_lantern_hanging"
+    }
+  }
+}

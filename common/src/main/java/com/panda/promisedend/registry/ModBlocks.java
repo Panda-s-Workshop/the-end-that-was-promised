@@ -150,6 +150,11 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> LUMEN_LAMP = simple("lumen_lamp",
             p -> p.mapColor(MapColor.SAND).strength(1.0F).sound(SoundType.GLASS).lightLevel(s -> 15));
 
+    /** Lumen's lantern: vanilla's, standing or hanging, light 15, in a polished voidstone frame. */
+    public static final DeferredBlock<net.minecraft.world.level.block.LanternBlock> LUMEN_LANTERN = withItem(BLOCKS.registerBlock("lumen_lantern",
+            net.minecraft.world.level.block.LanternBlock::new, p -> p.mapColor(MapColor.TERRACOTTA_PURPLE).forceSolidOn().requiresCorrectToolForDrops()
+                    .strength(3.5F).sound(SoundType.LANTERN).lightLevel(s -> 15).noOcclusion().pushReaction(PushReaction.POPPED)));
+
     // ---- the Resonant Spires: Resonite, amethyst's cousin from the outer End
     public static final DeferredBlock<Block> RESONITE_BLOCK = simple("resonite_block",
             p -> p.mapColor(MapColor.COLOR_CYAN).strength(1.5F).sound(SoundType.AMETHYST).requiresCorrectToolForDrops());

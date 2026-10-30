@@ -133,6 +133,7 @@ public final class EndGameTests {
         FUNCTIONS.register("resonite_cluster_chimes", () -> EndGameTests::resoniteClusterChimes);
         FUNCTIONS.register("budding_resonite_grows", () -> EndGameTests::buddingResoniteGrows);
         FUNCTIONS.register("resonite_drops", () -> EndGameTests::resoniteDrops);
+        FUNCTIONS.register("lumen_lantern", () -> EndGameTests::lumenLantern);
         FUNCTIONS.register("gateway_exits_beside_spires", () -> EndGameTests::gatewayExitsBesideSpires);
         FUNCTIONS.register("updraft_lifts_entity", () -> EndGameTests::updraftLiftsEntity);
         FUNCTIONS.register("updraft_vent_on_edges", () -> EndGameTests::updraftVentOnEdges);
@@ -2225,6 +2226,44 @@ public final class EndGameTests {
      * {@code #minecraft:cluster_max_harvestables}, as are amethyst's to them) and 2 to a bare hand, itself to Silk Touch; four shards make a
      * Resonite Block, which drops itself; Resonite rings as amethyst does (#minecraft:crystal_sound_blocks).
      */
+    /**
+     * The Lumen Lantern, as vanilla's: it hangs under a block and stands on one, not in the air; light 15; it drops itself
+     * to a pickaxe and nothing by hand; four Polished Voidstone, four iron nuggets and a Lumen make one.
+     */
+    private static void lumenLantern(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var lantern = ModBlocks.LUMEN_LANTERN.get();
+        var hanging = net.minecraft.world.level.block.LanternBlock.HANGING;
+        List<String> bad = new ArrayList<>();
+        BlockPos roof = helper.absolutePos(new BlockPos(1, 4, 1)), under = roof.below(), ground = helper.absolutePos(new BlockPos(1, 1, 1)), on = ground.above();
+        level.setBlock(roof, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3);
+        level.setBlock(ground, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3);
+        if (!lantern.defaultBlockState().setValue(hanging, true).canSurvive(level, under)) bad.add("it can't hang under a block");
+        if (!lantern.defaultBlockState().canSurvive(level, on)) bad.add("it can't stand on a block");
+        if (lantern.defaultBlockState().canSurvive(level, helper.absolutePos(new BlockPos(3, 2, 3)))) bad.add("it stands on air");
+        if (lantern.defaultBlockState().getLightEmission() != 15) bad.add("its light is " + lantern.defaultBlockState().getLightEmission());
+        java.util.function.Function<net.minecraft.world.item.Item, List<ItemStack>> drops = tool -> level.getServer().reloadableRegistries().getLootTable(lantern.getLootTable().orElseThrow()).getRandomItems(
+                new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, new ItemStack(tool))
+                        .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_STATE, lantern.defaultBlockState())
+                        .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.BLOCK));
+        var picked = drops.apply(net.minecraft.world.item.Items.WOODEN_PICKAXE);
+        if (picked.size() != 1 || !picked.get(0).is(lantern.asItem())) bad.add("to a pickaxe it drops " + picked);
+        if (new ItemStack(net.minecraft.world.item.Items.STICK).isCorrectToolForDrops(lantern.defaultBlockState())) bad.add("by hand it drops itself");
+        var grid = new ArrayList<ItemStack>();
+        for (char c : "NPNPLPNPN".toCharArray()) grid.add(new ItemStack(switch (c) {
+            case 'N' -> net.minecraft.world.item.Items.IRON_NUGGET;
+            case 'P' -> ModBlocks.POLISHED_VOIDSTONE_SET.base().get().asItem();
+            default -> com.panda.promisedend.registry.ModItems.LUMEN.get();
+        }));
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, grid);
+        var made = level.getServer().getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level).map(r -> r.value().assemble(input)).orElse(ItemStack.EMPTY);
+        if (!made.is(lantern.asItem()) || made.getCount() != 1) bad.add("its recipe makes " + made);
+        if (!bad.isEmpty()) helper.fail("Lumen Lantern: " + bad);
+        helper.succeed();
+    }
+
     private static void resoniteDrops(GameTestHelper helper) {
         var level = helper.getLevel();
         List<String> bad = new ArrayList<>();
