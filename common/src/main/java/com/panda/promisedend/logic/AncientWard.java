@@ -69,8 +69,6 @@ public final class AncientWard {
     private static @org.jspecify.annotations.Nullable MinecraftServer placeableFor;
     /** The End's world border's reach {@link #placeable} was worked out for (a border moved by a command redoes it). */
     private static double placeableReach = -1;
-    /** A place's ring must reach this far inside the border's reach for one to fit there whole. */
-    public static final int BORDER_ROOM = 128;
 
     private AncientWard() {}
 
@@ -88,9 +86,15 @@ public final class AncientWard {
     public static int guarded(MinecraftServer server) {
         double reach = borderReach(server);
         if (placeableFor != server || reach != placeableReach) {
+            int was = placeableFor == server ? placeable : ALL;
             placeable = placeable(server);
             placeableFor = server;
             placeableReach = reach;
+            // said once a change, not each tick a moving border is looked at
+            for (int i = 0; i < PLACES.size(); i++) {
+                if ((was & 1 << i) != 0 && (placeable & 1 << i) == 0)
+                    PromisedEnd.LOGGER.warn("[promisedend] no {} can stand in this End (its biomes, or its world border {} out): its seal won't bind the Ancients' Ward", PLACES.get(i), Math.round(reach));
+            }
         }
         return guarded();
     }
@@ -105,32 +109,35 @@ public final class AncientWard {
                 & withinReach(borderReach(server), server.registryAccess());
     }
 
-    /** How far from the End's middle its world border lets a place stand: to its farthest corner. */
+    /**
+     * How far from the End's middle its world border lets a whole ring of places stand: to its nearest edge (a ring
+     * reaching only into the corners holds few or none, and a chart or pearl could point past the border).
+     */
     static double borderReach(MinecraftServer server) {
         ServerLevel end = server.getLevel(Level.END);
         if (end == null) return Double.MAX_VALUE;
         var b = end.getWorldBorder();
-        return Math.hypot(Math.max(Math.abs(b.getMinX()), Math.abs(b.getMaxX())), Math.max(Math.abs(b.getMinZ()), Math.abs(b.getMaxZ())));
+        return Math.min(Math.min(-b.getMinX(), b.getMaxX()), Math.min(-b.getMinZ(), b.getMaxZ()));
     }
 
     /**
      * The seals whose place's ring (its structure set's {@code min_distance}, or its fallback's) starts inside
-     * {@code reach} of the End's middle, with room for one: a pack's world border inside the Citadels' 7,400 would hold
-     * the third seal, and the dragon, for good (public for GameTests).
+     * {@code reach} of the End's middle, with a spread's spacing of room, so dozens can stand there: a pack's world
+     * border inside the Citadels' 7,400 would hold the third seal, and the dragon, for good (public for GameTests). No
+     * ring starts inside the outer End: the main island's biome reaches to 1,024.
      */
     public static int withinReach(double reach, net.minecraft.core.RegistryAccess access) {
         var sets = access.lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE_SET);
         int mask = 0;
         for (int i = 0; i < PLACES.size(); i++) {
-            int nearest = Integer.MAX_VALUE;
+            long nearest = Long.MAX_VALUE;
             for (String id : List.of(PLACES.get(i), PLACES.get(i) + "_fallback")) {
                 var set = sets.getValue(PromisedEnd.id(id));
                 if (set == null) continue;
-                nearest = Math.min(nearest, set.placement() instanceof com.panda.promisedend.worldgen.RingSpreadPlacement ring ? ring.minDistance() : 0);
+                nearest = Math.min(nearest, set.placement() instanceof com.panda.promisedend.worldgen.RingSpreadPlacement ring
+                        ? Math.max(ring.minDistance(), com.panda.promisedend.worldgen.EndRegions.RIM_FAR) + ring.spacing() * 16L : 0);
             }
-            if (nearest == Integer.MAX_VALUE || nearest + BORDER_ROOM <= reach) mask |= 1 << i;
-            else PromisedEnd.LOGGER.warn("[promisedend] the End's world border ({} out) is inside where a {} can stand ({} out): its seal won't bind the Ancients' Ward",
-                    Math.round(reach), PLACES.get(i), nearest);
+            if (nearest == Long.MAX_VALUE || nearest <= reach) mask |= 1 << i;
         }
         return mask;
     }

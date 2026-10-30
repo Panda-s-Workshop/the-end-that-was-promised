@@ -68,7 +68,8 @@ public class ConstructRenderer<T extends LivingEntity & GeoEntity> extends GeoEn
 
     @Override
     public int getRenderColor(T animatable, Void relatedObject, float partialTick) {
-        return tint == 0xFFFFFFFF ? super.getRenderColor(animatable, relatedObject, partialTick) : tint;
+        // multiplied, so GeckoLib's own colour (an invisible mob's faint drawing for a spectator) is kept
+        return net.minecraft.util.ARGB.multiply(super.getRenderColor(animatable, relatedObject, partialTick), tint);
     }
 
     @Override

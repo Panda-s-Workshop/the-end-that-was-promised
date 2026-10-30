@@ -4235,10 +4235,15 @@ public final class EndGameTests {
         player.setLastDeathLocation(java.util.Optional.of(net.minecraft.core.GlobalPos.of(net.minecraft.world.level.Level.END, new BlockPos(1800, 60, 0))));
         var far = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
         if (far == null || far.position().equals(spawn)) bad.add("after a death far out, set down at the heart");
-        // a death in the dragon's fight: back at the heart, once
+        // a death in the dragon's fight: back at the heart, once; a second death on the same block, back again
+        var deaths = net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.DEATHS);
+        player.getStats().setValue(player, deaths, player.getStats().getValue(deaths) + 1);
         player.setLastDeathLocation(java.util.Optional.of(net.minecraft.core.GlobalPos.of(net.minecraft.world.level.Level.END, new BlockPos(20, 60, -12))));
         var again = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
         var after = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        player.getStats().setValue(player, deaths, player.getStats().getValue(deaths) + 1);
+        var second = com.panda.promisedend.logic.Arrivals.destination(level, player, portal);
+        if (second == null || !second.position().equals(spawn)) bad.add("after a second death on the same block, set down at " + (second == null ? null : second.position()));
         PromisedEnd.LOGGER.info("[arrival_at_the_heart_once_the_ward_falls] first at {}, after a death far out {}, after one at the heart {}, the trip after {}",
                 first == null ? null : first.position(), far == null ? null : far.position(), again == null ? null : again.position(), after == null ? null : after.position());
         if (again == null || !again.position().equals(spawn)) bad.add("after a death at the heart, set down at " + (again == null ? null : again.position()) + ", not the heart's " + spawn);
@@ -5627,15 +5632,21 @@ public final class EndGameTests {
         if (none != 0) bad.add("no End biome gives seals " + none);
         if (com.panda.promisedend.logic.AncientWard.binds(0, none)) bad.add("the Ward binds with no seal placeable");
         if (own != com.panda.promisedend.logic.AncientWard.ALL) bad.add("a real End gives seals " + own + ", not all three");
-        // a world border: inside the Citadels' 7,400 the third seal doesn't bind (the Foundry and the Maw stand anywhere
-        // with the terrain on)
+        // a world border: the Citadels' ring (7,400 and a spread's 1,536 of room) inside its nearest edge, or the third
+        // seal doesn't bind; the Foundry's and the Maw's (the outer End's 1,024 and 320) likewise
         int wide = com.panda.promisedend.logic.AncientWard.withinReach(30_000_000, server.registryAccess());
         int five = com.panda.promisedend.logic.AncientWard.withinReach(5_000, server.registryAccess());
+        int tight = com.panda.promisedend.logic.AncientWard.withinReach(8_000, server.registryAccess());
+        int room = com.panda.promisedend.logic.AncientWard.withinReach(9_000, server.registryAccess());
+        if (tight != 0b011) bad.add("a border 8,000 out (room for a Citadel only at its very edge) gives seals " + tight);
+        if (room != com.panda.promisedend.logic.AncientWard.ALL) bad.add("a border 9,000 out gives seals " + room + ", not all three");
         int near = com.panda.promisedend.logic.AncientWard.withinReach(1_000, server.registryAccess());
         PromisedEnd.LOGGER.info("[ward_binds_only_placeable_seals] a border reaching 30M {}, 5,000 {}, 1,000 {}", wide, five, near);
         if (wide != com.panda.promisedend.logic.AncientWard.ALL) bad.add("no border gives seals " + wide);
         if (five != 0b011) bad.add("a border 5,000 out gives seals " + five + ", not the Foundry's and the Maw's");
-        if (near != 0b011) bad.add("a border 1,000 out gives seals " + near + ", not the Foundry's and the Maw's");
+        int outer = com.panda.promisedend.logic.AncientWard.withinReach(1_400, server.registryAccess());
+        if (near != 0) bad.add("a border 1,000 out (inside the outer End) gives seals " + near);
+        if (outer != 0b011) bad.add("a border 1,400 out gives seals " + outer + ", not the Foundry's and the Maw's");
         if (!bad.isEmpty()) helper.fail("placeable seals: " + bad);
         else helper.succeed();
     }

@@ -68,7 +68,7 @@ public final class Arrivals {
 
     /**
      * Whether {@code player}'s last death was at the heart, with the Ward fallen, and not yet come back from; it is
-     * marked come back from.
+     * marked come back from, by their count of deaths (two deaths on the same block are two).
      */
     private static boolean diedAtHeart(ServerPlayer player) {
         var death = player.getLastDeathLocation().orElse(null);
@@ -76,8 +76,9 @@ public final class Arrivals {
         if (death == null || death.dimension() != Level.END || !AncientWard.fallen(server)) return false;
         if (Math.hypot(death.pos().getX(), death.pos().getZ()) > HEART_REACH) return false;
         Stored stored = Stored.of(server);
-        if (death.equals(stored.backFrom.get(player.getUUID()))) return false;
-        stored.backFrom.put(player.getUUID(), death);
+        int deaths = player.getStats().getValue(net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.DEATHS));
+        if (Integer.valueOf(deaths).equals(stored.backFrom.get(player.getUUID()))) return false;
+        stored.backFrom.put(player.getUUID(), deaths);
         stored.setDirty();
         return true;
     }
@@ -320,18 +321,18 @@ public final class Arrivals {
         static final Codec<Stored> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Station.CODEC.listOf().optionalFieldOf("waystations", List.of()).forGetter(s -> s.waystations),
                 UUIDUtil.CODEC.listOf().optionalFieldOf("greeted", List.of()).forGetter(s -> List.copyOf(s.greeted)),
-                Codec.unboundedMap(UUIDUtil.STRING_CODEC, net.minecraft.core.GlobalPos.CODEC).optionalFieldOf("back_from", java.util.Map.of())
+                Codec.unboundedMap(UUIDUtil.STRING_CODEC, Codec.INT).optionalFieldOf("back_from_death", java.util.Map.of())
                         .forGetter(s -> s.backFrom)).apply(i, Stored::new));
         static final SavedDataType<Stored> TYPE = new SavedDataType<>(PromisedEnd.id("arrivals"), Stored::new, CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
         final List<Station> waystations = new ArrayList<>();
         final java.util.Set<UUID> greeted = new java.util.HashSet<>();
-        /** Each player's death at the heart they were last brought back to it for. */
-        final java.util.Map<UUID, net.minecraft.core.GlobalPos> backFrom = new java.util.HashMap<>();
+        /** Each player's death at the heart they were last brought back to it for: their count of deaths then. */
+        final java.util.Map<UUID, Integer> backFrom = new java.util.HashMap<>();
 
         Stored() {}
 
-        Stored(List<Station> waystations, List<UUID> greeted, java.util.Map<UUID, net.minecraft.core.GlobalPos> backFrom) {
+        Stored(List<Station> waystations, List<UUID> greeted, java.util.Map<UUID, Integer> backFrom) {
             this.waystations.addAll(waystations);
             this.greeted.addAll(greeted);
             this.backFrom.putAll(backFrom);
