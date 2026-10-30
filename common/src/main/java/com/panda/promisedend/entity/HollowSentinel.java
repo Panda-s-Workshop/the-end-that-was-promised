@@ -75,15 +75,16 @@ public class HollowSentinel extends Monster implements GeoEntity {
     /** Its fight's reach: players this near its dais see the bar and may be its target. */
     public static final double ARENA = 48.0;
     /** How far from its dais it may go, and how high over its rest it hovers while closed (out of a blow's reach). */
-    public static final double LEASH = 12.0, HOVER = 5.0;
-    public static final int VOLLEY_TICKS = 80, VOLLEY_WINDUP = 10, VOLLEY_SHOTS = 3, SHOT_GAP = 5;
-    public static final int RETURNS_TO_OPEN = 3, OPEN_TICKS = 120;
+    public static final double LEASH = 12.0, HOVER = com.panda.promisedend.logic.SentinelFight.HOVER;
+    public static final int VOLLEY_TICKS = com.panda.promisedend.logic.SentinelFight.VOLLEY_TICKS, VOLLEY_WINDUP = 10,
+            VOLLEY_SHOTS = com.panda.promisedend.logic.SentinelFight.VOLLEY_SHOTS, SHOT_GAP = com.panda.promisedend.logic.SentinelFight.SHOT_GAP;
+    public static final int RETURNS_TO_OPEN = 3, OPEN_TICKS = com.panda.promisedend.logic.SentinelFight.OPEN_TICKS;
     /** How fast it drops to its dais when it cracks open, in blocks a tick: there in about half a second. */
-    public static final double SINK = 0.5;
-    public static final float OPEN_DAMAGE = 1.5F;
+    public static final double SINK = com.panda.promisedend.logic.SentinelFight.SINK;
+    public static final float OPEN_DAMAGE = com.panda.promisedend.logic.SentinelFight.OPEN_DAMAGE;
     /** The phases begin at these shares of its health; each one's bullets fly this much faster than the last's. */
-    public static final float[] PHASES = {2.0F / 3.0F, 1.0F / 3.0F};
-    public static final double PHASE_SPEEDUP = 1.25;
+    public static final float[] PHASES = com.panda.promisedend.logic.SentinelFight.PHASES;
+    public static final double PHASE_SPEEDUP = com.panda.promisedend.logic.SentinelFight.PHASE_SPEEDUP;
     /** The Foundry's pads, on the diagonals this far from its rest (gen_structures FOUNDRY_PAD). */
     public static final int PAD = 10;
     public static final int ENRAGE_TICKS = 4800;
@@ -92,7 +93,7 @@ public class HollowSentinel extends Monster implements GeoEntity {
     public static final int REST_TICKS = 600;
     /** A player this near when it dies counts as having fought it. */
     public static final double WITNESS = 32.0;
-    public static final double HEALTH = 300.0, ARMOUR = 10.0, CONTACT_DAMAGE = 8.0;
+    public static final double HEALTH = com.panda.promisedend.logic.SentinelFight.HEALTH, ARMOUR = com.panda.promisedend.logic.SentinelFight.ARMOUR, CONTACT_DAMAGE = 8.0;
     /** The renderer draws the rig at this scale; the hitbox is measured at it. */
     public static final float MODEL_SCALE = 1.5F;
     /** The tag a player gets once told how to fight it (the hint is said once). */
@@ -207,7 +208,7 @@ public class HollowSentinel extends Monster implements GeoEntity {
 
     /** The speed of its bullets in its phase. */
     public double bulletSpeed() {
-        return ResonantBullet.SPEED * Math.pow(PHASE_SPEEDUP, phase);
+        return com.panda.promisedend.logic.SentinelFight.bulletSpeed(phase);
     }
 
     private void setState(State state) {

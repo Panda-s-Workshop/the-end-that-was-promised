@@ -9,7 +9,8 @@ import java.util.List;
  * {@link #seconds}.
  */
 public final class ArchitectFight {
-    public static final float HEALTH = 1000.0F, ARMOUR = 12.0F;
+    /** Its health (vanilla's most), armour and toughness: toughness keeps a big blow, as a critical one, from going through. */
+    public static final float HEALTH = 1000.0F, ARMOUR = 16.0F, TOUGHNESS = 8.0F;
     /**
      * A blow on the keystone deals this many times its damage. It is taken before armour, which takes less of a bigger
      * blow, so a Voidsteel sword's blow lands about 1.6 times as hard there.
@@ -82,7 +83,7 @@ public final class ArchitectFight {
      * second, each landed while its cage is open: the time it is open times the damage a second, phase by phase.
      */
     public static double seconds(float blow, float perSecond) {
-        double each = Balance.afterArmour(blow, ARMOUR, 0.0F) * perSecond, total = 0;
+        double each = Balance.afterArmour(blow, ARMOUR, TOUGHNESS) * perSecond, total = 0;
         for (int phase = 0; phase < WORKS.size(); phase++) total += HEALTH * healthShare(phase) / (each * openShare(phase));
         return total;
     }

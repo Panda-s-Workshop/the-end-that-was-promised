@@ -42,6 +42,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import com.panda.promisedend.logic.LeviathanFight;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -83,16 +84,23 @@ public class VoidLeviathan extends Monster implements GeoEntity {
      * just inside the pool's edge, its ring reaching {@code BREACH_OUT + RING}, past the lip's row of vents.
      */
     public static final double BREACH_OUT = POOL - 1.25;
-    public static final int GAP_MIN = 160, GAP_MAX = 240;
-    public static final int TELEGRAPH_TICKS = 30, BREACH_TICKS = 10, EXPOSED_TICKS = 80, DIVE_TICKS = 15;
+    public static final int GAP_MIN = LeviathanFight.GAP_MIN, GAP_MAX = LeviathanFight.GAP_MAX;
+    public static final int TELEGRAPH_TICKS = LeviathanFight.TELEGRAPH_TICKS, BREACH_TICKS = LeviathanFight.BREACH_TICKS,
+            EXPOSED_TICKS = LeviathanFight.EXPOSED_TICKS, DIVE_TICKS = LeviathanFight.DIVE_TICKS;
     /** Under the surface between the two breaches of a pair. */
-    public static final int PAIR_GAP = 20;
+    public static final int PAIR_GAP = LeviathanFight.PAIR_GAP;
     public static final double RING = 4.5;
     public static final float BREACH_DAMAGE = 14.0F;
-    /** The share of a blow it takes while it isn't exposed. */
+    /** The share of a blow it takes while it isn't exposed, or from a fighter past {@link #STRIKE_FROM}. */
     public static final float OUTSIDE = 0.2F;
+    /**
+     * How far from the pool's middle a fighter's blow or shot lands in full: its lip, about as far as its breach reaches
+     * ({@link #BREACH_OUT} and {@link #RING}). From farther, as from a bow at the Maw's edge, it barely feels it, so a
+     * fighter has to stand where it can strike back.
+     */
+    public static final double STRIKE_FROM = 18.0;
     /** Below these shares of its health it breaches twice in a row, and draws players in while it rears. */
-    public static final float TWICE = 0.5F, DRAGS = 0.2F;
+    public static final float TWICE = LeviathanFight.TWICE, DRAGS = 0.2F;
     /**
      * The draw: {@link #PULL} blocks a tick, given as a shove every {@link #PULL_EVERY} ticks to a player on the ground
      * (a player's own client moves them, so a shove each tick would hold a falling player in the air). Ground friction
@@ -110,7 +118,7 @@ public class VoidLeviathan extends Monster implements GeoEntity {
     public static final int REST_TICKS = 600;
     /** A player this near when it dies counts as having fought it. */
     public static final double WITNESS = 32.0;
-    public static final double HEALTH = 450.0, ARMOUR = 8.0;
+    public static final double HEALTH = LeviathanFight.HEALTH, ARMOUR = LeviathanFight.ARMOUR;
     /** The renderer draws the rig at this scale; the hitbox is measured at it. */
     public static final float MODEL_SCALE = 2.6F;
     /** The tag a player gets once told how to fight it (the hint is said once). */
@@ -526,8 +534,11 @@ public class VoidLeviathan extends Monster implements GeoEntity {
             fought.add(p.getUUID());
             if (state() == State.DORMANT) wake();
         }
-        if (!exposed && source.getEntity() instanceof Player) playSound(ModSounds.VOID_LEVIATHAN_HURT_DEEP.get(), 1.5F, 1.0F);
-        return super.hurtServer(level, source, exposed ? amount : amount * OUTSIDE);
+        boolean near = !(source.getEntity() instanceof Player p) || home == null
+                || Math.hypot(p.getX() - (home.getX() + 0.5), p.getZ() - (home.getZ() + 0.5)) <= STRIKE_FROM;
+        boolean full = exposed && near;
+        if (!full && source.getEntity() instanceof Player) playSound(ModSounds.VOID_LEVIATHAN_HURT_DEEP.get(), 1.5F, 1.0F);
+        return super.hurtServer(level, source, full ? amount : amount * OUTSIDE);
     }
 
     // ---- its end: the seal, the advancement -------------------------------------------------------------------------

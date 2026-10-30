@@ -88,6 +88,7 @@ public final class EndGameTests {
         FUNCTIONS.register("drift_islet_carries", () -> EndGameTests::driftIsletCarries);
         FUNCTIONS.register("drift_islet_blocked_turns", () -> EndGameTests::driftIsletBlockedTurns);
         FUNCTIONS.register("drift_islet_saves", () -> EndGameTests::driftIsletSaves);
+        FUNCTIONS.register("drift_islet_spares_builds", () -> EndGameTests::driftIsletSparesBuilds);
         FUNCTIONS.register("drift_islet_headroom_turns", () -> EndGameTests::driftIsletHeadroomTurns);
         FUNCTIONS.register("drift_islet_keeps_rider_aloft", () -> EndGameTests::driftIsletKeepsRiderAloft);
         FUNCTIONS.register("drift_islet_crossing", () -> EndGameTests::driftIsletCrossing);
@@ -173,6 +174,7 @@ public final class EndGameTests {
         FUNCTIONS.register("ancient_tablets_read_in_order", () -> TabletGameTests::ancientTabletsReadInOrder);
         FUNCTIONS.register("ancient_tablets_in_chests", () -> TabletGameTests::ancientTabletsInChests);
         FUNCTIONS.register("leviathan_exposed_window_only", () -> LeviathanGameTests::exposedWindowOnly);
+        FUNCTIONS.register("leviathan_far_blows_land_light", () -> LeviathanGameTests::farBlowsLandLight);
         FUNCTIONS.register("leviathan_breach_telegraphs", () -> LeviathanGameTests::breachTelegraphs);
         FUNCTIONS.register("leviathan_pairs_and_draws", () -> LeviathanGameTests::pairsAndDraws);
         FUNCTIONS.register("leviathan_death_breaks_seal", () -> LeviathanGameTests::deathBreaksSeal);
@@ -252,7 +254,7 @@ public final class EndGameTests {
             "sentinel_opens_after_three_returns", "sentinel_phases_call_sentries", "sentinel_wakes_for_survival", "sentinel_death_breaks_seal",
             "sentinel_volleys_never_crack_itself", "sentinel_opens_onto_its_rest",
             // a Leviathan wakes for and strikes any survival player in 48 of it, and its seal is the world's
-            "leviathan_exposed_window_only", "leviathan_breach_telegraphs", "leviathan_pairs_and_draws", "leviathan_death_breaks_seal",
+            "leviathan_exposed_window_only", "leviathan_far_blows_land_light", "leviathan_breach_telegraphs", "leviathan_pairs_and_draws", "leviathan_death_breaks_seal",
             // an Architect wakes for and builds against any survival player in 48, lays its disc past the test's bounds,
             // and its seal is the world's
             "architect_only_edits_lattice", "architect_arena_resets", "architect_keystone_takes_double", "architect_death_breaks_seal",
@@ -4199,6 +4201,30 @@ public final class EndGameTests {
         islet.discard();
         copy.discard();
         if (!bad.isEmpty()) helper.fail("drift islet save: " + bad);
+        helper.succeed();
+    }
+
+    /**
+     * A Drift Islet's first pass takes from its way what the lands grow, and spares a player's build: End Stone in its
+     * way goes; a Stone block and a chest (built across the gap before the pass) stay.
+     */
+    private static void driftIsletSparesBuilds(GameTestHelper helper) {
+        BlockPos grown = new BlockPos(6, 4, 5), built = new BlockPos(5, 3, 5), chest = new BlockPos(7, 3, 6);
+        helper.setBlock(grown, net.minecraft.world.level.block.Blocks.END_STONE);
+        helper.setBlock(built, net.minecraft.world.level.block.Blocks.STONE);
+        helper.setBlock(chest, net.minecraft.world.level.block.Blocks.CHEST);
+        var islet = islet(helper);
+        int cleared = islet.clearWay();
+        var level = helper.getLevel();
+        PromisedEnd.LOGGER.info("[drift_islet_spares_builds] cleared {}; the end stone {}, the stone {}, the chest {}", cleared,
+                level.getBlockState(helper.absolutePos(grown)), level.getBlockState(helper.absolutePos(built)), level.getBlockState(helper.absolutePos(chest)));
+        List<String> bad = new ArrayList<>();
+        if (cleared < 0) bad.add("the arena's chunks aren't loaded");
+        if (!level.getBlockState(helper.absolutePos(grown)).isAir()) bad.add("the End Stone in its way stayed");
+        if (!level.getBlockState(helper.absolutePos(built)).is(net.minecraft.world.level.block.Blocks.STONE)) bad.add("the player's Stone was cleared");
+        if (!level.getBlockState(helper.absolutePos(chest)).is(net.minecraft.world.level.block.Blocks.CHEST)) bad.add("the player's chest was cleared");
+        islet.discard();
+        if (!bad.isEmpty()) helper.fail("drift islet clear: " + bad);
         helper.succeed();
     }
 

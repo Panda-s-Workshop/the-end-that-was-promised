@@ -209,8 +209,8 @@ final class ArchitectGameTests {
     /**
      * Its keystone takes a blow harder. Awake (its AI off, so it holds still and faces the player), with its cage shut
      * a blow does nothing; with it open, it is struck for 10 by a player looking at the keystone and by one looking at
-     * its mast: the first lands on the keystone for {@link TheArchitect#KEYSTONE_DAMAGE} times, so after its armour 12
-     * it takes 11.7 against 7.2. An arrow flown at the keystone counts too; one at the mast doesn't. Dormant, a blow
+     * its mast: the first lands on the keystone for {@link TheArchitect#KEYSTONE_DAMAGE} times, so after its armour 16
+     * and toughness 8 it takes 7.3 against 4.6. An arrow flown at the keystone counts too; one at the mast doesn't. Dormant, a blow
      * does nothing.
      */
     static void keystoneTakesDouble(GameTestHelper helper) {
@@ -243,8 +243,8 @@ final class ArchitectGameTests {
             float onMast = mid - a.getHealth();
             PromisedEnd.LOGGER.info("[architect_keystone_takes_double] 10 on the keystone took {}, on the mast {}; keystone hits {} then {}", onKey, onMast, hits, a.keystoneHits());
             if (hits != 1 || a.keystoneHits() != 1) bad.add("keystone hits " + hits + " then " + a.keystoneHits() + ", not 1 and 1");
-            float wantKey = com.panda.promisedend.logic.Balance.afterArmour(10.0F * TheArchitect.KEYSTONE_DAMAGE, (float) TheArchitect.ARMOUR, 0.0F);
-            float wantMast = com.panda.promisedend.logic.Balance.afterArmour(10.0F, (float) TheArchitect.ARMOUR, 0.0F);
+            float wantKey = com.panda.promisedend.logic.Balance.afterArmour(10.0F * TheArchitect.KEYSTONE_DAMAGE, (float) TheArchitect.ARMOUR, (float) TheArchitect.TOUGHNESS);
+            float wantMast = com.panda.promisedend.logic.Balance.afterArmour(10.0F, (float) TheArchitect.ARMOUR, (float) TheArchitect.TOUGHNESS);
             if (Math.abs(onKey - wantKey) > 0.05F || Math.abs(onMast - wantMast) > 0.05F) bad.add("the keystone took " + onKey + " and the mast " + onMast + ", not " + wantKey + " and " + wantMast);
             a.damageCooldownTime = 0;
             // the arrows: the player stood aside, out of their flight

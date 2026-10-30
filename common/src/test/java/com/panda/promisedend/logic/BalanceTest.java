@@ -45,14 +45,36 @@ class BalanceTest {
         assertTrue(easy >= normal, "Easy is kinder: " + easy);
     }
 
+    // each guardian's band holds for plain blows and for critical ones (every blow a falling one): ideal play either way
+
+    @Test
+    void diamondPlayerTakesOneToTwoAndAHalfMinutesOnTheSentinel() {
+        float sword = GearTiers.DIAMOND.swordDamage(), swings = 4.0F + GearTiers.SWORD_SPEED;
+        double plain = SentinelFight.seconds(sword, swings), critical = SentinelFight.seconds(sword * Balance.CRITICAL, swings);
+        System.out.printf("Sentinel: %.0f s plain, %.0f s critical, a diamond sword at %.1f a second%n", plain, critical, swings);
+        assertTrue(plain >= 60 && plain <= 150, "plain " + plain + " s");
+        assertTrue(critical >= 60 && critical <= 150, "critical " + critical + " s");
+    }
+
+    @Test
+    void resonitePlayerTakesThreeToSixMinutesOnTheLeviathan() {
+        // the full set's Resonance: every fourth blow 2 more, a half a blow on average
+        float sword = GearTiers.RESONITE.swordDamage(), ring = Resonance.BONUS_DAMAGE / Resonance.EVERY, swings = 4.0F + GearTiers.SWORD_SPEED;
+        double plain = LeviathanFight.seconds(sword + ring, swings), critical = LeviathanFight.seconds(sword * Balance.CRITICAL + ring, swings);
+        System.out.printf("Leviathan: %.1f min plain, %.1f min critical, a Resonite sword at %.1f a second%n", plain / 60, critical / 60, swings);
+        assertTrue(plain >= 180 && plain <= 360, "plain " + plain + " s");
+        assertTrue(critical >= 180 && critical <= 360, "critical " + critical + " s");
+    }
+
     @Test
     void voidsteelPlayerTakesFourToEightMinutesOnTheArchitect() {
         float sword = GearTiers.VOIDSTEEL.swordDamage(), swings = 4.0F + GearTiers.SWORD_SPEED;
-        double body = ArchitectFight.seconds(sword, swings);
+        double body = ArchitectFight.seconds(sword, swings), critical = ArchitectFight.seconds(sword * Balance.CRITICAL, swings);
         double keystone = ArchitectFight.seconds(sword * ArchitectFight.KEYSTONE_DAMAGE, swings);
-        System.out.printf("Architect: %.0f s on its body, %.0f s on its keystone (%.2f times as fast), a Voidsteel sword at %.1f a second%n",
-                body, keystone, body / keystone, swings);
+        System.out.printf("Architect: %.0f s on its body (%.0f s critical), %.0f s on its keystone (%.2f times as fast), a Voidsteel sword at %.1f a second%n",
+                body, critical, keystone, body / keystone, swings);
         assertTrue(body >= 240 && body <= 480, "on its body " + body + " s");
+        assertTrue(critical >= 240 && critical <= 480, "on its body, critical " + critical + " s");
         assertTrue(body / keystone >= 1.5 && body / keystone <= 1.7, "the keystone " + body / keystone + " times as fast");
     }
 }

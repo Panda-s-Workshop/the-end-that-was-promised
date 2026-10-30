@@ -162,7 +162,8 @@ final class SentinelGameTests {
 
     /**
      * Past two thirds of its health it calls two Purpur Sentries, closes and its bullets speed up a quarter; past a
-     * third two more. Phases go forward only.
+     * third two more. Phases go forward only. Each time it is set just over the line, and a blow of 20 (27.6 open,
+     * through its armour) takes it past.
      */
     static void phasesCallSentries(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -174,7 +175,8 @@ final class SentinelGameTests {
         ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
         s.wake();
         s.crackOpen();
-        s.hurtServer(level, level.damageSources().playerAttack(p), 80.0F);
+        s.setHealth(s.getMaxHealth() * 0.7F);
+        s.hurtServer(level, level.damageSources().playerAttack(p), 20.0F);
         int sentries = level.getEntitiesOfClass(PurpurSentry.class, s.getBoundingBox().inflate(16)).size();
         PromisedEnd.LOGGER.info("[sentinel_phases_call_sentries] at {} health: phase {}, {}, {} sentries, bullets {}",
                 s.getHealth(), s.phase(), s.state(), sentries, s.bulletSpeed());
@@ -182,7 +184,8 @@ final class SentinelGameTests {
         if (Math.abs(s.bulletSpeed() - ResonantBullet.SPEED * 1.25) > 1e-9) bad.add("phase 1 bullets at " + s.bulletSpeed());
         helper.runAfterDelay(15, () -> {
             s.crackOpen();
-            s.hurtServer(level, level.damageSources().playerAttack(p), 80.0F);
+            s.setHealth(s.getMaxHealth() * 0.35F);
+            s.hurtServer(level, level.damageSources().playerAttack(p), 20.0F);
             int more = level.getEntitiesOfClass(PurpurSentry.class, s.getBoundingBox().inflate(16)).size();
             if (s.phase() != 2 || more != 4) bad.add("past a third: phase " + s.phase() + ", " + more + " sentries");
             level.getServer().getPlayerList().remove(p);

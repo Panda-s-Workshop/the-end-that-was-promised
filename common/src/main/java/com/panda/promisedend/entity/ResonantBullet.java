@@ -34,7 +34,7 @@ public class ResonantBullet extends ThrowableItemProjectile {
     /** A second of Levitation: a lift that spoils footing, not a fall that kills. */
     public static final int LEVITATION_TICKS = 20;
     /** How fast it flies out (blocks a tick, before the phase's speed-up), and back. */
-    public static final double SPEED = 0.3, RETURN_SPEED = 0.6;
+    public static final double SPEED = com.panda.promisedend.logic.SentinelFight.BULLET_SPEED, RETURN_SPEED = com.panda.promisedend.logic.SentinelFight.RETURN_SPEED;
     /** How much of the way to its target it turns each tick. */
     public static final double TURN = 0.08;
     /** It breaks up after this long, out or back. */

@@ -284,9 +284,11 @@ public class DriftIslet extends Entity {
     /**
      * Clears its way, once: what worldgen grew into the room it sweeps, its own block and the two over it a rider stands
      * in, slice by slice along its route, and mends its two moorings (a feature in a chunk next door can reach in after
-     * the route's own pass, into its way or over a post). Leaves other structures alone (an End City's ship). Waits
-     * until every chunk along the way and at its moorings is loaded. Returns the blocks cleared, or -1 when it has to
-     * wait.
+     * the route's own pass, into its way or over a post). Takes only what the lands grow
+     * ({@code #promisedend:drift_clearable}), never a block entity: a player may have built across the gap before the
+     * far end loaded, and their bridge stays (the islet turns back at it, as at any block in its way). Leaves other
+     * structures alone (an End City's ship). Waits until every chunk along the way and at its moorings is loaded.
+     * Returns the blocks cleared, or -1 when it has to wait.
      */
     public int clearWay() {
         double length = route.length();
@@ -314,7 +316,8 @@ public class DriftIslet extends Entity {
                                     h -> !h.is(com.panda.promisedend.worldgen.DriftRouteStructure.KEY)).isValid());
                     if (other) continue;
                     for (int y = (int) Math.floor(slice.minY); y <= (int) Math.floor(slice.maxY); y++) {
-                        if (!level().getBlockState(at.set(x, y, z)).isAir()) {
+                        var state = level().getBlockState(at.set(x, y, z));
+                        if (!state.isAir() && state.is(com.panda.promisedend.registry.ModTags.DRIFT_CLEARABLE) && !state.hasBlockEntity()) {
                             level().setBlock(at, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
                             cleared++;
                         }

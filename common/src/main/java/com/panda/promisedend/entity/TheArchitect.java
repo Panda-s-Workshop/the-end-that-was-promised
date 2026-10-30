@@ -119,7 +119,7 @@ public class TheArchitect extends Monster implements GeoEntity {
     public static final int CRAWLER_OUT = 8;
     /** A player this near when it dies counts as having fought it. */
     public static final double WITNESS = 32.0;
-    public static final double HEALTH = ArchitectFight.HEALTH, ARMOUR = ArchitectFight.ARMOUR;
+    public static final double HEALTH = ArchitectFight.HEALTH, ARMOUR = ArchitectFight.ARMOUR, TOUGHNESS = ArchitectFight.TOUGHNESS;
     /** The renderer draws the rig at this scale; the hitbox is measured at it. */
     public static final float MODEL_SCALE = 2.0F;
     /** The tag a player gets once told how to fight it (the hint is said once). */
@@ -187,6 +187,7 @@ public class TheArchitect extends Monster implements GeoEntity {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, HEALTH)
                 .add(Attributes.ARMOR, ARMOUR)
+                .add(Attributes.ARMOR_TOUGHNESS, TOUGHNESS)
                 .add(Attributes.ATTACK_DAMAGE, LatticeShard.DAMAGE)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0)
                 .add(Attributes.FLYING_SPEED, 0.2)
