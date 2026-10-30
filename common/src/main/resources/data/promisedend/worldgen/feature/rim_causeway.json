@@ -1,0 +1,7 @@
+{
+  "type": "promisedend:causeway",
+  "every": 12,
+  "from": 160,
+  "to": 1024,
+  "height": 62
+}

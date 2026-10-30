@@ -32,6 +32,8 @@ public final class ModWorldgen {
     private static final DeferredRegister<net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType> STRUCTURE_PIECES = DeferredRegister.create(Registries.STRUCTURE_PIECE, PromisedEnd.MODID);
 
     public static final Supplier<MapCodec<RimDebrisFeature>> RIM_DEBRIS = FEATURE_TYPES.register("rim_debris", () -> RimDebrisFeature.CODEC);
+    public static final Supplier<MapCodec<com.panda.promisedend.worldgen.CausewayFeature>> CAUSEWAY = FEATURE_TYPES.register("causeway",
+            () -> com.panda.promisedend.worldgen.CausewayFeature.CODEC);
     public static final Supplier<MapCodec<ChorusGroveFeature>> CHORUS_GROVE = FEATURE_TYPES.register("chorus_grove", () -> ChorusGroveFeature.CODEC);
     public static final Supplier<MapCodec<MirePoolFeature>> MIRE_POOL = FEATURE_TYPES.register("mire_pool", () -> MirePoolFeature.CODEC);
     public static final Supplier<MapCodec<ResoniteSpireFeature>> RESONITE_SPIRE = FEATURE_TYPES.register("resonite_spire", () -> ResoniteSpireFeature.CODEC);

@@ -40,7 +40,8 @@
   "features": [
     [
       "promisedend:rim_debris",
-      "promisedend:rim_debris_inner"
+      "promisedend:rim_debris_inner",
+      "promisedend:rim_causeway"
     ]
   ],
   "has_precipitation": false,

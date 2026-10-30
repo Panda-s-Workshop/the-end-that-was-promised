@@ -1,0 +1,9 @@
+{
+  "feature": "promisedend:rim_causeway",
+  "placement": [
+    {
+      "type": "promisedend:stable_seed",
+      "salt": "rim_causeway"
+    }
+  ]
+}
