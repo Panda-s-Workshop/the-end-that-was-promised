@@ -540,22 +540,27 @@ public class VoidLeviathan extends Monster implements GeoEntity {
         bar.removeAllPlayers();
         landDrops(level, source);
         AncientWard.breakSeal(level.getServer(), 1);
-        Set<ServerPlayer> rewarded = new LinkedHashSet<>();
-        for (UUID id : fought) if (level.getServer().getPlayerList().getPlayer(id) instanceof ServerPlayer p) rewarded.add(p);
-        // witnesses who could have fought it; one who struck it is rewarded whatever their mode now
-        for (ServerPlayer p : level.players()) if (!p.isSpectator() && !p.isCreative() && p.distanceToSqr(this) <= WITNESS * WITNESS) rewarded.add(p);
-        var defeated = level.getServer().getAdvancements().get(DEFEATED);
-        for (ServerPlayer p : rewarded) {
-            if (defeated != null) p.getAdvancements().award(defeated, "defeated");
-            // and the way on: a chart to the nearest Unfinished Citadel, where the third seal is kept; and a Leviathan
-            // Fin each, the augment (it can't be copied, so a group's every glider gets one); with no stars falling, a
-            // Starfall Core each too, so the Codex's goal and the Star Compass can still be had
-            net.minecraft.world.item.ItemStack chart = com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_citadel_charts"));
-            List<net.minecraft.world.item.ItemStack> rewards = new java.util.ArrayList<>(List.of(chart, new net.minecraft.world.item.ItemStack(ModItems.LEVIATHAN_FIN.get())));
-            if (!com.panda.promisedend.EndConfig.starfallEnabled()) rewards.add(new net.minecraft.world.item.ItemStack(ModItems.STARFALL_CORE.get()));
-            for (net.minecraft.world.item.ItemStack reward : rewards) {
-                if (!p.getInventory().add(reward)) p.spawnAtLocation(level, reward);
-            }
+        // who it rewards: each who struck it, and witnesses who could have fought it (one who struck it is rewarded
+        // whatever their mode now); given now, or kept for one dead or away (logic/Rewards)
+        Set<UUID> rewarded = new LinkedHashSet<>(fought);
+        for (ServerPlayer p : level.players()) if (!p.isSpectator() && !p.isCreative() && p.distanceToSqr(this) <= WITNESS * WITNESS) rewarded.add(p.getUUID());
+        com.panda.promisedend.logic.Rewards.grant(level.getServer(), rewarded, com.panda.promisedend.logic.Rewards.Guardian.LEVIATHAN);
+    }
+
+    /**
+     * Its reward to one player: the advancement; the way on, a chart to the nearest Unfinished Citadel, where the third
+     * seal is kept; a Leviathan Fin (it can't be copied, so a group's every glider gets one); and with no stars falling,
+     * a Starfall Core, so the Codex's goal and the Star Compass can still be had.
+     */
+    public static void reward(ServerPlayer p) {
+        var defeated = p.level().getServer().getAdvancements().get(DEFEATED);
+        if (defeated != null) p.getAdvancements().award(defeated, "defeated");
+        List<net.minecraft.world.item.ItemStack> rewards = new java.util.ArrayList<>(List.of(
+                com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_citadel_charts")),
+                new net.minecraft.world.item.ItemStack(ModItems.LEVIATHAN_FIN.get())));
+        if (!com.panda.promisedend.EndConfig.starfallEnabled()) rewards.add(new net.minecraft.world.item.ItemStack(ModItems.STARFALL_CORE.get()));
+        for (net.minecraft.world.item.ItemStack reward : rewards) {
+            if (!p.getInventory().add(reward)) p.spawnAtLocation(p.level(), reward);
         }
     }
 

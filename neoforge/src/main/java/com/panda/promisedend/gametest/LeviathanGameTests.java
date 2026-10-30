@@ -310,6 +310,40 @@ final class LeviathanGameTests {
      * 6 to 10 Voidsteel Scrap, one Voidsteel template, 2 Leviathan Scales and no Fin. Killed with the Starfall off, each
      * is also given a Starfall Core (Act IV's goal and the Star Compass need one).
      */
+    /**
+     * A fighter dead at its fall isn't given its reward then (a respawn would lose it) but owed it, by name, and given it
+     * the first second they are alive again: the advancement and the Fin.
+     */
+    static void rewardKeptForTheDead(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        AncientWard.reset(server);
+        VoidLeviathan v = spawn(helper, false);
+        ServerPlayer p = EndGameTests.realPlayer(helper, GameType.SURVIVAL);
+        List<String> bad = new ArrayList<>();
+        v.wake();
+        v.hurtServer(level, level.damageSources().playerAttack(p), 2.0F);
+        if (!v.fought().contains(p.getUUID())) bad.add("the blow didn't make them a fighter");
+        p.setHealth(0.0F);
+        v.hurtServer(level, level.damageSources().genericKill(), Float.MAX_VALUE);
+        int fin = p.getInventory().countItem(ModItems.LEVIATHAN_FIN.get());
+        var owed = com.panda.promisedend.logic.Rewards.owed(server, p.getUUID());
+        if (fin != 0) bad.add("the dead fighter was given " + fin + " Fins at the fall");
+        if (!owed.equals(List.of("LEVIATHAN"))) bad.add("the dead fighter is owed " + owed);
+        p.setHealth(p.getMaxHealth());
+        p.tickCount = 20;
+        com.panda.promisedend.logic.Rewards.tick(p);
+        var defeated = server.getAdvancements().get(PromisedEnd.id("void/defeat_leviathan"));
+        PromisedEnd.LOGGER.info("[leviathan_reward_kept_for_the_dead] owed at the fall {}, Fins then {}, after {}", owed, fin, p.getInventory().countItem(ModItems.LEVIATHAN_FIN.get()));
+        if (p.getInventory().countItem(ModItems.LEVIATHAN_FIN.get()) != 1) bad.add("alive again, they have " + p.getInventory().countItem(ModItems.LEVIATHAN_FIN.get()) + " Fins");
+        if (defeated == null || !p.getAdvancements().getOrStartProgress(defeated).isDone()) bad.add("alive again, no defeat_leviathan");
+        if (!com.panda.promisedend.logic.Rewards.owed(server, p.getUUID()).isEmpty()) bad.add("still owed after it was given");
+        AncientWard.reset(server);
+        server.getPlayerList().remove(p);
+        if (!bad.isEmpty()) helper.fail("the reward kept: " + bad);
+        else helper.succeed();
+    }
+
     static void deathBreaksSeal(GameTestHelper helper) {
         var level = helper.getLevel();
         var server = level.getServer();

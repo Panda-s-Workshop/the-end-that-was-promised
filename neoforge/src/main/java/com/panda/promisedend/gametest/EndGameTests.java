@@ -79,6 +79,7 @@ public final class EndGameTests {
         FUNCTIONS.register("construct_spawns_keep_to_their_lands", () -> EndGameTests::constructSpawnsKeepToTheirLands);
         FUNCTIONS.register("arrival_by_coordinates", () -> EndGameTests::arrivalByCoordinates);
         FUNCTIONS.register("waystation_stand_mended", () -> EndGameTests::waystationStandMended);
+        FUNCTIONS.register("wrath_hoard_rewards", () -> EndGameTests::wrathHoardRewards);
         FUNCTIONS.register("ward_sets_back", () -> EndGameTests::wardSetsBack);
         FUNCTIONS.register("seals_drop_the_ward", () -> EndGameTests::sealsDropTheWard);
         FUNCTIONS.register("ward_bounces_pearls", () -> EndGameTests::wardBouncesPearls);
@@ -202,6 +203,7 @@ public final class EndGameTests {
         FUNCTIONS.register("architect_shard_lands_where_shown", () -> ArchitectGameTests::shardLandsWhereShown);
         FUNCTIONS.register("architect_saved_mid_fight", () -> ArchitectGameTests::savedMidFight);
         FUNCTIONS.register("leviathan_saved_mid_fight", () -> LeviathanGameTests::savedMidFight);
+        FUNCTIONS.register("leviathan_reward_kept_for_the_dead", () -> LeviathanGameTests::rewardKeptForTheDead);
         FUNCTIONS.register("leviathan_sleeps_alone", () -> LeviathanGameTests::sleepsAlone);
         FUNCTIONS.register("architect_promise_reads_closing_page", () -> ArchitectGameTests::promiseReadsClosingPage);
         FUNCTIONS.register("architect_lattice_boosts", () -> ArchitectGameTests::latticeBoosts);
@@ -238,7 +240,7 @@ public final class EndGameTests {
      * test that succeeds removes every entity in and round its own bounds, so a neighbour finishing first took the
      * dragon with it (seen as a Warden whose heals never landed).
      */
-    private static final java.util.Set<String> ALONE = java.util.Set.of("void_anchor_ward_fallback", "amber_gate_needs_key", "dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
+    private static final java.util.Set<String> ALONE = java.util.Set.of("void_anchor_ward_fallback", "leviathan_reward_kept_for_the_dead", "amber_gate_needs_key", "dragon_phase3_triggers", "dragon_phase3_wardens_by_wrath",
             "warden_heals_dragon", "dragon_void_breath_dive", "void_breath_dodged", "called_wardens_take_turns",
             "crystal_warden_ignores_the_dragon", "crystal_warden_shatters_and_drops",
             // counts constructs within 32 blocks, which reaches into the arenas beside it
@@ -4960,6 +4962,42 @@ public final class EndGameTests {
             if (!bad.isEmpty()) helper.fail("wrath: " + bad);
             helper.succeed();
         });
+    }
+
+    /**
+     * The hoards' rewards past scales and Starmetal, over 400 rolls of each table: none at Wrath 2; an augment
+     * template (a Leviathan Fin or an Architect's Lattice) about one in five at Wrath 3 and half at Wrath 5; the Wrathful
+     * Crown in every Wrath 5 hoard, a head item that wears.
+     */
+    private static void wrathHoardRewards(GameTestHelper helper) {
+        var level = helper.getLevel();
+        List<String> bad = new ArrayList<>();
+        java.util.Map<Integer, String> report = new java.util.TreeMap<>();
+        for (int wrath : new int[] {2, 3, 5}) {
+            var table = level.getServer().reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
+                    PromisedEnd.id("chests/dragon_hoard/wrath_" + wrath)));
+            var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                    .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.ZERO)
+                    .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
+            int templates = 0, crowns = 0, rolls = 400;
+            for (int i = 0; i < rolls; i++) {
+                for (var stack : table.getRandomItems(params)) {
+                    if (stack.is(com.panda.promisedend.registry.ModItems.LEVIATHAN_FIN.get()) || stack.is(com.panda.promisedend.registry.ModItems.ARCHITECTS_LATTICE.get())) templates++;
+                    if (stack.is(com.panda.promisedend.registry.ModItems.WRATHFUL_CROWN.get())) crowns++;
+                }
+            }
+            report.put(wrath, templates + " templates, " + crowns + " crowns");
+            double share = templates / (double) rolls;
+            if (wrath == 2 && (templates != 0 || crowns != 0)) bad.add("Wrath 2: " + report.get(wrath));
+            if (wrath == 3 && (share < 0.12 || share > 0.28 || crowns != 0)) bad.add("Wrath 3: " + report.get(wrath));
+            if (wrath == 5 && (share < 0.4 || share > 0.6 || crowns != rolls)) bad.add("Wrath 5: " + report.get(wrath));
+        }
+        var crown = new net.minecraft.world.item.ItemStack(com.panda.promisedend.registry.ModItems.WRATHFUL_CROWN.get());
+        var equippable = crown.get(net.minecraft.core.component.DataComponents.EQUIPPABLE);
+        if (equippable == null || equippable.slot() != net.minecraft.world.entity.EquipmentSlot.HEAD || equippable.assetId().isEmpty()) bad.add("the crown doesn't wear on the head: " + equippable);
+        PromisedEnd.LOGGER.info("[wrath_hoard_rewards] over 400 rolls: {}", report);
+        if (!bad.isEmpty()) helper.fail("hoard rewards: " + bad);
+        else helper.succeed();
     }
 
     /**

@@ -31,6 +31,23 @@
           ]
         }
       ]
+    },
+    {
+      "rolls": 1,
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.2
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:leviathan_fin"
+        },
+        {
+          "type": "minecraft:item",
+          "name": "promisedend:architects_lattice"
+        }
+      ]
     }
   ]
 }

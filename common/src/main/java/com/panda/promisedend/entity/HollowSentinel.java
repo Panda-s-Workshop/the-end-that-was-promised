@@ -467,18 +467,20 @@ public class HollowSentinel extends Monster implements GeoEntity {
         if (already || !(level() instanceof ServerLevel level)) return;
         bar.removeAllPlayers();
         AncientWard.breakSeal(level.getServer(), 0);
-        Set<ServerPlayer> rewarded = new LinkedHashSet<>();
-        for (UUID id : fought) if (level.getServer().getPlayerList().getPlayer(id) instanceof ServerPlayer p) rewarded.add(p);
-        // witnesses who could have fought it; one who struck it is rewarded whatever their mode now
-        for (ServerPlayer p : level.players()) if (!p.isSpectator() && !p.isCreative() && p.distanceToSqr(this) <= WITNESS * WITNESS) rewarded.add(p);
-        var defeated = level.getServer().getAdvancements().get(DEFEATED);
-        for (ServerPlayer p : rewarded) {
-            if (defeated != null) p.getAdvancements().award(defeated, "defeated");
-            ItemStack core = new ItemStack(ModItems.ANCIENT_CORE.get());
-            if (!p.getInventory().add(core)) p.spawnAtLocation(level, core);
-            // and the way on: a chart to the nearest Rift Maw, where the second seal is kept
-            ItemStack chart = com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_rift_maw_charts"));
-            if (!p.getInventory().add(chart)) p.spawnAtLocation(level, chart);
+        // who it rewards: each who struck it, and witnesses who could have fought it (one who struck it is rewarded
+        // whatever their mode now); given now, or kept for one dead or away (logic/Rewards)
+        Set<UUID> rewarded = new LinkedHashSet<>(fought);
+        for (ServerPlayer p : level.players()) if (!p.isSpectator() && !p.isCreative() && p.distanceToSqr(this) <= WITNESS * WITNESS) rewarded.add(p.getUUID());
+        com.panda.promisedend.logic.Rewards.grant(level.getServer(), rewarded, com.panda.promisedend.logic.Rewards.Guardian.SENTINEL);
+    }
+
+    /** Its reward to one player: the advancement, an Ancient Core, and the way on, a chart to the nearest Rift Maw. */
+    public static void reward(ServerPlayer p) {
+        var defeated = p.level().getServer().getAdvancements().get(DEFEATED);
+        if (defeated != null) p.getAdvancements().award(defeated, "defeated");
+        for (ItemStack reward : List.of(new ItemStack(ModItems.ANCIENT_CORE.get()),
+                com.panda.promisedend.item.StarChartItem.of(ModItems.STAR_CHART.get(), PromisedEnd.id("on_rift_maw_charts")))) {
+            if (!p.getInventory().add(reward)) p.spawnAtLocation(p.level(), reward);
         }
     }
 

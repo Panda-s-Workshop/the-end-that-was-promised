@@ -165,6 +165,13 @@ public final class ModItems {
     public static final DeferredItem<com.panda.promisedend.item.VoidsteelArmourItem> VOIDSTEEL_LEGGINGS = voidsteel("voidsteel_leggings", ArmorType.LEGGINGS);
     public static final DeferredItem<com.panda.promisedend.item.VoidsteelArmourItem> VOIDSTEEL_BOOTS = voidsteel("voidsteel_boots", ArmorType.BOOTS);
 
+    // ---- the Wrathful Crown: the Wrath 5 hoard's, a look worn on the head --------------------------
+    public static final ResourceKey<EquipmentAsset> CROWN_ASSET = ResourceKey.create(EquipmentAssets.ROOT_ID, PromisedEnd.id("wrathful_crown"));
+    public static final DeferredItem<HintItem> WRATHFUL_CROWN = ITEMS.registerItem("wrathful_crown", p -> new HintItem(p, "wrathful_crown", 1),
+            p -> p.stacksTo(1).rarity(net.minecraft.world.item.Rarity.EPIC).fireResistant().component(net.minecraft.core.component.DataComponents.EQUIPPABLE,
+                    net.minecraft.world.item.equipment.Equippable.builder(net.minecraft.world.entity.EquipmentSlot.HEAD).setAsset(CROWN_ASSET)
+                            .setEquipSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE).build()));
+
     // ---- the Promise Codex ------------------------------------------------------------------------
     public static final DeferredItem<com.panda.promisedend.item.PromiseCodexItem> PROMISE_CODEX = ITEMS.registerItem("promise_codex",
             com.panda.promisedend.item.PromiseCodexItem::new, p -> p.stacksTo(1));
